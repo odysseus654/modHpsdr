@@ -1,0 +1,9 @@
+
+*.suo
+/Debug
+/hpsdr-mod/Debug
+/ipch
+/hpsdr-mod.opensdf
+/hpsdr-mod.sdf
+/hpsdr-mod.opensdf
+/hpsdr-mod.sdf
