@@ -7,10 +7,13 @@ protected:
 	bool receive_frame(byte* frame);
 	void send_frame(byte* frame);
 
-	const static byte   SYNC = 0x7F;
+	enum
+	{
+		SYNC = 0x7F,
+		MIC_RATE = 48000
+	};
 	const static float  SCALE_32;				// scale factor for converting 24-bit int from ADC to float
 	const static float  SCALE_16;
-	const static int    MIC_RATE = 48000;
 
 	unsigned m_sampleRate;							// (config) incoming sample rate
 	unsigned m_numReceiver;							// (config) incoming receiver count
