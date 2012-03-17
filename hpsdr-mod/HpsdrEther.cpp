@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "block.h"
 #include "HPSDRDevice.h"
 #include <list>
 #include <process.h>
