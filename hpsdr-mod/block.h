@@ -1,95 +1,123 @@
 #pragma once
-__interface IAttribute;
-__interface IAttributes;
-__interface IAttributeObserver;
-__interface IBlock;
-__interface IBlockDriver;
-__interface IInEndpoint;
-__interface IOutEndpoint;
-
-enum EType : unsigned
+namespace signals
 {
-	etypUnknown = 0x00,
-	etypBoolean = 0x09,
-	etypShort	= 0x0C,
-	etypLong	= 0x0D,
-	etypSingle	= 0x15,
-	etypComplex	= 0x1D,
-	etypString  = 0x23,
-};
+	__interface IAttribute;
+	__interface IAttributes;
+	__interface IAttributeObserver;
+	__interface IBlock;
+	__interface IBlockDriver;
+	__interface IEPBuffer;
+	__interface IEPReceiver;
+	__interface IEPSender;
+	__interface IInEndpoint;
+	__interface IOutEndpoint;
 
-__interface IBlockDriver
-{
-	bool Name(char* buffer, unsigned* bufcount);
-	bool canCreate();
-	bool canDiscover();
-	bool Discover(IBlock** blocks, unsigned* numBlocks);
-	IBlock* Create();
-};
+	enum EType : unsigned
+	{
+		etypNone    = 0x00,
+		etypBoolean = 0x08,
+		etypByte    = 0x0B,
+		etypShort	= 0x0C,
+		etypLong	= 0x0D,
+		etypSingle	= 0x15,
+		etypDouble  = 0x16,
+		etypComplex	= 0x1D,
+		etypString  = 0x23,
+	};
 
-__interface IBlock
-{
-	bool Name(char* buffer, unsigned* bufcount);
-	IBlockDriver* Driver();
-	IBlock* Parent();
-	bool Destroy();
-	unsigned numChildren();
-	bool Children(IBlock** blocks, unsigned* numBlocks);
-	unsigned numIncoming();
-	bool Incoming(IInEndpoint** ep, unsigned* numEP);
-	unsigned numOutgoing();
-	bool Outgoing(IOutEndpoint** ep, unsigned* numEP);
-	bool Start();
-	bool Stop();
-};
+	__interface IBlockDriver
+	{
+		const char* Name();
+		bool canCreate();
+		bool canDiscover();
+		bool Discover(IBlock** blocks, unsigned* numBlocks);
+		IBlock* Create();
+	};
 
-__interface IEPReceiver
-{
-	void Write(void* buffer, EType type, unsigned numElem);
-};
+	__interface IBlock
+	{
+		unsigned AddRef();
+		unsigned Release();
+		const char* Name();
+		IBlockDriver* Driver();
+		IBlock* Parent();
+		unsigned numChildren();
+		bool Children(IBlock** blocks, unsigned* numBlocks);
+		unsigned numIncoming();
+		bool Incoming(IInEndpoint** ep, unsigned* numEP);
+		unsigned numOutgoing();
+		bool Outgoing(IOutEndpoint** ep, unsigned* numEP);
+		bool Start();
+		bool Stop();
+	};
 
-__interface IEPSender
-{
-	void Read(EType type, void* buffer, unsigned* numElem);
-};
+	__interface IEPSender
+	{
+		unsigned Write(void* buffer, EType type, unsigned numElem, unsigned msTimeout);
+		void onSourceConnected(IOutEndpoint* src);
+	};
 
-__interface IInEndpoint
-{
-	EType Type();
-	IAttributes* Attributes();
-	bool Connect(IEPReceiver* recv);
-	bool isConnected();
-	bool Disconnect();
-};
+	__interface IEPReceiver
+	{
+		unsigned Read(EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
+		unsigned AddRef();
+		unsigned Release();
+	};
 
-__interface IOutEndpoint
-{
-	EType Type();
-	IAttributes* Attributes();
-	bool Connect(IEPSender* send);
-	bool isConnected();
-	bool Disconnect();
-};
+	__interface IEPBuffer : public IEPSender, public IEPReceiver
+	{
+		EType Type();
+		unsigned Capacity();
+		unsigned Used();
+	};
 
-__interface IAttributes
-{
-	unsigned numAttributes();
-	void Itemize(IAttribute* attrs, unsigned* numElem);
-	IAttribute* GetByName(char* name);
-	void Attach(IAttributeObserver* obs);
-	void Detach(IAttributeObserver* obs);
-};
+	__interface IInEndpoint
+	{
+		unsigned AddRef();
+		unsigned Release();
+		IBlock* Block();
+		EType Type();
+		IAttributes* Attributes();
+		bool Connect(IEPReceiver* recv);
+		bool isConnected();
+		bool Disconnect();
+		IEPBuffer* CreateBuffer();
+	};
 
-__interface IAttribute
-{
-	bool Name(char* buffer, unsigned* bufcount);
-	EType Type();
-	void Attach(IAttributeObserver* obs);
-	void Detach(IAttributeObserver* obs);
-	void* Value();
-};
+	__interface IOutEndpoint
+	{
+		IBlock* Block();
+		EType Type();
+		IAttributes* Attributes();
+		bool Connect(IEPSender* send);
+		bool isConnected();
+		bool Disconnect();
+		IEPBuffer* CreateBuffer();
+	};
 
-__interface IAttributeObsever
-{
-	void OnChanged(char* name, EType type, void* value);
-};
+	__interface IAttributes
+	{
+		unsigned numAttributes();
+		void Itemize(IAttribute* attrs, unsigned* numElem);
+		IAttribute* GetByName(char* name);
+		void Attach(IAttributeObserver* obs);
+		void Detach(IAttributeObserver* obs);
+		IBlock* Block();
+	};
+
+	__interface IAttribute
+	{
+		const char* Name();
+		const char* Description();
+		IAttributes* Attributes();
+		EType Type();
+		void Attach(IAttributeObserver* obs);
+		void Detach(IAttributeObserver* obs);
+		void* Value();
+	};
+
+	__interface IAttributeObserver
+	{
+		void OnChanged(char* name, EType type, void* value);
+	};
+}
