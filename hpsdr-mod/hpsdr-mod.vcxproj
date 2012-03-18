@@ -73,12 +73,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="block.h" />
+    <ClInclude Include="BlockImpl.h" />
     <ClInclude Include="HPSDRDevice.h" />
     <ClInclude Include="HpsdrEther.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BlockImpl.cpp" />
     <ClCompile Include="hpsdr-mod.cpp" />
     <ClCompile Include="HPSDRDevice.cpp" />
     <ClCompile Include="HpsdrEther.cpp" />

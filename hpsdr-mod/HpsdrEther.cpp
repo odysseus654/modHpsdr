@@ -110,52 +110,58 @@ __declspec(noreturn) void ThrowErrnoError(int err)
 	throw errno_exception(err, strerror(err));
 }
 
-SOCKET CHpsdrEthernet::buildSocket() const
+// ------------------------------------------------------------------ class CHpsdrEthernetDriver
+
+const char* CHpsdrEthernetDriver::NAME = "OpenHPSDR Ethernet Devices";
+CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+
+CHpsdrEthernetDriver::CHpsdrEthernetDriver()
 {
-	sockaddr_in iep;
-	memset(&iep, 0, sizeof(iep));
-	iep.sin_family = AF_INET;
-	iep.sin_addr.S_un.S_addr = INADDR_ANY;
-
-	// bind (open) the socket so we can use the Metis/Hermes that was found/selected
-	SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if(sock == INVALID_SOCKET) ThrowSocketError(WSAGetLastError());
-	try
-	{
-		if(::bind(sock, (sockaddr*)&iep, sizeof(iep)) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
-
-		static const int ReceiveBufferSize = 0xFFFF;   // no lost frame counts at 192kHz with this setting
-		if(::setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*)&ReceiveBufferSize, sizeof(ReceiveBufferSize)) == SOCKET_ERROR)
-		{
-			ThrowSocketError(WSAGetLastError());
-		}
-
-		static const int SendBufferSize = 1032;
-		if(::setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, sizeof(SendBufferSize)) == SOCKET_ERROR)
-		{
-			ThrowSocketError(WSAGetLastError());
-		}
-
-		static const u_long Blocking = 1;
-		if(::ioctlsocket(sock, FIONBIO, (u_long*)&Blocking) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
-
-		// create an endpoint for sending to Metis
-		memset(&iep, 0, sizeof(iep));
-		iep.sin_family = AF_INET;
-		iep.sin_addr.S_un.S_addr = Metis_IP_address;
-		iep.sin_port = htons(METIS_PORT);
-		if(::connect(sock, (sockaddr*)&iep, sizeof(iep)) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
-	}
-	catch(const std::exception&)
-	{
-		::shutdown(sock, SD_BOTH);
-		throw;
-	}
-
-	return sock;
+	WSADATA wsaData;
+	m_wsaStartup = WSAStartup(MAKEWORD(2, 2), &wsaData);
 }
 
-void CHpsdrEthernet::Metis_Discovery(std::list<CDiscoveredBoard>& discList)
+CHpsdrEthernetDriver::~CHpsdrEthernetDriver()
+{
+	if(m_wsaStartup == 0)
+	{
+		WSACleanup();
+		m_wsaStartup = -1;
+	}
+}
+
+bool CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned* numBlocks)
+{
+	if(!driverGood())
+	{
+		*numBlocks = 0;
+		return false;
+	}
+
+	typedef std::list<CDiscoveredBoard> TBoardList;
+	TBoardList discList;
+	Metis_Discovery(discList);
+
+	unsigned availBlocks = *numBlocks;
+	*numBlocks = discList.size();
+	if(discList.empty()) return false;
+
+	if(blocks && availBlocks)
+	{
+		unsigned i;
+		TBoardList::const_iterator trans;
+		for(i=0, trans=discList.begin(); i < availBlocks && trans != discList.end(); i++, trans++)
+		{
+			const CDiscoveredBoard& disc = *trans;
+			CHpsdrEthernet* block = new CHpsdrEthernet(disc.ipaddr, disc.mac, disc.ver, disc.boardId);
+			block->AddRef();
+			blocks[i] = block;
+		}
+	}
+	return true;
+}
+
+void CHpsdrEthernetDriver::Metis_Discovery(std::list<CDiscoveredBoard>& discList)
 {
 	discList.clear();
 
@@ -194,7 +200,7 @@ void CHpsdrEthernet::Metis_Discovery(std::list<CDiscoveredBoard>& discList)
 		memset(&iep, 0, sizeof(iep));
 		iep.sin_family = AF_INET;
 		iep.sin_addr.S_un.S_addr = INADDR_BROADCAST;
-		iep.sin_port = htons(METIS_PORT);
+		iep.sin_port = htons(CHpsdrEthernet::METIS_PORT);
 
 		// send a broadcast to the port 1024
 		if(::sendto(sock, (char*)message, sizeof(message), 0, (sockaddr*)&iep, sizeof(iep)) == SOCKET_ERROR)
@@ -247,8 +253,61 @@ void CHpsdrEthernet::Metis_Discovery(std::list<CDiscoveredBoard>& discList)
 	::shutdown(sock, SD_BOTH);
 }
 
+// ------------------------------------------------------------------ class CHpsdrEthernet
 
-void CHpsdrEthernet::Start()
+const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
+
+CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, byte boardId)
+	:m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),m_controllerType(boardId)
+{
+}
+
+SOCKET CHpsdrEthernet::buildSocket() const
+{
+	sockaddr_in iep;
+	memset(&iep, 0, sizeof(iep));
+	iep.sin_family = AF_INET;
+	iep.sin_addr.S_un.S_addr = INADDR_ANY;
+
+	// bind (open) the socket so we can use the Metis/Hermes that was found/selected
+	SOCKET sock = ::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if(sock == INVALID_SOCKET) ThrowSocketError(WSAGetLastError());
+	try
+	{
+		if(::bind(sock, (sockaddr*)&iep, sizeof(iep)) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
+
+		static const int ReceiveBufferSize = 0xFFFF;   // no lost frame counts at 192kHz with this setting
+		if(::setsockopt(sock, SOL_SOCKET, SO_RCVBUF, (char*)&ReceiveBufferSize, sizeof(ReceiveBufferSize)) == SOCKET_ERROR)
+		{
+			ThrowSocketError(WSAGetLastError());
+		}
+
+		static const int SendBufferSize = 1032;
+		if(::setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, sizeof(SendBufferSize)) == SOCKET_ERROR)
+		{
+			ThrowSocketError(WSAGetLastError());
+		}
+
+		static const u_long Blocking = 1;
+		if(::ioctlsocket(sock, FIONBIO, (u_long*)&Blocking) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
+
+		// create an endpoint for sending to Metis
+		memset(&iep, 0, sizeof(iep));
+		iep.sin_family = AF_INET;
+		iep.sin_addr.S_un.S_addr = m_ipAddress;
+		iep.sin_port = htons(METIS_PORT);
+		if(::connect(sock, (sockaddr*)&iep, sizeof(iep)) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
+	}
+	catch(const std::exception&)
+	{
+		::shutdown(sock, SD_BOTH);
+		throw;
+	}
+
+	return sock;
+}
+
+bool CHpsdrEthernet::Start()
 {
 	m_sock = buildSocket();
 

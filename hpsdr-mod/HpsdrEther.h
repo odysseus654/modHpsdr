@@ -1,26 +1,28 @@
 #pragma once
 
+#include "BlockImpl.h"
 #include "HPSDRDevice.h"
 #include <list>
 #include <WinSock2.h>
 
-class CHpsdrEthernet : public CHpsdrDevice, public signals::IBlock
+class CHpsdrEthernetDriver : public signals::IBlockDriver
 {
 public:
-//		unsigned AddRef();
-//		unsigned Release();
-//		const char* Name();
-//		IBlockDriver* Driver();
-//		IBlock* Parent();
-//		unsigned numChildren();
-//		bool Children(IBlock** blocks, unsigned* numBlocks);
-//		unsigned numIncoming();
-//		bool Incoming(IInEndpoint** ep, unsigned* numEP);
-//		unsigned numOutgoing();
-//		bool Outgoing(IOutEndpoint** ep, unsigned* numEP);
-//		bool Stop();
-	virtual bool Start();
+	CHpsdrEthernetDriver();
+	virtual ~CHpsdrEthernetDriver();
+	inline bool driverGood()		{ return m_wsaStartup == 0; }
+
+public:
+	virtual const char* Name()		{ return NAME; }
+	virtual bool canCreate()		{ return false; }
+	virtual bool canDiscover()		{ return true; }
+	virtual bool Discover(signals::IBlock** blocks, unsigned* numBlocks);
+	virtual signals::IBlock* Create()	{ return NULL; }
+
 protected:
+	static const char* NAME;
+	int m_wsaStartup;
+
 	struct CDiscoveredBoard
 	{
 		unsigned long ipaddr;
@@ -30,16 +32,46 @@ protected:
 		byte boardId;
 	};
 
+	static void Metis_Discovery(std::list<CDiscoveredBoard>& discList);
+};
+extern CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+
+class CHpsdrEthernet : public CHpsdrDevice, public signals::IBlock, public CRefcountObject
+{
+public:
+	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, byte boardId);
+	virtual ~CHpsdrEthernet();
+
+	enum { METIS_PORT = 1024 };
+
+public: // IBlock implementation
+	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
+	virtual unsigned Release()				{ return CRefcountObject::Release(); }
+	virtual const char* Name()				{ return NAME; }
+	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
+	virtual signals::IBlock* Parent()		{ return NULL; }
+//	virtual unsigned numChildren();
+//	virtual bool Children(signals::IBlock** blocks, unsigned* numBlocks);
+//	virtual unsigned numIncoming();
+//	virtual bool Incoming(signals::IInEndpoint** ep, unsigned* numEP);
+//	virtual unsigned numOutgoing();
+//	virtual bool Outgoing(signals::IOutEndpoint** ep, unsigned* numEP);
+	virtual bool Start();
+//	virtual bool Stop();
+
+protected:
+	static const char* NAME;
+
 	SOCKET buildSocket() const;
 	void Metis_start_stop(bool runIQ, bool runWide);
-	static void Metis_Discovery(std::list<CDiscoveredBoard>& discList);
-
-	enum {
-		METIS_PORT = 1024
-	};
 
 	unsigned thread_recv();
 	unsigned thread_send();
+
+	const unsigned long	m_ipAddress;
+	const __int64		m_macAddress;
+	const byte			m_controllerVersion;
+	const byte			m_controllerType;
 
 	HANDLE   m_recvThread, m_sendThread;
 	SOCKET   m_sock;
