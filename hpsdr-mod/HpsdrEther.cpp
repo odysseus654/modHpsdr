@@ -130,21 +130,14 @@ CHpsdrEthernetDriver::~CHpsdrEthernetDriver()
 	}
 }
 
-bool CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned* numBlocks)
+unsigned CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned availBlocks)
 {
-	if(!driverGood())
-	{
-		*numBlocks = 0;
-		return false;
-	}
+	if(!driverGood()) return 0;
 
 	typedef std::list<CDiscoveredBoard> TBoardList;
 	TBoardList discList;
 	Metis_Discovery(discList);
-
-	unsigned availBlocks = *numBlocks;
-	*numBlocks = discList.size();
-	if(discList.empty()) return false;
+	if(discList.empty()) return 0;
 
 	if(blocks && availBlocks)
 	{
@@ -158,7 +151,7 @@ bool CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned* numBlock
 			blocks[i] = block;
 		}
 	}
-	return true;
+	return discList.size();
 }
 
 void CHpsdrEthernetDriver::Metis_Discovery(std::list<CDiscoveredBoard>& discList)

@@ -30,7 +30,7 @@ namespace signals
 		const char* Name();
 		bool canCreate();
 		bool canDiscover();
-		bool Discover(IBlock** blocks, unsigned* numBlocks);
+		unsigned Discover(IBlock** blocks, unsigned availBlocks);
 		IBlock* Create();
 	};
 
@@ -42,11 +42,12 @@ namespace signals
 		IBlockDriver* Driver();
 		IBlock* Parent();
 		unsigned numChildren();
-		bool Children(IBlock** blocks, unsigned* numBlocks);
+		unsigned Children(IBlock** blocks, unsigned availBlocks);
 		unsigned numIncoming();
-		bool Incoming(IInEndpoint** ep, unsigned* numEP);
+		unsigned Incoming(IInEndpoint** ep, unsigned availEP);
 		unsigned numOutgoing();
-		bool Outgoing(IOutEndpoint** ep, unsigned* numEP);
+		unsigned Outgoing(IOutEndpoint** ep, unsigned availEP);
+		IAttributes* Attributes();
 		bool Start();
 		bool Stop();
 	};
@@ -98,7 +99,7 @@ namespace signals
 	__interface IAttributes
 	{
 		unsigned numAttributes();
-		void Itemize(IAttribute* attrs, unsigned* numElem);
+		unsigned Itemize(IAttribute* attrs, unsigned availElem);
 		IAttribute* GetByName(char* name);
 		void Attach(IAttributeObserver* obs);
 		void Detach(IAttributeObserver* obs);

@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "HPSDRDevice.h"
 
+// ------------------------------------------------------------------ class CHpsdrDevice
+
 const float CHpsdrDevice::SCALE_32 = float(1 << 31);
 const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 
@@ -107,3 +109,27 @@ void CHpsdrDevice::send_frame(byte* frame)
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 	} // end for
 }
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Receiver
+
+unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
+{
+	if(ep && availEP)
+	{
+		AddRef();
+		ep[0] = this;
+	}
+	return 1;
+}
+
+/*
+bool Connect(signals::IEPSender* send);
+bool isConnected();
+bool Disconnect();
+signals::IEPBuffer* CreateBuffer();
+unsigned numAttributes();
+unsigned Itemize(signals::IAttribute* attrs, unsigned availElem);
+signals::IAttribute* GetByName(char* name);
+void Attach(signals::IAttributeObserver* obs);
+void Detach(signals::IAttributeObserver* obs);
+*/

@@ -16,7 +16,7 @@ public:
 	virtual const char* Name()		{ return NAME; }
 	virtual bool canCreate()		{ return false; }
 	virtual bool canDiscover()		{ return true; }
-	virtual bool Discover(signals::IBlock** blocks, unsigned* numBlocks);
+	virtual unsigned Discover(signals::IBlock** blocks, unsigned availBlocks);
 	virtual signals::IBlock* Create()	{ return NULL; }
 
 protected:
@@ -51,11 +51,11 @@ public: // IBlock implementation
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 //	virtual unsigned numChildren();
-//	virtual bool Children(signals::IBlock** blocks, unsigned* numBlocks);
-//	virtual unsigned numIncoming();
-//	virtual bool Incoming(signals::IInEndpoint** ep, unsigned* numEP);
-//	virtual unsigned numOutgoing();
-//	virtual bool Outgoing(signals::IOutEndpoint** ep, unsigned* numEP);
+//	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks);
+	virtual unsigned numIncoming()			{ return 0; }
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
+	virtual unsigned numOutgoing()			{ return 0; }
+	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
 	virtual bool Start();
 //	virtual bool Stop();
 
