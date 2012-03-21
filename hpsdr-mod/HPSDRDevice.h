@@ -1,5 +1,5 @@
 #pragma once
-#include "block.h"
+#include "blockImpl.h"
 typedef unsigned char byte;
 
 class CHpsdrDevice
@@ -23,7 +23,7 @@ protected:
 	unsigned m_micSample;							// private to process_data
 
 protected:
-	class Receiver : public signals::IBlock, public signals::IOutEndpoint, public signals::IAttributes
+	class Receiver : public signals::IBlock, public COutEndpointBase, public signals::IAttributes
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline Receiver(signals::IBlock* parent):m_parent(parent) { }
@@ -47,13 +47,10 @@ protected:
 		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual bool Start()						{ return m_parent->Start(); }
 		virtual bool Stop()							{ return m_parent->Stop(); }
-	public: // IOutEndpoint interface
+	public: // COutEndpointBase interface
 		virtual signals::IBlock* Block()			{ AddRef(); return this; }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
 		//virtual signals::IAttributes* Attributes();
-		virtual bool Connect(signals::IEPSender* send);
-		virtual bool isConnected();
-		virtual bool Disconnect();
 		virtual signals::IEPBuffer* CreateBuffer();
 	public: // IAttributes interface
 		virtual unsigned numAttributes();

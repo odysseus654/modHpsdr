@@ -54,8 +54,9 @@ namespace signals
 
 	__interface IEPSender
 	{
-		unsigned Write(void* buffer, EType type, unsigned numElem, unsigned msTimeout);
+		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
 		void onSourceConnected(IOutEndpoint* src);
+		void onSourceDisconnected(IOutEndpoint* src);
 	};
 
 	__interface IEPReceiver
@@ -100,9 +101,9 @@ namespace signals
 	{
 		unsigned numAttributes();
 		unsigned Itemize(IAttribute* attrs, unsigned availElem);
-		IAttribute* GetByName(char* name);
-		void Attach(IAttributeObserver* obs);
-		void Detach(IAttributeObserver* obs);
+		IAttribute* GetByName(const char* name);
+		void Observe(IAttributeObserver* obs);
+		void Unobserve(IAttributeObserver* obs);
 		IBlock* Block();
 	};
 
@@ -110,15 +111,16 @@ namespace signals
 	{
 		const char* Name();
 		const char* Description();
-		IAttributes* Attributes();
 		EType Type();
-		void Attach(IAttributeObserver* obs);
-		void Detach(IAttributeObserver* obs);
-		void* Value();
+		void Observe(IAttributeObserver* obs);
+		void Unobserve(IAttributeObserver* obs);
+		bool isReadOnly();
+		const void* getValue();
+		bool setValue(const void* newVal);
 	};
 
 	__interface IAttributeObserver
 	{
-		void OnChanged(char* name, EType type, void* value);
+		void OnChanged(const char* name, EType type, const void* value);
 	};
 }

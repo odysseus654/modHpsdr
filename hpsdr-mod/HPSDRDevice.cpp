@@ -123,9 +123,6 @@ unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned a
 }
 
 /*
-bool Connect(signals::IEPSender* send);
-bool isConnected();
-bool Disconnect();
 signals::IEPBuffer* CreateBuffer();
 unsigned numAttributes();
 unsigned Itemize(signals::IAttribute* attrs, unsigned availElem);

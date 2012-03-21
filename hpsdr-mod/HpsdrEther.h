@@ -1,6 +1,5 @@
 #pragma once
 
-#include "BlockImpl.h"
 #include "HPSDRDevice.h"
 #include <list>
 #include <WinSock2.h>
