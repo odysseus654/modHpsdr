@@ -78,6 +78,7 @@ namespace signals
 		unsigned AddRef();
 		unsigned Release();
 		IBlock* Block();
+		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
 		bool Connect(IEPReceiver* recv);
@@ -89,6 +90,7 @@ namespace signals
 	__interface IOutEndpoint
 	{
 		IBlock* Block();
+		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
 		bool Connect(IEPSender* send);
@@ -100,7 +102,7 @@ namespace signals
 	__interface IAttributes
 	{
 		unsigned numAttributes();
-		unsigned Itemize(IAttribute* attrs, unsigned availElem);
+		unsigned Itemize(IAttribute** attrs, unsigned availElem);
 		IAttribute* GetByName(const char* name);
 		void Observe(IAttributeObserver* obs);
 		void Unobserve(IAttributeObserver* obs);

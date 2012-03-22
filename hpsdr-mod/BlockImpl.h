@@ -26,6 +26,7 @@ public:
 	virtual bool Connect(signals::IEPReceiver* recv);
 	virtual bool isConnected() { return !!m_connRecv; }
 	virtual bool Disconnect()  { return Connect(NULL); }
+//	virtual const char* EPName();
 //	virtual unsigned AddRef() = 0;
 //	virtual unsigned Release() = 0;
 //	virtual signals::IBlock* Block() = 0;
@@ -45,6 +46,7 @@ public:
 	virtual bool Connect(signals::IEPSender* send);
 	virtual bool isConnected() { return !!m_connSend; }
 	virtual bool Disconnect()  { return Connect(NULL); }
+//	virtual const char* EPName();
 //	virtual signals::IBlock* Block() = 0;
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
@@ -76,13 +78,13 @@ private:
 	const char* m_descr;
 };
 
-class IAttributesBase : public signals::IAttributes
+class CAttributesBase : public signals::IAttributes
 {
 public:
-	~IAttributesBase();
+	~CAttributesBase();
 
-	virtual unsigned numAttributes();
-	virtual unsigned Itemize(signals::IAttribute* attrs, unsigned availElem);
+	virtual unsigned numAttributes()									{ return m_visibleAttrs.size(); }
+	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem);
 	virtual signals::IAttribute* GetByName(const char* name)			{ return GetByName2(name); }
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
@@ -109,7 +111,7 @@ protected:
 		{}
 	};
 
-	void buildAttrs(IAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
+	void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
 	CAttributeBase* GetByName2(const char* name);
 
 private:
@@ -119,6 +121,7 @@ private:
 	TVoidMapToAttr   m_attributes;
 	TStringMapToVoid m_attrNames;
 	TAttrSet         m_ownedAttrs;
+	TAttrSet         m_visibleAttrs;
 };
 
 template<class T, signals::EType ET>
@@ -146,11 +149,46 @@ private:
 	T m_value;
 };
 
+template<>
+class CAttribute<std::string,signals::etypString> : public CAttributeBase
+{
+public:
+	inline CAttribute(const char* pName, const char* pDescr, const char *deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
+	virtual ~CAttribute()				{ }
+	virtual signals::EType Type()		{ return signals::etypString; }
+	virtual bool isReadOnly()			{ return false; }
+	virtual const void* getValue()		{ return m_value.c_str(); }
+	virtual void internalSetValue(const void* newVal) { CAttribute<std::string,signals::etypString>::setValue(newVal); }
+
+	virtual bool setValue(const void* newVal)
+	{
+		if(strcmp((const char*)newVal, m_value.c_str()) != 0)
+		{
+			m_value = (const char*)newVal;
+			onSetValue(newVal);
+		}
+		return true;
+	}
+
+private:
+	std::string m_value;
+};
+
 template<class T, signals::EType ET>
 class CROAttribute : public CAttribute<T,ET>
 {
 public:
 	inline CROAttribute(const char* pName, const char* pDescr, T deflt):CAttribute<T,ET>(pName, pDescr, deflt) { }
+	virtual bool isReadOnly()					{ return true; }
+	virtual bool setValue(const void* newVal)	{ return false; }
+};
+
+template<>
+class CROAttribute<std::string,signals::etypString> : public CAttribute<std::string,signals::etypString>
+{
+public:
+	inline CROAttribute(const char* pName, const char* pDescr, const char* deflt)
+		:CAttribute<std::string,signals::etypString>(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
 };

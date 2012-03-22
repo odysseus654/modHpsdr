@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "BlockImpl.h"
 
+#include <complex>
 #include "windows.h"
 
 // ------------------------------------------------------------------ class CRefcountObject
@@ -83,7 +84,7 @@ void CAttributeBase::onSetValue(const void* value)
 
 // ------------------------------------------------------------------ class IAttributesBase
 
-IAttributesBase::~IAttributesBase()
+CAttributesBase::~CAttributesBase()
 {
 	for(TAttrSet::const_iterator trans = m_ownedAttrs.begin(); trans != m_ownedAttrs.end(); trans++)
 	{
@@ -92,9 +93,10 @@ IAttributesBase::~IAttributesBase()
 	m_ownedAttrs.clear();
 	m_attributes.clear();
 	m_attrNames.clear();
+	m_ownedAttrs.clear();
 }
 
-CAttributeBase* IAttributesBase::GetByName2(const char* name)
+CAttributeBase* CAttributesBase::GetByName2(const char* name)
 {
 	// try a fast lookup first
 	TVoidMapToAttr::const_iterator lookup1 = m_attributes.find((void*)name);
@@ -111,7 +113,7 @@ CAttributeBase* IAttributesBase::GetByName2(const char* name)
 	return NULL;
 }
 
-void IAttributesBase::buildAttrs(IAttributesBase* parent, IAttributesBase::TAttrDef* attrs, unsigned numAttrs)
+void CAttributesBase::buildAttrs(CAttributesBase* parent, CAttributesBase::TAttrDef* attrs, unsigned numAttrs)
 {
 	for(unsigned idx=0; idx < numAttrs; idx++)
 	{
@@ -174,8 +176,22 @@ void IAttributesBase::buildAttrs(IAttributesBase* parent, IAttributesBase::TAttr
 					attr = new CAttribute<double,signals::etypDouble>(attrDef.name, attrDef.descr, 0);
 				}
 				break;
-//			case signals::etypComplex:
-//			case signals::etypString:
+			case signals::etypComplex:
+				if(attrDef.bReadOnly)
+				{
+					attr = new CROAttribute<std::complex<float>,signals::etypComplex>(attrDef.name, attrDef.descr, 0);
+				} else {
+					attr = new CAttribute<std::complex<float>,signals::etypComplex>(attrDef.name, attrDef.descr, 0);
+				}
+				break;
+			case signals::etypString:
+				if(attrDef.bReadOnly)
+				{
+					attr = new CROAttribute<std::string,signals::etypString>(attrDef.name, attrDef.descr, 0);
+				} else {
+					attr = new CAttribute<std::string,signals::etypString>(attrDef.name, attrDef.descr, 0);
+				}
+				break;
 			}
 			if(attr)
 			{
@@ -183,13 +199,39 @@ void IAttributesBase::buildAttrs(IAttributesBase* parent, IAttributesBase::TAttr
 				m_ownedAttrs.insert(attr);
 				m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
 				m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+				if(attrDef.bVisible) m_visibleAttrs.insert(attr);
 			}
-//		bool bVisible;
 		}
 	}
 }
 
-//unsigned IAttributesBase::numAttributes();
-//unsigned IAttributesBase::Itemize(signals::IAttribute* attrs, unsigned availElem);
-//void IAttributesBase::Observe(signals::IAttributeObserver* obs);
-//void IAttributesBase::Unobserve(signals::IAttributeObserver* obs);
+unsigned CAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem)
+{
+	if(attrs && availElem)
+	{
+		unsigned i;
+		TAttrSet::const_iterator trans;
+		for(i=0, trans=m_visibleAttrs.begin(); i < availElem && trans != m_visibleAttrs.end(); i++, trans++)
+		{
+			CAttributeBase* attr = *trans;
+			attrs[i] = attr;
+		}
+	}
+	return m_visibleAttrs.size();
+}
+
+void CAttributesBase::Observe(signals::IAttributeObserver* obs)
+{
+	for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
+	{
+		(*trans)->Observe(obs);
+	}
+}
+
+void CAttributesBase::Unobserve(signals::IAttributeObserver* obs)
+{
+	for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
+	{
+		(*trans)->Unobserve(obs);
+	}
+}

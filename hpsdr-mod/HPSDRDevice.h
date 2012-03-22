@@ -23,19 +23,26 @@ protected:
 	unsigned m_micSample;							// private to process_data
 
 protected:
-	class Receiver : public signals::IBlock, public COutEndpointBase, public signals::IAttributes
+	class Receiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Receiver(signals::IBlock* parent):m_parent(parent) { }
+		inline Receiver(signals::IBlock* parent, bool bIsHermes):m_parent(parent),m_bIsHermes(bIsHermes) { }
 		virtual ~Receiver();
+		//void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
 
 	protected:
 		signals::IBlock* m_parent;
+		bool m_bIsHermes;
+
+	private:
+		const static char* HERMES_NAME;
+		const static char* MERCURY_NAME;
+		const static char* EP_NAME;
 
 	public: // IBlock interface
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual const char* Name() = 0;
+		virtual const char* Name()					{ return m_bIsHermes ? HERMES_NAME : MERCURY_NAME; }
 		virtual signals::IBlockDriver* Driver()		{ return m_parent->Driver(); }
 		virtual signals::IBlock* Parent()			{ m_parent->AddRef(); return m_parent; }
 		virtual unsigned numChildren()				{ return 0; }
@@ -50,14 +57,7 @@ protected:
 	public: // COutEndpointBase interface
 		virtual signals::IBlock* Block()			{ AddRef(); return this; }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
-		//virtual signals::IAttributes* Attributes();
-		virtual signals::IEPBuffer* CreateBuffer();
-	public: // IAttributes interface
-		virtual unsigned numAttributes();
-		virtual unsigned Itemize(signals::IAttribute* attrs, unsigned availElem);
-		virtual signals::IAttribute* GetByName(char* name);
-		virtual void Attach(signals::IAttributeObserver* obs);
-		virtual void Detach(signals::IAttributeObserver* obs);
-		//virtual signals::IBlock* Block();
+		virtual const char* EPName()				{ return EP_NAME; }
+		//virtual signals::IEPBuffer* CreateBuffer();
 	};
 };

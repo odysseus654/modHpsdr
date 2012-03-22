@@ -112,6 +112,10 @@ void CHpsdrDevice::send_frame(byte* frame)
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Receiver
 
+const char* CHpsdrDevice::Receiver::HERMES_NAME = "Hermes (Receiver)";
+const char* CHpsdrDevice::Receiver::MERCURY_NAME = "Mercury (Receiver)";
+const char* CHpsdrDevice::Receiver::EP_NAME = "Received IQ Data";
+
 unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
 {
 	if(ep && availEP)
@@ -124,9 +128,4 @@ unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned a
 
 /*
 signals::IEPBuffer* CreateBuffer();
-unsigned numAttributes();
-unsigned Itemize(signals::IAttribute* attrs, unsigned availElem);
-signals::IAttribute* GetByName(char* name);
-void Attach(signals::IAttributeObserver* obs);
-void Detach(signals::IAttributeObserver* obs);
 */
