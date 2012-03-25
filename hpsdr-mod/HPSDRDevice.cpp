@@ -6,13 +6,17 @@
 const float CHpsdrDevice::SCALE_32 = float(1 << 31);
 const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 
+void CHpsdrDevice::buildAttrs()
+{
+}
+
 bool CHpsdrDevice::receive_frame(byte* frame)
 {
 	const int sample_size = 6 * m_numReceiver + 2;
 
 	// check that sync pulses are present in the front of rbuf...JAM
 	if(*frame++ != SYNC || *frame++ != SYNC || *frame++ != SYNC) return false;
-
+/*
 	byte CC0 = *frame++;
 	m_recvCC0 = CC0;
 
@@ -24,6 +28,8 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
 	}
+*/
+	frame += 5;
 	int remain = 504; // 512 - 8 bytes
 
 	// get the I, and Q data from rbuf, convert to float, & put into SignalBuffer.cpx for DSP processing

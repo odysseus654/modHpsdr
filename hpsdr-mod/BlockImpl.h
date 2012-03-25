@@ -91,7 +91,7 @@ public:
 //	virtual signals::IBlock* Block() = 0;
 
 protected:
-	struct TAttrDef
+	/*struct TAttrDef
 	{
 		const char* name;
 		signals::EType type;
@@ -110,8 +110,10 @@ protected:
 			:name(pName),type(pType),descr(pDescr),bReadOnly(pReadOnly),bVisible(pVisible),bSearchParent(false)
 		{}
 	};
-
-	void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
+	*/
+//	void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
+	CAttributeBase* buildAttr(const char* pName, CAttributeBase* attr);
+	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
 	CAttributeBase* GetByName2(const char* name);
 
 private:

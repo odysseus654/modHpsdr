@@ -112,7 +112,7 @@ CAttributeBase* CAttributesBase::GetByName2(const char* name)
 
 	return NULL;
 }
-
+/*
 void CAttributesBase::buildAttrs(CAttributesBase* parent, CAttributesBase::TAttrDef* attrs, unsigned numAttrs)
 {
 	for(unsigned idx=0; idx < numAttrs; idx++)
@@ -203,6 +203,98 @@ void CAttributesBase::buildAttrs(CAttributesBase* parent, CAttributesBase::TAttr
 			}
 		}
 	}
+}
+*/
+CAttributeBase* CAttributesBase::buildAttr(const char* name, CAttributeBase* attr)
+{
+	if(attr)
+	{
+		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
+		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+		m_visibleAttrs.insert(attr);
+	}
+	return attr;
+}
+
+CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible)
+{
+	CAttributeBase* attr = NULL;
+	switch(type)
+	{
+	case signals::etypBoolean:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<int,signals::etypBoolean>(name, descr, 0);
+		} else {
+			attr = new CAttribute<int,signals::etypBoolean>(name, descr, 0);
+		}
+		break;
+	case signals::etypByte:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<byte,signals::etypByte>(name, descr, 0);
+		} else {
+			attr = new CAttribute<byte,signals::etypByte>(name, descr, 0);
+		}
+		break;
+	case signals::etypShort:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<short,signals::etypShort>(name, descr, 0);
+		} else {
+			attr = new CAttribute<short,signals::etypShort>(name, descr, 0);
+		}
+		break;
+	case signals::etypLong:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<long,signals::etypLong>(name, descr, 0);
+		} else {
+			attr = new CAttribute<long,signals::etypLong>(name, descr, 0);
+		}
+		break;
+	case signals::etypSingle:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<float,signals::etypSingle>(name, descr, 0);
+		} else {
+			attr = new CAttribute<float,signals::etypSingle>(name, descr, 0);
+		}
+		break;
+	case signals::etypDouble:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<double,signals::etypDouble>(name, descr, 0);
+		} else {
+			attr = new CAttribute<double,signals::etypDouble>(name, descr, 0);
+		}
+		break;
+	case signals::etypComplex:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<std::complex<float>,signals::etypComplex>(name, descr, 0);
+		} else {
+			attr = new CAttribute<std::complex<float>,signals::etypComplex>(name, descr, 0);
+		}
+		break;
+	case signals::etypString:
+		if(bReadOnly)
+		{
+			attr = new CROAttribute<std::string,signals::etypString>(name, descr, 0);
+		} else {
+			attr = new CAttribute<std::string,signals::etypString>(name, descr, 0);
+		}
+		break;
+	}
+
+	if(attr)
+	{
+		m_ownedAttrs.insert(attr);
+		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
+		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+		if(bVisible) m_visibleAttrs.insert(attr);
+	}
+	return attr;
 }
 
 unsigned CAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem)
