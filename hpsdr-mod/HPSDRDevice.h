@@ -1,10 +1,17 @@
 #pragma once
 #include "blockImpl.h"
+#include "mt.h"
 typedef unsigned char byte;
 
 class CHpsdrDevice : public CAttributesBase
 {
+public:
+	void setCCbits(byte addr, byte offset, byte mask, byte value);
+	void setCCbyte(byte addr, byte offset, byte value);
+	void setCCint(byte addr, unsigned long value);
 protected:
+	CHpsdrDevice();
+
 	bool receive_frame(byte* frame);
 	void send_frame(byte* frame);
 	void buildAttrs();
@@ -49,9 +56,9 @@ protected:
 		CAttributeBase* class_e;
 		CAttributeBase* send_open_collect;
 		CAttributeBase* alex_atten;
-		CAttributeBase* recv_atten;
-		CAttributeBase* recv_dither;
-		CAttributeBase* recv_random;
+		CAttributeBase* recv_preamp;
+		CAttributeBase* recv_adc_dither;
+		CAttributeBase* recv_adc_random;
 		CAttributeBase* alex_recv_ant;
 		CAttributeBase* alex_send_relay;
 		CAttributeBase* timestamp;
@@ -69,6 +76,7 @@ protected:
 		CAttributeBase* apollo_tuner_enable;
 		CAttributeBase* apollo_auto_tune;
 		CAttributeBase* hermes_filter_select;
+		CAttributeBase* alex_6m_amp;
 
 		CAttributeBase* alex_filter_override;
 		CAttributeBase* alex_hpf_13MHz;
@@ -85,25 +93,39 @@ protected:
 		CAttributeBase* alex_lpf_10m;
 		CAttributeBase* alex_lpf_15m;
 
-		CAttributeBase* recv1_atten;
-		CAttributeBase* recv2_atten;
-		CAttributeBase* recv3_atten;
-		CAttributeBase* recv4_atten;
+		CAttributeBase* recv1_preamp;
+		CAttributeBase* recv2_preamp;
+		CAttributeBase* recv3_preamp;
+		CAttributeBase* recv4_preamp;
 	} attrs;
+
+//	unsigned m_sampleRate;							// (config) incoming sample rate
+//	unsigned m_numReceiver;							// (config) incoming receiver count
+
+private:
+	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
+	const static float SCALE_16;
 
 	enum
 	{
 		SYNC = 0x7F,
-		MIC_RATE = 48000
+		MIC_RATE = 48000,							// all mic input is fixed at 48k regardless of IQ rate
+		MAX_CC_OUT = 10
 	};
-	const static float SCALE_32;				// scale factor for converting 24-bit int from ADC to float
-	const static float SCALE_16;
 
-	unsigned m_sampleRate;							// (config) incoming sample rate
-	unsigned m_numReceiver;							// (config) incoming receiver count
+	unsigned int m_micSample;						// private to process_data
+	byte m_lastCCout;
 
-//	volatile byte m_recvCC0;
-	unsigned m_micSample;							// private to process_data
+	byte m_CCout[16*4];
+	unsigned short m_CCoutSet;
+	unsigned short m_CCoutPending;
+	Lock m_CCoutLock;
+
+	byte* chooseCC();
+
+	volatile byte m_CC0in;
+	byte m_CCin[32*4];
+	Lock m_CCinLock;
 
 protected:
 	class Receiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase

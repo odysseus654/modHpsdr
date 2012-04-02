@@ -224,9 +224,9 @@ CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type
 	case signals::etypBoolean:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<int,signals::etypBoolean>(name, descr, 0);
+			attr = new CROAttribute<byte,signals::etypBoolean>(name, descr, 0);
 		} else {
-			attr = new CAttribute<int,signals::etypBoolean>(name, descr, 0);
+			attr = new CAttribute<byte,signals::etypBoolean>(name, descr, 0);
 		}
 		break;
 	case signals::etypByte:

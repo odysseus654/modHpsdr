@@ -68,9 +68,9 @@ public:
 //	virtual bool isReadOnly();
 //	virtual const void* getValue() = 0;
 //	virtual bool setValue(const void* newVal) = 0;
-	virtual void internalSetValue(const void* newVal) = 0;
+//	virtual void internalSetValue(const void* newVal) = 0;
 protected:
-	void onSetValue(const void* value);
+	virtual void onSetValue(const void* value);
 private:
 	typedef std::set<signals::IAttributeObserver*> TObserverList;
 	TObserverList m_observers;
@@ -135,7 +135,7 @@ public:
 	virtual signals::EType Type()		{ return ET; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return &m_value; }
-	virtual void internalSetValue(const void* newVal) { CAttribute<T,ET>::setValue(newVal); }
+//	virtual void internalSetValue(const void* newVal) { CAttribute<T,ET>::setValue(newVal); }
 
 	virtual bool setValue(const void* newVal)
 	{
@@ -160,7 +160,7 @@ public:
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
-	virtual void internalSetValue(const void* newVal) { CAttribute<std::string,signals::etypString>::setValue(newVal); }
+//	virtual void internalSetValue(const void* newVal) { CAttribute<std::string,signals::etypString>::setValue(newVal); }
 
 	virtual bool setValue(const void* newVal)
 	{
