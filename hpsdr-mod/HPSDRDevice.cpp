@@ -227,12 +227,13 @@ signals::IEPBuffer* CreateBuffer();
 
 // ----------------------------------------------------------------------------
 
-class CAttr_outBit : public CAttribute<byte, signals::etypBoolean>
+class CAttr_outBit : public CAttribute<signals::etypBoolean>
 {
+protected:
+	typedef CAttribute<signals::etypBoolean> base;
 public:
 	CAttr_outBit(CHpsdrDevice& parent, const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
-		:m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask),
-		 CAttribute<byte,signals::etypBoolean>(name, descr, deflt ? 1 : 0)
+		:m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask),base(name, descr, deflt ? 1 : 0)
 	{
 		if(deflt) m_parent.setCCbits(m_addr, m_offset, m_mask, m_mask);
 	}
@@ -240,11 +241,10 @@ public:
 	virtual ~CAttr_outBit() { }
 
 protected:
-	virtual void onSetValue(const void* value)
+	virtual void nativeOnSetValue(const T& newVal)
 	{
-		const byte* newVal = (const byte*)value;
-		m_parent.setCCbits(m_addr, m_offset, m_mask, !!*newVal ? m_mask : 0);
-		CAttribute<byte,signals::etypBoolean>::onSetValue(value);
+		m_parent.setCCbits(m_addr, m_offset, m_mask, !!newVal ? m_mask : 0);
+		base::nativeOnSetValue(newVal);
 	}
 
 private:

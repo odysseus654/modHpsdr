@@ -1,6 +1,7 @@
 #pragma once
 #include "block.h"
 
+#include <complex>
 #include <map>
 #include <set>
 #include <string>
@@ -126,23 +127,42 @@ private:
 	TAttrSet         m_visibleAttrs;
 };
 
-template<class T, signals::EType ET>
+template<signals::EType ET> struct StoreType;
+template<> struct StoreType<signals::etypBoolean>	{ typedef unsigned char type; };
+template<> struct StoreType<signals::etypByte>		{ typedef unsigned char type; };
+template<> struct StoreType<signals::etypShort>		{ typedef short type; };
+template<> struct StoreType<signals::etypLong>		{ typedef long type; };
+template<> struct StoreType<signals::etypSingle>	{ typedef float type; };
+template<> struct StoreType<signals::etypDouble>	{ typedef double type; };
+template<> struct StoreType<signals::etypComplex>	{ typedef std::complex<float> type; };
+template<> struct StoreType<signals::etypString>	{ typedef std::string type; };
+
+template<signals::EType ET>
 class CAttribute : public CAttributeBase
 {
+protected:
+	typedef typename StoreType<ET>::type T;
 public:
 	inline CAttribute(const char* pName, const char* pDescr, T deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return ET; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return &m_value; }
-//	virtual void internalSetValue(const void* newVal) { CAttribute<T,ET>::setValue(newVal); }
+	const T& nativeGetValue()			{ return m_value; }
+	virtual void nativeOnSetValue(const T& value) { onSetValue(&value); }
 
 	virtual bool setValue(const void* newVal)
 	{
-		if(*(T*)newVal != m_value)
+		if(!newVal) { ASSERT(FALSE); return false; }
+		return nativeSetValue(*(T*)newVal);
+	}
+
+	virtual bool nativeSetValue(const T& newVal)
+	{
+		if(newVal != m_value)
 		{
-			m_value = *(T*)newVal;
-			onSetValue(newVal);
+			m_value = newVal;
+			nativeOnSetValue(newVal);
 		}
 		return true;
 	}
@@ -152,7 +172,7 @@ private:
 };
 
 template<>
-class CAttribute<std::string,signals::etypString> : public CAttributeBase
+class CAttribute<signals::etypString> : public CAttributeBase
 {
 public:
 	inline CAttribute(const char* pName, const char* pDescr, const char *deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
@@ -160,14 +180,20 @@ public:
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
-//	virtual void internalSetValue(const void* newVal) { CAttribute<std::string,signals::etypString>::setValue(newVal); }
+	virtual void nativeOnSetValue(const std::string& value) { onSetValue(&value); }
 
 	virtual bool setValue(const void* newVal)
 	{
-		if(strcmp((const char*)newVal, m_value.c_str()) != 0)
+		if(!newVal) { ASSERT(FALSE); return false; }
+		return nativeSetValue((const char*)newVal);
+	}
+
+	virtual bool nativeSetValue(const std::string& newVal)
+	{
+		if(strcmp(newVal.c_str(), m_value.c_str()) != 0)
 		{
-			m_value = (const char*)newVal;
-			onSetValue(newVal);
+			m_value = newVal;
+			nativeOnSetValue(newVal);
 		}
 		return true;
 	}
@@ -176,21 +202,23 @@ private:
 	std::string m_value;
 };
 
-template<class T, signals::EType ET>
-class CROAttribute : public CAttribute<T,ET>
+template<signals::EType ET>
+class CROAttribute : public CAttribute<ET>
 {
 public:
-	inline CROAttribute(const char* pName, const char* pDescr, T deflt):CAttribute<T,ET>(pName, pDescr, deflt) { }
+	inline CROAttribute(const char* pName, const char* pDescr, T deflt):CAttribute<ET>(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
+	virtual bool nativeSetValue(const T& newVal) { return false; }
 };
 
 template<>
-class CROAttribute<std::string,signals::etypString> : public CAttribute<std::string,signals::etypString>
+class CROAttribute<signals::etypString> : public CAttribute<signals::etypString>
 {
 public:
 	inline CROAttribute(const char* pName, const char* pDescr, const char* deflt)
-		:CAttribute<std::string,signals::etypString>(pName, pDescr, deflt) { }
+		:CAttribute<signals::etypString>(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
+	virtual bool nativeSetValue(const std::string& newVal) { return false; }
 };

@@ -1,7 +1,6 @@
 #include "stdafx.h"
 #include "BlockImpl.h"
 
-#include <complex>
 #include "windows.h"
 
 // ------------------------------------------------------------------ class CRefcountObject
@@ -224,65 +223,65 @@ CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type
 	case signals::etypBoolean:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<byte,signals::etypBoolean>(name, descr, 0);
+			attr = new CROAttribute<signals::etypBoolean>(name, descr, 0);
 		} else {
-			attr = new CAttribute<byte,signals::etypBoolean>(name, descr, 0);
+			attr = new CAttribute<signals::etypBoolean>(name, descr, 0);
 		}
 		break;
 	case signals::etypByte:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<byte,signals::etypByte>(name, descr, 0);
+			attr = new CROAttribute<signals::etypByte>(name, descr, 0);
 		} else {
-			attr = new CAttribute<byte,signals::etypByte>(name, descr, 0);
+			attr = new CAttribute<signals::etypByte>(name, descr, 0);
 		}
 		break;
 	case signals::etypShort:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<short,signals::etypShort>(name, descr, 0);
+			attr = new CROAttribute<signals::etypShort>(name, descr, 0);
 		} else {
-			attr = new CAttribute<short,signals::etypShort>(name, descr, 0);
+			attr = new CAttribute<signals::etypShort>(name, descr, 0);
 		}
 		break;
 	case signals::etypLong:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<long,signals::etypLong>(name, descr, 0);
+			attr = new CROAttribute<signals::etypLong>(name, descr, 0);
 		} else {
-			attr = new CAttribute<long,signals::etypLong>(name, descr, 0);
+			attr = new CAttribute<signals::etypLong>(name, descr, 0);
 		}
 		break;
 	case signals::etypSingle:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<float,signals::etypSingle>(name, descr, 0);
+			attr = new CROAttribute<signals::etypSingle>(name, descr, 0);
 		} else {
-			attr = new CAttribute<float,signals::etypSingle>(name, descr, 0);
+			attr = new CAttribute<signals::etypSingle>(name, descr, 0);
 		}
 		break;
 	case signals::etypDouble:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<double,signals::etypDouble>(name, descr, 0);
+			attr = new CROAttribute<signals::etypDouble>(name, descr, 0);
 		} else {
-			attr = new CAttribute<double,signals::etypDouble>(name, descr, 0);
+			attr = new CAttribute<signals::etypDouble>(name, descr, 0);
 		}
 		break;
 	case signals::etypComplex:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<std::complex<float>,signals::etypComplex>(name, descr, 0);
+			attr = new CROAttribute<signals::etypComplex>(name, descr, 0);
 		} else {
-			attr = new CAttribute<std::complex<float>,signals::etypComplex>(name, descr, 0);
+			attr = new CAttribute<signals::etypComplex>(name, descr, 0);
 		}
 		break;
 	case signals::etypString:
 		if(bReadOnly)
 		{
-			attr = new CROAttribute<std::string,signals::etypString>(name, descr, 0);
+			attr = new CROAttribute<signals::etypString>(name, descr, 0);
 		} else {
-			attr = new CAttribute<std::string,signals::etypString>(name, descr, 0);
+			attr = new CAttribute<signals::etypString>(name, descr, 0);
 		}
 		break;
 	}
