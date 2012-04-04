@@ -233,11 +233,12 @@ protected:
 	typedef CAttribute<signals::etypBoolean> base;
 public:
 	CAttr_outBit(CHpsdrDevice& parent, const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
-		:m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask),base(name, descr, deflt ? 1 : 0)
+		:base(name, descr, deflt ? 1 : 0),m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask)
 	{
 		if(deflt) m_parent.setCCbits(m_addr, m_offset, m_mask, m_mask);
 	}
 
+	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
 	virtual ~CAttr_outBit() { }
 
 protected:
@@ -252,6 +253,87 @@ private:
 	byte m_addr;
 	byte m_offset;
 	byte m_mask;
+};
+
+class CAttr_outBits : public CAttribute<signals::etypByte>
+{
+protected:
+	typedef CAttribute<signals::etypByte> base;
+public:
+	CAttr_outBits(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
+		byte addr, byte offset, byte mask, byte shift, unsigned numOpt, const char** optList)
+		:base(name, descr, deflt),m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask),
+		 m_shift(shift),m_numOpts(optList ? numOpt : 0),m_optList(optList)
+	{
+		if(deflt) setValue(deflt);
+	}
+
+	virtual ~CAttr_outBits() { }
+
+	virtual unsigned options(const char** opts, unsigned availElem)
+	{
+		if(opts && availElem)
+		{
+			unsigned numCopy = min(availElem, m_numOpts);
+			for(unsigned idx=0; idx < numCopy; idx++)
+			{
+				opts[idx] = m_optList[idx];
+			}
+		}
+		return m_numOpts;
+	}
+
+protected:
+	virtual void nativeOnSetValue(const T& newVal)
+	{
+		setValue(newVal);
+		base::nativeOnSetValue(newVal);
+	}
+
+private:
+	CHpsdrDevice& m_parent;
+	byte m_addr;
+	byte m_offset;
+	byte m_mask;
+	byte m_shift;
+	unsigned m_numOpts;
+	const char** m_optList;
+
+	void setValue(const T& newVal)
+	{
+		m_parent.setCCbits(m_addr, m_offset, m_mask, (newVal << m_shift) & m_mask);
+	}
+};
+
+class CAttr_outLong : public CAttribute<signals::etypLong>
+{
+protected:
+	typedef CAttribute<signals::etypLong> base;
+public:
+	CAttr_outLong(CHpsdrDevice& parent, const char* name, const char* descr, long deflt, byte addr)
+		:base(name, descr, deflt),m_parent(parent),m_addr(addr)
+	{
+		if(deflt) setValue(deflt);
+	}
+
+	virtual ~CAttr_outLong() { }
+	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
+
+protected:
+	virtual void nativeOnSetValue(const T& newVal)
+	{
+		setValue(newVal);
+		base::nativeOnSetValue(newVal);
+	}
+
+private:
+	CHpsdrDevice& m_parent;
+	byte m_addr;
+
+	void setValue(const T& newVal)
+	{
+		m_parent.setCCint(m_addr, newVal);
+	}
 };
 
 void CHpsdrDevice::buildAttrs()
@@ -290,60 +372,76 @@ void CHpsdrDevice::buildAttrs()
 */
 
 	// write-only
-//	CAttributeBase* recv_speed;
+	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};
+	attrs.recv_speed = addLocalAttr(true, new CAttr_outBits(*this, "RecvRate", "Rate that receivers send data",
+		2, 0, 0, 0x3, 0, _countof(recv_speed_options), recv_speed_options));
 	if(!hermes)
 	{
-//		CAttributeBase* src_10Mhz;
-		attrs.src_122MHz = new CAttr_outBit(*this, "122MHzSource", "Yes: from Mercury, No: from Penny", true, 0, 0, 0x10);
-		attrs.enable_penny = new CAttr_outBit(*this, "EnablePenny", "Yes to enable transmitter", true, 0, 0, 0x20);
-		attrs.enable_merc = new CAttr_outBit(*this, "EnableMerc", "Yes to enable receivers", true, 0, 0, 0x40);
-//		attrs.mic_src = new CAttr_outBit(*this, "MicSource", "Yes: from Penny, No: from Janus", true, 0, 0, 0x80);
+		static const char* src_10MHz_options[] = {"Atlas/Excalibur", "Penny", "Mercury"};
+		attrs.src_10Mhz = addLocalAttr(true, new CAttr_outBits(*this, "10MHzSource", "Select source of 10 MHz clock",
+			2, 0, 0, 0x0c, 2, _countof(src_10MHz_options), src_10MHz_options));
+		static const char* src_122MHz_options[] = {"Penny", "Mercury"};
+		attrs.src_122MHz = addLocalAttr(true, new CAttr_outBits(*this, "122MHzSource", "Select source of 122 MHz clock",
+			1, 0, 0, 0x10, 4, _countof(src_122MHz_options), src_122MHz_options));
+		attrs.enable_penny = addLocalAttr(true, new CAttr_outBit(*this, "EnablePenny", "Enable transmitter?", true, 0, 0, 0x20));
+		attrs.enable_merc = addLocalAttr(true, new CAttr_outBit(*this, "EnableMerc", "Enable receiver?", true, 0, 0, 0x40));
+//		attrs.mic_src = addLocalAttr(true, new CAttr_outBit(*this, "MicSource", "Yes: from Penny, No: from Janus", true, 0, 0, 0x80));
 	}
-	attrs.class_e = new CAttr_outBit(*this, "Mode", "Yes: Class E, No: Other", true, 0, 1, 0x01);
-//	CAttributeBase* send_open_collect;
-//	CAttributeBase* alex_atten;
-	attrs.recv_preamp = new CAttr_outBit(*this, "RecvPreamp", "Enable receiver preamp?", true, 0, 2, 0x04);
-	attrs.recv_adc_dither = new CAttr_outBit(*this, "RecvAdcDither", "Enable receiver ADC dithering?", true, 0, 2, 0x08);
-	attrs.recv_adc_random = new CAttr_outBit(*this, "RecvAdcRandom", "Enable receiver ADC random?", true, 0, 2, 0x10);
+	static const char* class_e_options[] = {"Other", "Class E"};
+	attrs.class_e = addLocalAttr(true, new CAttr_outBits(*this, "Mode", NULL,
+		0, 0, 1, 0x1, 0, _countof(class_e_options), class_e_options));
+	attrs.send_open_collect = addLocalAttr(true, new CAttr_outBits(*this, "OpenCollector", "Open collector outputs on Penny/Hermes",
+		0, 0, 1, 0xfe, 1, 0, NULL));
+	static const char* alex_atten_options[] = {"0 dB", "10 dB", "20 dB", "30 dB"};
+	attrs.alex_atten = addLocalAttr(true, new CAttr_outBits(*this, "AlexAtten", "Alex Attenuator",
+		0, 0, 2, 0x3, 0, _countof(alex_atten_options), alex_atten_options));
+	attrs.recv_preamp = addLocalAttr(true, new CAttr_outBit(*this, "RecvPreamp", "Enable receiver preamp?", true, 0, 2, 0x04));
+	attrs.recv_adc_dither = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcDither", "Enable receiver ADC dithering?", true, 0, 2, 0x08));
+	attrs.recv_adc_random = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcRandom", "Enable receiver ADC random?", true, 0, 2, 0x10));
 //	CAttributeBase* alex_recv_ant;
-//	CAttributeBase* alex_send_relay;
-//	CAttributeBase* timestamp;
+	static const char* alex_send_relay[] = {"Tx1", "Tx2", "Tx3"};
+	attrs.alex_send_relay = addLocalAttr(true, new CAttr_outBits(*this, "AlexSendRelay", "Alex Tx relay",
+		0, 0, 3, 0x3, 0, _countof(alex_send_relay), alex_send_relay));
+	attrs.timestamp = addLocalAttr(true, new CAttr_outBit(*this, "Timestamp", "Send 1pps through mic stream?", false, 0, 3, 0x40));
 
-//	CAttributeBase* recv_duplex;
-//	CAttributeBase* recv_clone;
-//	CAttributeBase* send_freq;
-//	CAttributeBase* recv1_freq;
-//	CAttributeBase* recv2_freq;
-//	CAttributeBase* recv3_freq;
-//	CAttributeBase* recv4_freq;
-//	CAttributeBase* send_drive_level;
-	attrs.mic_boost = new CAttr_outBit(*this, "MicBoost", "Boost microphone signal by 20dB?", false, 9, 1, 0x01);
+	attrs.recv_duplex = addLocalAttr(true, new CAttr_outBit(*this, "Duplex", "Duplex?", true, 0, 3, 0x04));
+	attrs.recv_clone = addLocalAttr(true, new CAttr_outBit(*this, "RecvClone", "Common Mercury frequency?", false, 0, 3, 0x80));
+	attrs.send_freq = addLocalAttr(true, new CAttr_outLong(*this, "SendFreq", "Transmit Frequency", 0, 1));
+	attrs.recv1_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv1Freq", "Receiver 1 Frequency", 0, 2));
+	attrs.recv2_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv2Freq", "Receiver 2 Frequency", 0, 3));
+	attrs.recv3_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv3Freq", "Receiver 3 Frequency", 0, 4));
+	attrs.recv4_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv4Freq", "Receiver 4 Frequency", 0, 5));
+	attrs.send_drive_level = addLocalAttr(true, new CAttr_outBits(*this, "SendDriveLevel", "Hermes/PennyLane Drive Level",
+		255, 9, 0, 0xFF, 0, 0, NULL));
+	attrs.mic_boost = addLocalAttr(true, new CAttr_outBit(*this, "MicBoost", "Boost microphone signal by 20dB?", false, 9, 1, 0x01));
 	if(hermes)
 	{
-		attrs.apollo_filter_enable = new CAttr_outBit(*this, "ApolloFilterEnable", "Enable Apollo filter?", false, 9, 1, 0x04);
-		attrs.apollo_tuner_enable = new CAttr_outBit(*this, "ApolloTunerEnable", "Enable Apollo tuner?", false, 9, 1, 0x08);
-		attrs.apollo_auto_tune = new CAttr_outBit(*this, "ApolloAutoTune", "Start Apollo auto-tune?", false, 9, 1, 0x10);
-		attrs.hermes_filter_select = new CAttr_outBit(*this, "FilterSelect", "Yes: Apollo, No: Alex", false, 9, 1, 0x20);
+		attrs.apollo_filter_enable = addLocalAttr(true, new CAttr_outBit(*this, "ApolloFilterEnable", "Enable Apollo filter?", false, 9, 1, 0x04));
+		attrs.apollo_tuner_enable = addLocalAttr(true, new CAttr_outBit(*this, "ApolloTunerEnable", "Enable Apollo tuner?", false, 9, 1, 0x08));
+		attrs.apollo_auto_tune = addLocalAttr(true, new CAttr_outBit(*this, "ApolloAutoTune", "Start Apollo auto-tune?", false, 9, 1, 0x10));
+		static const char* hermes_filter_select_options[] = {"Alex", "Apollo"};
+		attrs.hermes_filter_select = addLocalAttr(true, new CAttr_outBits(*this, "FilterSelect", NULL,
+			0, 9, 1, 0x20, 5, _countof(hermes_filter_select_options), hermes_filter_select_options));
 	}
 
-	attrs.alex_filter_override = new CAttr_outBit(*this, "AlexFilterOverride", "Manually select Alex filers?", false, 9, 1, 0x40);
-	attrs.alex_hpf_13MHz = new CAttr_outBit(*this, "AlexHPF13Mhz", "Select Alex 13 MHz HPF?", false, 9, 2, 0x01);
-	attrs.alex_hpf_20MHz = new CAttr_outBit(*this, "AlexHPF20Mhz", "Select Alex 20 MHz HPF?", false, 9, 2, 0x02);
-	attrs.alex_hpf_9500kHz = new CAttr_outBit(*this, "AlexHPF9500khz", "Select Alex 9.5 MHz HPF?", false, 9, 2, 0x04);
-	attrs.alex_hpf_6500kHz = new CAttr_outBit(*this, "AlexHPF6500khz", "Select Alex 6.5 MHz HPF?", false, 9, 2, 0x08);
-	attrs.alex_hpf_1500kHz = new CAttr_outBit(*this, "AlexHPF1500khz", "Select Alex 1.5 MHz HPF?", false, 9, 2, 0x10);
-	attrs.alex_hpf_bypass = new CAttr_outBit(*this, "AlexHPFBypass", "Bypass all Alex HPF filters?", false, 9, 2, 0x20);
-	attrs.alex_6m_amp = new CAttr_outBit(*this, "Alex6mAmp", "Enable Alex 6m low noise amplifier?", false, 9, 2, 0x40);
-	attrs.alex_lpf_20m = new CAttr_outBit(*this, "AlexLPF20m", "Select Alex 30/20 m LPF?", false, 9, 3, 0x01);
-	attrs.alex_lpf_40m = new CAttr_outBit(*this, "AlexLPF40m", "Select Alex 60/40 m LPF?", false, 9, 3, 0x02);
-	attrs.alex_lpf_80m = new CAttr_outBit(*this, "AlexLPF80m", "Select Alex 80 m LPF?", false, 9, 3, 0x04);
-	attrs.alex_lpf_160m = new CAttr_outBit(*this, "AlexLPF160m", "Select Alex 160 m LPF?", false, 9, 3, 0x08);
-	attrs.alex_lpf_6m = new CAttr_outBit(*this, "AlexLPF6m", "Select Alex 6 m LPF?", false, 9, 3, 0x10);
-	attrs.alex_lpf_10m = new CAttr_outBit(*this, "AlexLPF10m", "Select Alex 12/10 m LPF?", false, 9, 3, 0x20);
-	attrs.alex_lpf_15m = new CAttr_outBit(*this, "AlexLPF15m", "Select Alex 17/15 m LPF?", false, 9, 3, 0x40);
+	attrs.alex_filter_override = addLocalAttr(true, new CAttr_outBit(*this, "AlexFilterOverride", "Manually select Alex filers?", false, 9, 1, 0x40));
+	attrs.alex_hpf_13MHz = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPF13Mhz", "Select Alex 13 MHz HPF?", false, 9, 2, 0x01));
+	attrs.alex_hpf_20MHz = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPF20Mhz", "Select Alex 20 MHz HPF?", false, 9, 2, 0x02));
+	attrs.alex_hpf_9500kHz = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPF9500khz", "Select Alex 9.5 MHz HPF?", false, 9, 2, 0x04));
+	attrs.alex_hpf_6500kHz = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPF6500khz", "Select Alex 6.5 MHz HPF?", false, 9, 2, 0x08));
+	attrs.alex_hpf_1500kHz = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPF1500khz", "Select Alex 1.5 MHz HPF?", false, 9, 2, 0x10));
+	attrs.alex_hpf_bypass = addLocalAttr(true, new CAttr_outBit(*this, "AlexHPFBypass", "Bypass all Alex HPF filters?", false, 9, 2, 0x20));
+	attrs.alex_6m_amp = addLocalAttr(true, new CAttr_outBit(*this, "Alex6mAmp", "Enable Alex 6m low noise amplifier?", false, 9, 2, 0x40));
+	attrs.alex_lpf_20m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF20m", "Select Alex 30/20 m LPF?", false, 9, 3, 0x01));
+	attrs.alex_lpf_40m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF40m", "Select Alex 60/40 m LPF?", false, 9, 3, 0x02));
+	attrs.alex_lpf_80m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF80m", "Select Alex 80 m LPF?", false, 9, 3, 0x04));
+	attrs.alex_lpf_160m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF160m", "Select Alex 160 m LPF?", false, 9, 3, 0x08));
+	attrs.alex_lpf_6m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF6m", "Select Alex 6 m LPF?", false, 9, 3, 0x10));
+	attrs.alex_lpf_10m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF10m", "Select Alex 12/10 m LPF?", false, 9, 3, 0x20));
+	attrs.alex_lpf_15m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF15m", "Select Alex 17/15 m LPF?", false, 9, 3, 0x40));
 
-	attrs.recv1_preamp = new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 1 preamp?", false, 10, 0, 0x01);
-	attrs.recv2_preamp = new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 2 preamp?", false, 10, 0, 0x02);
-	attrs.recv3_preamp = new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 3 preamp?", false, 10, 0, 0x04);
-	attrs.recv4_preamp = new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 4 preamp?", false, 10, 0, 0x08);
+	attrs.recv1_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 1 preamp?", false, 10, 0, 0x01));
+	attrs.recv2_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 2 preamp?", false, 10, 0, 0x02));
+	attrs.recv3_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 3 preamp?", false, 10, 0, 0x04));
+	attrs.recv4_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 4 preamp?", false, 10, 0, 0x08));
 }

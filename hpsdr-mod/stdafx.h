@@ -10,6 +10,11 @@
 #include <stdio.h>
 #include <tchar.h>
 
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
 
-
-// TODO: reference additional headers your program requires here
+#ifdef _DEBUG
+  #define ASSERT(x) { if(!(x)) DebugBreak(); }
+#else
+  #define ASSERT(x) (x)
+#endif

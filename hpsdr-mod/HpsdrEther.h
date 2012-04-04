@@ -49,11 +49,8 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
-//	virtual unsigned numChildren();
 //	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks);
-	virtual unsigned numIncoming()			{ return 0; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
-	virtual unsigned numOutgoing()			{ return 0; }
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
 	virtual bool Start();
 //	virtual bool Stop();

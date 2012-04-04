@@ -41,11 +41,8 @@ namespace signals
 		const char* Name();
 		IBlockDriver* Driver();
 		IBlock* Parent();
-		unsigned numChildren();
 		unsigned Children(IBlock** blocks, unsigned availBlocks);
-		unsigned numIncoming();
 		unsigned Incoming(IInEndpoint** ep, unsigned availEP);
-		unsigned numOutgoing();
 		unsigned Outgoing(IOutEndpoint** ep, unsigned availEP);
 		IAttributes* Attributes();
 		bool Start();
@@ -101,7 +98,6 @@ namespace signals
 
 	__interface IAttributes
 	{
-		unsigned numAttributes();
 		unsigned Itemize(IAttribute** attrs, unsigned availElem);
 		IAttribute* GetByName(const char* name);
 		void Observe(IAttributeObserver* obs);
@@ -119,6 +115,7 @@ namespace signals
 		bool isReadOnly();
 		const void* getValue();
 		bool setValue(const void* newVal);
+		unsigned options(const char** opts, unsigned availElem);
 	};
 
 	__interface IAttributeObserver

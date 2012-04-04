@@ -84,7 +84,6 @@ class CAttributesBase : public signals::IAttributes
 public:
 	~CAttributesBase();
 
-	virtual unsigned numAttributes()									{ return m_visibleAttrs.size(); }
 	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem);
 	virtual signals::IAttribute* GetByName(const char* name)			{ return GetByName2(name); }
 	virtual void Observe(signals::IAttributeObserver* obs);
@@ -92,29 +91,9 @@ public:
 //	virtual signals::IBlock* Block() = 0;
 
 protected:
-	/*struct TAttrDef
-	{
-		const char* name;
-		signals::EType type;
-		const char* descr;
-		bool bReadOnly;
-		bool bVisible;
-		bool bSearchParent;
-
-		// handled by parent
-		inline TAttrDef(const char* pName, bool pVisible)
-			:name(pName),type(signals::etypNone),descr(NULL),bReadOnly(true),bVisible(pVisible),bSearchParent(true)
-		{}
-
-		// handled by self
-		inline TAttrDef(const char* pName, signals::EType pType, const char* pDescr, bool pReadOnly, bool pVisible)
-			:name(pName),type(pType),descr(pDescr),bReadOnly(pReadOnly),bVisible(pVisible),bSearchParent(false)
-		{}
-	};
-	*/
-//	void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
-	CAttributeBase* buildAttr(const char* pName, CAttributeBase* attr);
-	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
+	CAttributeBase* addRemoteAttr(const char* pName, CAttributeBase* attr);
+	CAttributeBase* addLocalAttr(bool bVisible, CAttributeBase* attr);
+//	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
 	CAttributeBase* GetByName2(const char* name);
 
 private:
@@ -184,7 +163,7 @@ public:
 
 	virtual bool setValue(const void* newVal)
 	{
-		if(!newVal) { ASSERT(FALSE); return false; }
+		if(!newVal) { ASSERT(false); return false; }
 		return nativeSetValue((const char*)newVal);
 	}
 

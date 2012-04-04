@@ -151,11 +151,8 @@ protected:
 		virtual const char* Name()					{ return m_bIsHermes ? HERMES_NAME : MERCURY_NAME; }
 		virtual signals::IBlockDriver* Driver()		{ return m_parent->Driver(); }
 		virtual signals::IBlock* Parent()			{ m_parent->AddRef(); return m_parent; }
-		virtual unsigned numChildren()				{ return 0; }
 		virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks)	{ return 0; }
-		virtual unsigned numIncoming()				{ return 0; }
 		virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP)		{ return 0; }
-		virtual unsigned numOutgoing()				{ return 1; }
 		virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual bool Start()						{ return m_parent->Start(); }

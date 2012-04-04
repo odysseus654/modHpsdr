@@ -1,8 +1,6 @@
 #include "stdafx.h"
 #include "BlockImpl.h"
 
-#include "windows.h"
-
 // ------------------------------------------------------------------ class CRefcountObject
 
 unsigned CRefcountObject::AddRef()
@@ -111,100 +109,8 @@ CAttributeBase* CAttributesBase::GetByName2(const char* name)
 
 	return NULL;
 }
-/*
-void CAttributesBase::buildAttrs(CAttributesBase* parent, CAttributesBase::TAttrDef* attrs, unsigned numAttrs)
-{
-	for(unsigned idx=0; idx < numAttrs; idx++)
-	{
-		const TAttrDef& attrDef = attrs[idx];
 
-		CAttributeBase* attr = NULL;
-		if(attrDef.bSearchParent)
-		{
-			attr = parent->GetByName2(attrDef.name);
-		}
-		else
-		{
-			switch(attrDef.type)
-			{
-			case signals::etypBoolean:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<int,signals::etypBoolean>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<int,signals::etypBoolean>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypByte:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<byte,signals::etypByte>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<byte,signals::etypByte>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypShort:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<short,signals::etypShort>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<short,signals::etypShort>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypLong:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<long,signals::etypLong>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<long,signals::etypLong>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypSingle:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<float,signals::etypSingle>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<float,signals::etypSingle>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypDouble:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<double,signals::etypDouble>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<double,signals::etypDouble>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypComplex:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<std::complex<float>,signals::etypComplex>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<std::complex<float>,signals::etypComplex>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			case signals::etypString:
-				if(attrDef.bReadOnly)
-				{
-					attr = new CROAttribute<std::string,signals::etypString>(attrDef.name, attrDef.descr, 0);
-				} else {
-					attr = new CAttribute<std::string,signals::etypString>(attrDef.name, attrDef.descr, 0);
-				}
-				break;
-			}
-			if(attr)
-			{
-				const char* name = attr->Name();
-				m_ownedAttrs.insert(attr);
-				m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
-				m_attrNames.insert(TStringMapToVoid::value_type(name, name));
-				if(attrDef.bVisible) m_visibleAttrs.insert(attr);
-			}
-		}
-	}
-}
-*/
-CAttributeBase* CAttributesBase::buildAttr(const char* name, CAttributeBase* attr)
+CAttributeBase* CAttributesBase::addRemoteAttr(const char* name, CAttributeBase* attr)
 {
 	if(attr)
 	{
@@ -215,6 +121,19 @@ CAttributeBase* CAttributesBase::buildAttr(const char* name, CAttributeBase* att
 	return attr;
 }
 
+CAttributeBase* CAttributesBase::addLocalAttr(bool bVisible, CAttributeBase* attr)
+{
+	if(attr)
+	{
+		const char* name = attr->Name();
+		m_ownedAttrs.insert(attr);
+		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
+		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+		if(bVisible) m_visibleAttrs.insert(attr);
+	}
+	return attr;
+}
+/*
 CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible)
 {
 	CAttributeBase* attr = NULL;
@@ -295,7 +214,7 @@ CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type
 	}
 	return attr;
 }
-
+*/
 unsigned CAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem)
 {
 	if(attrs && availElem)
