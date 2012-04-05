@@ -6,8 +6,8 @@
 const float CHpsdrDevice::SCALE_32 = float(1 << 31);
 const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 
-CHpsdrDevice::CHpsdrDevice()
-	:m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0)
+CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
+	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -23,28 +23,27 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 	byte CC0 = *frame++;
 	m_CC0in = CC0;
 
-	byte* recvCC = m_CCin + ((CC0 & 0xF8) >> 1);
+	byte CCframe = ((CC0 & 0xF8) >> 1);
+	byte* recvCC = m_CCin + CCframe;
 	{
 		Locker lock(m_CCinLock);
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
+		notifyCC(CCframe);
 	}
 
-	frame += 5;
 	int remain = 504; // 512 - 8 bytes
 
 	// get the I, and Q data from rbuf, convert to float, & put into SignalBuffer.cpx for DSP processing
 	while(remain > sample_size)
 	{
-		// hopefully no one will notice that we're reading 8 bytes off the end of our array?
-		// this is almost the definition of "unsafe"...
 		for (unsigned recv = 0; recv < m_numReceiver; recv++)
 		{
-			signed iReal = (frame[0]<<24)|(frame[1]<<16)|(frame[2]<<8);
+			signed iReal = (signed(frame[0])<<24)|(frame[1]<<16)|(frame[2]<<8);
 			frame += 3;
-			signed iImag = (frame[0]<<24)|(frame[1]<<16)|(frame[2]<<8);
+			signed iImag = (signed(frame[0])<<24)|(frame[1]<<16)|(frame[2]<<8);
 			frame += 3;
 			remain -= 6;
 			receive_sample(recv, iReal / SCALE_32, iImag / SCALE_32);
@@ -61,12 +60,7 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 		if (m_micSample >= m_sampleRate)
 		{
 			m_micSample = 0;
-			short MicAmpl = short((frame[0] << 8) | frame[1]);
-			// Place sample value in both real & imaginary parts since we do an FFT next.
-			// When Mic AGC and speech processing are added, they should be done here, 
-			// working with a stream of real samples.
-
-			// TransmitFilter.Process() effects a relative phase shift between the real & imaginary parts.
+			short MicAmpl = (short(frame[0]) << 8) | frame[1];
 
 			// In the following line, need (short) cast to ensure that the result is sign-extended
 			// before being converted to float.
@@ -130,7 +124,7 @@ void CHpsdrDevice::setCCbits(byte addr, byte offset, byte mask, byte value)
 	m_CCoutSet |= CCoutMask;
 	m_CCoutPending |= CCoutMask;
 }
-
+/*
 void CHpsdrDevice::setCCbyte(byte addr, byte offset, byte value)
 {
 	if(addr >= MAX_CC_OUT || offset >= 4) {ASSERT(FALSE);return;}
@@ -143,7 +137,7 @@ void CHpsdrDevice::setCCbyte(byte addr, byte offset, byte value)
 	m_CCoutSet |= CCoutMask;
 	m_CCoutPending |= CCoutMask;
 }
-
+*/
 void CHpsdrDevice::setCCint(byte addr, unsigned long value)
 {
 	if(addr >= MAX_CC_OUT) {ASSERT(FALSE);return;}
@@ -227,6 +221,35 @@ signals::IEPBuffer* CreateBuffer();
 
 // ----------------------------------------------------------------------------
 
+template<signals::EType ET>
+class COptionedAttribute : public CAttribute<ET>
+{
+public:
+	COptionedAttribute(const char* name, const char* descr, byte deflt, unsigned numOpt, const char** optList)
+		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_optList(optList)
+	{
+	}
+
+	virtual ~COptionedAttribute() { }
+
+	virtual unsigned options(const char** opts, unsigned availElem)
+	{
+		if(opts && availElem)
+		{
+			unsigned numCopy = min(availElem, m_numOpts);
+			for(unsigned idx=0; idx < numCopy; idx++)
+			{
+				opts[idx] = m_optList[idx];
+			}
+		}
+		return m_numOpts;
+	}
+
+private:
+	unsigned m_numOpts;
+	const char** m_optList;
+};
+
 class CAttr_outBit : public CAttribute<signals::etypBoolean>
 {
 protected:
@@ -255,33 +278,20 @@ private:
 	byte m_mask;
 };
 
-class CAttr_outBits : public CAttribute<signals::etypByte>
+class CAttr_outBits : public COptionedAttribute<signals::etypByte>
 {
 protected:
-	typedef CAttribute<signals::etypByte> base;
+	typedef COptionedAttribute<signals::etypByte> base;
 public:
 	CAttr_outBits(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
 		byte addr, byte offset, byte mask, byte shift, unsigned numOpt, const char** optList)
-		:base(name, descr, deflt),m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask),
-		 m_shift(shift),m_numOpts(optList ? numOpt : 0),m_optList(optList)
+		:base(name, descr, deflt, numOpt, optList),m_parent(parent),m_addr(addr),m_offset(offset),
+		 m_mask(mask),m_shift(shift)
 	{
 		if(deflt) setValue(deflt);
 	}
 
 	virtual ~CAttr_outBits() { }
-
-	virtual unsigned options(const char** opts, unsigned availElem)
-	{
-		if(opts && availElem)
-		{
-			unsigned numCopy = min(availElem, m_numOpts);
-			for(unsigned idx=0; idx < numCopy; idx++)
-			{
-				opts[idx] = m_optList[idx];
-			}
-		}
-		return m_numOpts;
-	}
 
 protected:
 	virtual void nativeOnSetValue(const T& newVal)
@@ -296,12 +306,71 @@ private:
 	byte m_offset;
 	byte m_mask;
 	byte m_shift;
-	unsigned m_numOpts;
-	const char** m_optList;
 
-	void setValue(const T& newVal)
+	inline void setValue(const T& newVal)
 	{
 		m_parent.setCCbits(m_addr, m_offset, m_mask, (newVal << m_shift) & m_mask);
+	}
+};
+
+class CAttr_out_alex_recv_ant : public COptionedAttribute<signals::etypByte>
+{
+protected:
+	typedef COptionedAttribute<signals::etypByte> base;
+public:
+	CAttr_out_alex_recv_ant(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
+		unsigned numOpt, const char** optList)
+		:base(name, descr, deflt, numOpt, optList),m_parent(parent)
+	{
+		if(deflt) setValue(deflt);
+	}
+
+	virtual ~CAttr_out_alex_recv_ant() { }
+
+protected:
+	virtual void nativeOnSetValue(const T& newVal)
+	{
+		setValue(newVal);
+		base::nativeOnSetValue(newVal);
+	}
+
+private:
+	CHpsdrDevice& m_parent;
+
+	inline void setValue(const T& newVal)
+	{
+		m_parent.setCCbits(0, 2, 0xe0, newVal ? ((newVal << 5) & 0x60) | 0x80 : 0);
+	}
+};
+
+class CAttr_out_mic_src : public COptionedAttribute<signals::etypByte>
+{
+protected:
+	typedef COptionedAttribute<signals::etypByte> base;
+public:
+	CAttr_out_mic_src(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
+		unsigned numOpt, const char** optList)
+		:base(name, descr, deflt, numOpt, optList),m_parent(parent)
+	{
+		if(deflt) setValue(deflt);
+	}
+
+	virtual ~CAttr_out_mic_src() { }
+
+protected:
+	virtual void nativeOnSetValue(const T& newVal)
+	{
+		setValue(newVal);
+		base::nativeOnSetValue(newVal);
+	}
+
+private:
+	CHpsdrDevice& m_parent;
+
+	inline void setValue(const T& newVal)
+	{
+		m_parent.setCCbits(0, 0, 0x80, newVal == 0 ? 0 : 0x80);
+		m_parent.setCCbits(9, 1, 0x02, newVal <= 1 ? 0 : 0x02);
 	}
 };
 
@@ -330,7 +399,7 @@ private:
 	CHpsdrDevice& m_parent;
 	byte m_addr;
 
-	void setValue(const T& newVal)
+	inline void setValue(const T& newVal)
 	{
 		m_parent.setCCint(m_addr, newVal);
 	}
@@ -338,7 +407,6 @@ private:
 
 void CHpsdrDevice::buildAttrs()
 {
-
 /*
 	struct
 	{
@@ -375,7 +443,7 @@ void CHpsdrDevice::buildAttrs()
 	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};
 	attrs.recv_speed = addLocalAttr(true, new CAttr_outBits(*this, "RecvRate", "Rate that receivers send data",
 		2, 0, 0, 0x3, 0, _countof(recv_speed_options), recv_speed_options));
-	if(!hermes)
+	if(m_controllerType != Hermes)
 	{
 		static const char* src_10MHz_options[] = {"Atlas/Excalibur", "Penny", "Mercury"};
 		attrs.src_10Mhz = addLocalAttr(true, new CAttr_outBits(*this, "10MHzSource", "Select source of 10 MHz clock",
@@ -385,7 +453,9 @@ void CHpsdrDevice::buildAttrs()
 			1, 0, 0, 0x10, 4, _countof(src_122MHz_options), src_122MHz_options));
 		attrs.enable_penny = addLocalAttr(true, new CAttr_outBit(*this, "EnablePenny", "Enable transmitter?", true, 0, 0, 0x20));
 		attrs.enable_merc = addLocalAttr(true, new CAttr_outBit(*this, "EnableMerc", "Enable receiver?", true, 0, 0, 0x40));
-//		attrs.mic_src = addLocalAttr(true, new CAttr_outBit(*this, "MicSource", "Yes: from Penny, No: from Janus", true, 0, 0, 0x80));
+		static const char* src_mic_options[] = {"Janus", "Penny Mic", "Penny Line-in"};
+		attrs.src_mic = addLocalAttr(true, new CAttr_out_mic_src(*this, "MicSource", "Microphone Source", 1,
+			_countof(src_mic_options), src_mic_options));
 	}
 	static const char* class_e_options[] = {"Other", "Class E"};
 	attrs.class_e = addLocalAttr(true, new CAttr_outBits(*this, "Mode", NULL,
@@ -398,7 +468,9 @@ void CHpsdrDevice::buildAttrs()
 	attrs.recv_preamp = addLocalAttr(true, new CAttr_outBit(*this, "RecvPreamp", "Enable receiver preamp?", true, 0, 2, 0x04));
 	attrs.recv_adc_dither = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcDither", "Enable receiver ADC dithering?", true, 0, 2, 0x08));
 	attrs.recv_adc_random = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcRandom", "Enable receiver ADC random?", true, 0, 2, 0x10));
-//	CAttributeBase* alex_recv_ant;
+	static const char* alex_recv_ant[] = {"None", "Rx1", "Rx2", "XV"};
+	attrs.alex_recv_ant = addLocalAttr(true, new CAttr_out_alex_recv_ant(*this, "AlexRecvAnt", "Alex Rx Antenna",
+		0, _countof(alex_recv_ant), alex_recv_ant));
 	static const char* alex_send_relay[] = {"Tx1", "Tx2", "Tx3"};
 	attrs.alex_send_relay = addLocalAttr(true, new CAttr_outBits(*this, "AlexSendRelay", "Alex Tx relay",
 		0, 0, 3, 0x3, 0, _countof(alex_send_relay), alex_send_relay));
@@ -414,7 +486,7 @@ void CHpsdrDevice::buildAttrs()
 	attrs.send_drive_level = addLocalAttr(true, new CAttr_outBits(*this, "SendDriveLevel", "Hermes/PennyLane Drive Level",
 		255, 9, 0, 0xFF, 0, 0, NULL));
 	attrs.mic_boost = addLocalAttr(true, new CAttr_outBit(*this, "MicBoost", "Boost microphone signal by 20dB?", false, 9, 1, 0x01));
-	if(hermes)
+	if(m_controllerType == Hermes)
 	{
 		attrs.apollo_filter_enable = addLocalAttr(true, new CAttr_outBit(*this, "ApolloFilterEnable", "Enable Apollo filter?", false, 9, 1, 0x04));
 		attrs.apollo_tuner_enable = addLocalAttr(true, new CAttr_outBit(*this, "ApolloTunerEnable", "Enable Apollo tuner?", false, 9, 1, 0x08));

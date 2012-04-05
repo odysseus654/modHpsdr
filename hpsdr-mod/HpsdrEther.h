@@ -35,10 +35,10 @@ protected:
 };
 extern CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
-class CHpsdrEthernet : public CHpsdrDevice, public signals::IBlock, public CRefcountObject
+class CHpsdrEthernet : public CHpsdrDevice, public CRefcountObject
 {
 public:
-	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, byte boardId);
+	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId);
 	virtual ~CHpsdrEthernet();
 
 	enum { METIS_PORT = 1024 };
@@ -67,7 +67,6 @@ protected:
 	const unsigned long	m_ipAddress;
 	const __int64		m_macAddress;
 	const byte			m_controllerVersion;
-	const byte			m_controllerType;
 
 	HANDLE   m_recvThread, m_sendThread;
 	SOCKET   m_sock;

@@ -3,14 +3,17 @@
 #include "mt.h"
 typedef unsigned char byte;
 
-class CHpsdrDevice : public CAttributesBase
+class CHpsdrDevice : public CAttributesBase, public signals::IBlock
 {
 public:
+	enum EBoardId { Ozy = -1, Metis = 0, Hermes = 1, Griffin = 2 };
+
 	void setCCbits(byte addr, byte offset, byte mask, byte value);
-	void setCCbyte(byte addr, byte offset, byte value);
+	//void setCCbyte(byte addr, byte offset, byte value);
 	void setCCint(byte addr, unsigned long value);
+
 protected:
-	CHpsdrDevice();
+	CHpsdrDevice(EBoardId boardId);
 
 	bool receive_frame(byte* frame);
 	void send_frame(byte* frame);
@@ -163,4 +166,8 @@ protected:
 		virtual const char* EPName()				{ return EP_NAME; }
 		//virtual signals::IEPBuffer* CreateBuffer();
 	};
+
+protected:
+	const EBoardId m_controllerType;
+
 };

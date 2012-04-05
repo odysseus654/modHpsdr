@@ -146,7 +146,7 @@ unsigned CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned avail
 		for(i=0, trans=discList.begin(); i < availBlocks && trans != discList.end(); i++, trans++)
 		{
 			const CDiscoveredBoard& disc = *trans;
-			CHpsdrEthernet* block = new CHpsdrEthernet(disc.ipaddr, disc.mac, disc.ver, disc.boardId);
+			CHpsdrEthernet* block = new CHpsdrEthernet(disc.ipaddr, disc.mac, disc.ver, (CHpsdrEthernet::EBoardId)disc.boardId);
 			block->AddRef();
 			blocks[i] = block;
 		}
@@ -250,8 +250,8 @@ void CHpsdrEthernetDriver::Metis_Discovery(std::list<CDiscoveredBoard>& discList
 
 const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
 
-CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, byte boardId)
-	:m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),m_controllerType(boardId)
+CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
+	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver)
 {
 }
 
