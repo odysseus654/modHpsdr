@@ -1,6 +1,7 @@
 #pragma once
 #include "block.h"
 
+#include "buffer.h"
 #include <complex>
 #include <map>
 #include <set>
@@ -14,6 +15,9 @@ public:
 	virtual unsigned AddRef();
 	virtual unsigned Release();
 
+private:
+	CRefcountObject(const CRefcountObject& other);
+	CRefcountObject& operator=(const CRefcountObject& other);
 private:
 	volatile long m_refCount;
 };
@@ -35,6 +39,9 @@ public:
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 private:
+	CInEndpointBase(const CInEndpointBase& other);
+	CInEndpointBase& operator=(const CInEndpointBase& other);
+private:
 	signals::IEPReceiver* m_connRecv;
 };
 
@@ -52,6 +59,9 @@ public:
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
+private:
+	COutEndpointBase(const COutEndpointBase& other);
+	COutEndpointBase& operator=(const COutEndpointBase& other);
 private:
 	signals::IEPSender* m_connSend;
 };
@@ -73,6 +83,9 @@ public:
 protected:
 	virtual void onSetValue(const void* value);
 private:
+	CAttributeBase(const CAttributeBase& other);
+	CAttributeBase& operator=(const CAttributeBase& other);
+private:
 	typedef std::set<signals::IAttributeObserver*> TObserverList;
 	TObserverList m_observers;
 	const char* m_name;
@@ -82,6 +95,7 @@ private:
 class CAttributesBase : public signals::IAttributes
 {
 public:
+	inline CAttributesBase() {}
 	~CAttributesBase();
 
 	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem);
@@ -89,6 +103,10 @@ public:
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
 //	virtual signals::IBlock* Block() = 0;
+
+private:
+	CAttributesBase(const CAttributesBase& other);
+	CAttributesBase& operator=(const CAttributesBase& other);
 
 protected:
 	CAttributeBase* addRemoteAttr(const char* pName, CAttributeBase* attr);
@@ -120,23 +138,27 @@ template<signals::EType ET>
 class CAttribute : public CAttributeBase
 {
 protected:
-	typedef typename StoreType<ET>::type T;
+	typedef typename StoreType<ET>::type store_type;
+private:
+	typedef CAttribute<ET> my_type;
+	CAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
 public:
-	inline CAttribute(const char* pName, const char* pDescr, T deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
+	inline CAttribute(const char* pName, const char* pDescr, const store_type& deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return ET; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return &m_value; }
-	const T& nativeGetValue()			{ return m_value; }
-	virtual void nativeOnSetValue(const T& value) { onSetValue(&value); }
+	const store_type& nativeGetValue()	{ return m_value; }
+	virtual void nativeOnSetValue(const store_type& value) { onSetValue(&value); }
 
 	virtual bool setValue(const void* newVal)
 	{
 		if(!newVal) { ASSERT(FALSE); return false; }
-		return nativeSetValue(*(T*)newVal);
+		return nativeSetValue(*(store_type*)newVal);
 	}
 
-	virtual bool nativeSetValue(const T& newVal)
+	virtual bool nativeSetValue(const store_type& newVal)
 	{
 		if(newVal != m_value)
 		{
@@ -147,12 +169,14 @@ public:
 	}
 
 private:
-	T m_value;
+	store_type m_value;
 };
 
 template<>
 class CAttribute<signals::etypString> : public CAttributeBase
 {
+protected:
+	typedef StoreType<signals::etypString>::type store_type;
 public:
 	inline CAttribute(const char* pName, const char* pDescr, const char *deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
 	virtual ~CAttribute()				{ }
@@ -178,26 +202,117 @@ public:
 	}
 
 private:
+	typedef CAttribute<signals::etypString> my_type;
+	CAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
+private:
 	std::string m_value;
 };
 
 template<signals::EType ET>
 class CROAttribute : public CAttribute<ET>
 {
+private:
+	typedef CAttribute<ET> parent_type;
+	typedef CROAttribute<ET> my_type;
 public:
-	inline CROAttribute(const char* pName, const char* pDescr, T deflt):CAttribute<ET>(pName, pDescr, deflt) { }
+	inline CROAttribute(const char* pName, const char* pDescr, const store_type& deflt):CAttribute<ET>(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
-	virtual bool nativeSetValue(const T& newVal) { return false; }
+	virtual bool nativeSetValue(const store_type& newVal) { return false; }
+private:
+	CROAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
 };
 
 template<>
 class CROAttribute<signals::etypString> : public CAttribute<signals::etypString>
 {
+private:
+	typedef CAttribute<signals::etypString> parent_type;
+	typedef CROAttribute<signals::etypString> my_type;
 public:
 	inline CROAttribute(const char* pName, const char* pDescr, const char* deflt)
-		:CAttribute<signals::etypString>(pName, pDescr, deflt) { }
+		:parent_type(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
 	virtual bool nativeSetValue(const std::string& newVal) { return false; }
+private:
+	CROAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
+};
+
+template<signals::EType ET>
+class CEPBuffer : public signals::IEPBuffer, protected CRefcountObject
+{
+protected:
+	typedef typename StoreType<ET>::type store_type;
+	typedef Buffer<store_type> buffer_type;
+
+	buffer_type buffer;
+	signals::IOutEndpoint* m_oep;
+
+public:
+	inline CEPBuffer(typename buffer_type::size_type capacity):buffer(capacity), m_oep(NULL)
+	{
+	}
+
+public: // IEPBuffer
+	virtual signals::EType Type()	{ return ET; }
+	virtual unsigned Capacity()		{ return buffer.capacity(); }
+	virtual unsigned Used()			{ return buffer.size(); }
+
+public: // IEPSender
+	virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout)
+	{
+		if(type == ET)
+		{
+			store_type* pBuf = (store_type*)buffer;
+			unsigned idx = 0;
+			for(; idx < numElem; idx++)
+			{
+				if(!buffer.push_back(pBuf[idx], msTimeout)) break;
+			}
+			return idx;
+		}
+		else return 0; // implicit translation not yet supported
+	}
+
+	virtual void onSourceConnected(signals::IOutEndpoint* src)
+	{
+		ASSERT(!m_oep);
+		IOutEndpoint* oldEp(m_oep);
+		m_oep = src;
+		if(m_oep) m_oep->AddRef();
+		if(oldEp) oldEp->Release();
+	}
+
+	virtual void onSourceDisconnected(signals::IOutEndpoint* src)
+	{
+		ASSERT(m_oep == src);
+		if(m_oep == src)
+		{
+			m_oep = NULL;
+			if(src) src->Release();
+		}
+	}
+
+public: // IEPReceiver
+	virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, unsigned msTimeout)
+	{
+		if(type == ET)
+		{
+			store_type* pBuf = (store_type*)buffer;
+			unsigned idx = 0;
+			for(; idx < numAvail; idx++)
+			{
+				if(!buffer.pop_front(pBuf[idx], msTimeout)) break;
+			}
+			return idx;
+		}
+		else return 0; // implicit translation not yet supported
+	}
+
+	virtual unsigned AddRef()		{ return CRefcountObject::AddRef(); }
+	virtual unsigned Release()		{ return CRefcountObject::Release(); }
 };

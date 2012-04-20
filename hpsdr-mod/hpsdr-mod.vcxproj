@@ -76,6 +76,7 @@
   <ItemGroup>
     <ClInclude Include="block.h" />
     <ClInclude Include="BlockImpl.h" />
+    <ClInclude Include="buffer.h" />
     <ClInclude Include="HPSDRDevice.h" />
     <ClInclude Include="HpsdrEther.h" />
     <ClInclude Include="mt.h" />

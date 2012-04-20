@@ -1,6 +1,7 @@
 #pragma once
 #include "blockImpl.h"
 #include "mt.h"
+#include <vector>
 typedef unsigned char byte;
 
 class CHpsdrDevice : public CAttributesBase, public signals::IBlock
@@ -9,11 +10,14 @@ public:
 	enum EBoardId { Ozy = -1, Metis = 0, Hermes = 1, Griffin = 2 };
 
 	void setCCbits(byte addr, byte offset, byte mask, byte value);
-	//void setCCbyte(byte addr, byte offset, byte value);
 	void setCCint(byte addr, unsigned long value);
 
+private:
+	CHpsdrDevice(const CHpsdrDevice& other);
+	CHpsdrDevice& operator=(const CHpsdrDevice& other);
+
 protected:
-	CHpsdrDevice(EBoardId boardId);
+	explicit CHpsdrDevice(EBoardId boardId);
 
 	bool receive_frame(byte* frame);
 	void send_frame(byte* frame);
@@ -134,12 +138,13 @@ protected:
 	class Receiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Receiver(signals::IBlock* parent, bool bIsHermes):m_parent(parent),m_bIsHermes(bIsHermes) { }
+		inline Receiver(signals::IBlock* parent, EBoardId boardId):m_parent(parent),m_bIsHermes(boardId == Hermes) { }
 		virtual ~Receiver();
 		//void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
 		bool m_bIsHermes;
 
@@ -164,10 +169,15 @@ protected:
 		virtual signals::IBlock* Block()			{ AddRef(); return this; }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
 		virtual const char* EPName()				{ return EP_NAME; }
-		//virtual signals::IEPBuffer* CreateBuffer();
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
+
+	private:
+		Receiver(const Receiver& other);
+		Receiver& operator=(const Receiver& other);
 	};
 
 protected:
 	const EBoardId m_controllerType;
+	std::vector<Receiver> m_receivers;
 
 };

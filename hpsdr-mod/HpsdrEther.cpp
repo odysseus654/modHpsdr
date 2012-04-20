@@ -107,7 +107,10 @@ public:
 
 __declspec(noreturn) void ThrowErrnoError(int err)
 {
+#pragma warning(push)
+#pragma warning(disable: 4996)
 	throw errno_exception(err, strerror(err));
+#pragma warning(pop)
 }
 
 // ------------------------------------------------------------------ class CHpsdrEthernetDriver

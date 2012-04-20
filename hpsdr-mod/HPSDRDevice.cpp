@@ -7,7 +7,8 @@ const float CHpsdrDevice::SCALE_32 = float(1 << 31);
 const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
-	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0)
+	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
+	 m_receivers(4, Receiver(this, boardId))
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -20,6 +21,7 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 	// check that sync pulses are present in the front of rbuf...JAM
 	if(*frame++ != SYNC || *frame++ != SYNC || *frame++ != SYNC) return false;
 
+	// grab the received C&C code and dispatch the necessary notifiers
 	byte CC0 = *frame++;
 	m_CC0in = CC0;
 
@@ -36,34 +38,32 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 
 	int remain = 504; // 512 - 8 bytes
 
-	// get the I, and Q data from rbuf, convert to float, & put into SignalBuffer.cpx for DSP processing
 	while(remain > sample_size)
 	{
+		// receive a sample for each of the currentl-active receivers
 		for (unsigned recv = 0; recv < m_numReceiver; recv++)
 		{
+			// we shift the 24bit sample by 32bits because it is a signed number
 			signed iReal = (signed(frame[0])<<24)|(frame[1]<<16)|(frame[2]<<8);
 			frame += 3;
 			signed iImag = (signed(frame[0])<<24)|(frame[1]<<16)|(frame[2]<<8);
 			frame += 3;
 			remain -= 6;
+
+			// a float contains 24 bits of precision,
+			// dividing by 2^32 ensures we don't mess with the mantissa during the conversion
 			receive_sample(recv, iReal / SCALE_32, iImag / SCALE_32);
 		}
 
-		// Get a microphone sample & store it in a simple buffer.
-		// If EP6 sample rate > 48k, the Mic samples received contain duplicates, which we'll ignore.
-		// Thus the Mic samples are decimated before processing.  
-		// The receive audio is fully processed at the higher sampling rate, and then is decimated.
-		// By the time Data_send() is called, both streams are at 48ksps.
-		// When the transmit buffer has reached capacity, all samples are processed, and placed in TransmitAudioRing.
-		// 
+		// technique taken from KK: ensure that no matter what the sample rate is we still get the
+		// proper mic rate (using a form of error diffusion?)
 		m_micSample += MIC_RATE;
 		if (m_micSample >= m_sampleRate)
 		{
 			m_micSample = 0;
-			short MicAmpl = (short(frame[0]) << 8) | frame[1];
 
-			// In the following line, need (short) cast to ensure that the result is sign-extended
-			// before being converted to float.
+			// force the 16bit number to be signed and convert to float
+			short MicAmpl = (short(frame[0]) << 8) | frame[1];
 			mic_sample(MicAmpl / SCALE_16);
 		}
 		frame += 2;
@@ -124,20 +124,7 @@ void CHpsdrDevice::setCCbits(byte addr, byte offset, byte mask, byte value)
 	m_CCoutSet |= CCoutMask;
 	m_CCoutPending |= CCoutMask;
 }
-/*
-void CHpsdrDevice::setCCbyte(byte addr, byte offset, byte value)
-{
-	if(addr >= MAX_CC_OUT || offset >= 4) {ASSERT(FALSE);return;}
 
-	Locker outLock(m_CCoutLock);
-	byte* loc = m_CCout + (addr*4) + offset;
-	*loc = value;
-
-	unsigned int CCoutMask = 1 << addr;
-	m_CCoutSet |= CCoutMask;
-	m_CCoutPending |= CCoutMask;
-}
-*/
 void CHpsdrDevice::setCCint(byte addr, unsigned long value)
 {
 	if(addr >= MAX_CC_OUT) {ASSERT(FALSE);return;}
@@ -162,6 +149,7 @@ void CHpsdrDevice::send_frame(byte* frame)
 	*frame++ = SYNC;
 
 	{
+		bool MOX = false;
 		Locker outLock(m_CCoutLock);
 		byte* CC = chooseCC();
 		*frame++ = ((m_lastCCout << 1) | (MOX ? 1 : 0));
@@ -173,8 +161,8 @@ void CHpsdrDevice::send_frame(byte* frame)
 
 	for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
 	{
-		float audLeft, audRight;
-		speaker_out(&audLeft, &audRight);
+		float audLeft = 0.0f, audRight = 0.0f;
+//		speaker_out(&audLeft, &audRight);
 
 		// send left & right data to the speakers on the receiver
 		int IntValue = int(SCALE_16 * audLeft);
@@ -185,8 +173,8 @@ void CHpsdrDevice::send_frame(byte* frame)
 		*frame++ = (byte)(IntValue >> 8);    // right hi
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 
-		float xmitI, xmitQ;
-		xmit_out(&xmitI, &xmitQ);
+		float xmitI = 0.0f, xmitQ = 0.0f;
+//		xmit_out(&xmitI, &xmitQ);
 
 		// send I & Q data to the exciter
 		IntValue = int(SCALE_16 * xmitI);
@@ -265,7 +253,7 @@ public:
 	virtual ~CAttr_outBit() { }
 
 protected:
-	virtual void nativeOnSetValue(const T& newVal)
+	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(m_addr, m_offset, m_mask, !!newVal ? m_mask : 0);
 		base::nativeOnSetValue(newVal);
@@ -294,7 +282,7 @@ public:
 	virtual ~CAttr_outBits() { }
 
 protected:
-	virtual void nativeOnSetValue(const T& newVal)
+	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
 		base::nativeOnSetValue(newVal);
@@ -307,7 +295,7 @@ private:
 	byte m_mask;
 	byte m_shift;
 
-	inline void setValue(const T& newVal)
+	inline void setValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(m_addr, m_offset, m_mask, (newVal << m_shift) & m_mask);
 	}
@@ -328,7 +316,7 @@ public:
 	virtual ~CAttr_out_alex_recv_ant() { }
 
 protected:
-	virtual void nativeOnSetValue(const T& newVal)
+	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
 		base::nativeOnSetValue(newVal);
@@ -337,7 +325,7 @@ protected:
 private:
 	CHpsdrDevice& m_parent;
 
-	inline void setValue(const T& newVal)
+	inline void setValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(0, 2, 0xe0, newVal ? ((newVal << 5) & 0x60) | 0x80 : 0);
 	}
@@ -358,7 +346,7 @@ public:
 	virtual ~CAttr_out_mic_src() { }
 
 protected:
-	virtual void nativeOnSetValue(const T& newVal)
+	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
 		base::nativeOnSetValue(newVal);
@@ -367,7 +355,7 @@ protected:
 private:
 	CHpsdrDevice& m_parent;
 
-	inline void setValue(const T& newVal)
+	inline void setValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(0, 0, 0x80, newVal == 0 ? 0 : 0x80);
 		m_parent.setCCbits(9, 1, 0x02, newVal <= 1 ? 0 : 0x02);
@@ -389,7 +377,7 @@ public:
 	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
 
 protected:
-	virtual void nativeOnSetValue(const T& newVal)
+	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
 		base::nativeOnSetValue(newVal);
@@ -399,7 +387,7 @@ private:
 	CHpsdrDevice& m_parent;
 	byte m_addr;
 
-	inline void setValue(const T& newVal)
+	inline void setValue(const store_type& newVal)
 	{
 		m_parent.setCCint(m_addr, newVal);
 	}

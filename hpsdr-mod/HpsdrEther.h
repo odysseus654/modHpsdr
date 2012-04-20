@@ -11,6 +11,10 @@ public:
 	virtual ~CHpsdrEthernetDriver();
 	inline bool driverGood()		{ return m_wsaStartup == 0; }
 
+private:
+	CHpsdrEthernetDriver(const CHpsdrEthernetDriver& other);
+	CHpsdrEthernetDriver operator=(const CHpsdrEthernetDriver& other);
+
 public:
 	virtual const char* Name()		{ return NAME; }
 	virtual bool canCreate()		{ return false; }
@@ -35,7 +39,7 @@ protected:
 };
 extern CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
-class CHpsdrEthernet : public CHpsdrDevice, public CRefcountObject
+class CHpsdrEthernet : public CHpsdrDevice, protected CRefcountObject
 {
 public:
 	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId);

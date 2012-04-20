@@ -1,5 +1,7 @@
 #pragma once
 
+class Condition;
+
 class Lock
 {
 public:
@@ -11,12 +13,14 @@ public:
 
 private:
 	CRITICAL_SECTION m_cs;
+
+friend class Condition;
 };
 
 class Locker
 {
 public:
-	Locker(Lock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
+	explicit Locker(Lock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
 	{
 		if(bLocked) lock();
 	}
@@ -66,4 +70,20 @@ public:
 private:
 	Lock* m_lock;
 	bool  m_bLocked;
+
+friend class Condition;
+};
+
+class Condition
+{
+public:
+	Condition()					{ InitializeConditionVariable(&m_cond); }
+	~Condition()				{ }
+	bool sleep(Locker& cs, DWORD milli = INFINITE)
+								{ return cs.m_bLocked && cs.m_lock && !!SleepConditionVariableCS(&m_cond, &cs.m_lock->m_cs, milli); }
+	void wake()					{ WakeConditionVariable(&m_cond); }
+	void wakeAll()				{ WakeAllConditionVariable(&m_cond); }
+
+private:
+	CONDITION_VARIABLE m_cond;
 };
