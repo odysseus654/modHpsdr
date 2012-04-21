@@ -5,7 +5,7 @@
 #include <process.h>
 #include <set>
 
-void SetThreadName(char* threadName, DWORD dwThreadID = -1)
+void SetThreadName(const char* threadName, DWORD dwThreadID = -1)
 {
 	#pragma pack(push,8)
 	typedef struct tagTHREADNAME_INFO
@@ -312,7 +312,6 @@ bool CHpsdrEthernet::Start()
 	m_sendThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_send, this, CREATE_SUSPENDED, &threadId);
 	if(m_sendThread == (HANDLE)-1L) ThrowErrnoError(errno);
 	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
-
 	if(ResumeThread(m_sendThread) == -1L) ThrowLastError(GetLastError());
 
 	//// start thread to read Metis data from Ethernet.   DataLoop merely calls Process_Data, 
@@ -368,8 +367,6 @@ unsigned CHpsdrEthernet::thread_recv()
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 
-	short wideBuff[4096];
-
 	for(;;)
 	{
 		int ret = select (1, &fds, NULL, NULL, &tv);
@@ -387,31 +384,23 @@ unsigned CHpsdrEthernet::thread_recv()
 				case 4: // endpoint 4: wideband data
 					if(!m_wideStarting || !(seq&7))
 					{
-						if(!(seq&7))
+						if(!!(seq&7) && (m_wideStarting || m_lastWideSeq+1 != seq))
 						{
-							if(m_wideStarting)
-							{
-								m_wideStarting = false;
-							} else {
-								push_wide_buffer(wideBuff, _countof(wideBuff));
-							}
-						}
-						else if(m_lastWideSeq+1 != seq)
-						{
-							metis_sync(false);
 							m_wideStarting = true;
 						}
 						else
 						{
-							metis_sync(true);
+							m_wideStarting = false;
 							m_lastWideSeq = seq;
 							byte* wideSrc = message + 8;
-							short* wideDest = wideBuff + (seq&7);
+							float wideBuff[256];
+							float* wideDest = wideBuff;
 							for(int i=0; i < 512; i++)
 							{
-								*wideDest++ = (wideSrc[0] << 8) | wideSrc[1];
+								*wideDest++ = ((wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 								wideSrc += 2;
 							}
+							metis_sync(!!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0));
 						}
 					}
 					break;

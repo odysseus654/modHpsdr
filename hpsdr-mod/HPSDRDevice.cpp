@@ -6,18 +6,21 @@
 const float CHpsdrDevice::SCALE_32 = float(1 << 31);
 const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 
+#pragma warning(push)
+#pragma warning(disable: 4355)
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
-	 m_receivers(4, Receiver(this, boardId))
+	 m_receivers(4),m_receiver1(this, boardId),m_receiver2(this, boardId),m_receiver3(this, boardId),
+	 m_receiver4(this, boardId),m_wideRecv(this)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
+	memset(m_CCinDirty, 0, sizeof(m_CCinDirty));
 }
+#pragma warning(pop)
 
 bool CHpsdrDevice::receive_frame(byte* frame)
 {
-	const int sample_size = 6 * m_numReceiver + 2;
-
 	// check that sync pulses are present in the front of rbuf...JAM
 	if(*frame++ != SYNC || *frame++ != SYNC || *frame++ != SYNC) return false;
 
@@ -33,15 +36,26 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
-		notifyCC(CCframe);
+		m_CCinDirty[CCframe] = true;
+		m_CCinUpdated.wakeAll();
 	}
 
 	int remain = 504; // 512 - 8 bytes
 
+	static const unsigned int recv_speed_options[] = { 48, 96, 192 };
+	ASSERT(attrs.recv_speed && attrs.recv_speed->Type() == signals::etypByte);
+	unsigned char recvIdx = *(unsigned char*)attrs.recv_speed->getValue();
+	unsigned int sampleRate = recv_speed_options[recvIdx];
+
+	Locker recvLock(m_recvListLock);
+	const std::vector<Receiver>::size_type numReceiver = max(1, m_receivers.size());
+	const bool hasReceivers = !m_receivers.empty();
+	const int sample_size = 6 * numReceiver + 2;
+
 	while(remain > sample_size)
 	{
 		// receive a sample for each of the currentl-active receivers
-		for (unsigned recv = 0; recv < m_numReceiver; recv++)
+		for (unsigned recv = 0; recv < numReceiver; recv++)
 		{
 			// we shift the 24bit sample by 32bits because it is a signed number
 			signed iReal = (signed(frame[0])<<24)|(frame[1]<<16)|(frame[2]<<8);
@@ -52,13 +66,17 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 
 			// a float contains 24 bits of precision,
 			// dividing by 2^32 ensures we don't mess with the mantissa during the conversion
-			receive_sample(recv, iReal / SCALE_32, iImag / SCALE_32);
+			if(hasReceivers)
+			{
+				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
+				metis_sync(!!m_receivers[recv].Write(signals::etypComplex, &sample, 1, 0));
+			}
 		}
 
 		// technique taken from KK: ensure that no matter what the sample rate is we still get the
 		// proper mic rate (using a form of error diffusion?)
 		m_micSample += MIC_RATE;
-		if (m_micSample >= m_sampleRate)
+		if (m_micSample >= sampleRate)
 		{
 			m_micSample = 0;
 
@@ -202,10 +220,6 @@ unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned a
 	}
 	return 1;
 }
-
-/*
-signals::IEPBuffer* CreateBuffer();
-*/
 
 // ----------------------------------------------------------------------------
 
@@ -462,7 +476,7 @@ void CHpsdrDevice::buildAttrs()
 	static const char* alex_send_relay[] = {"Tx1", "Tx2", "Tx3"};
 	attrs.alex_send_relay = addLocalAttr(true, new CAttr_outBits(*this, "AlexSendRelay", "Alex Tx relay",
 		0, 0, 3, 0x3, 0, _countof(alex_send_relay), alex_send_relay));
-	attrs.timestamp = addLocalAttr(true, new CAttr_outBit(*this, "Timestamp", "Send 1pps through mic stream?", false, 0, 3, 0x40));
+//	attrs.timestamp = addLocalAttr(true, new CAttr_outBit(*this, "Timestamp", "Send 1pps through mic stream?", false, 0, 3, 0x40));
 
 	attrs.recv_duplex = addLocalAttr(true, new CAttr_outBit(*this, "Duplex", "Duplex?", true, 0, 3, 0x04));
 	attrs.recv_clone = addLocalAttr(true, new CAttr_outBit(*this, "RecvClone", "Common Mercury frequency?", false, 0, 3, 0x80));
@@ -504,4 +518,10 @@ void CHpsdrDevice::buildAttrs()
 	attrs.recv2_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 2 preamp?", false, 10, 0, 0x02));
 	attrs.recv3_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 3 preamp?", false, 10, 0, 0x04));
 	attrs.recv4_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 4 preamp?", false, 10, 0, 0x08));
+
+	m_receiver1.buildAttrs(*this);
+	m_receiver2.buildAttrs(*this);
+	m_receiver3.buildAttrs(*this);
+	m_receiver4.buildAttrs(*this);
+	m_wideRecv.buildAttrs(*this);
 }

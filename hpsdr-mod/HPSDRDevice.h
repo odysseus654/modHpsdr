@@ -16,6 +16,9 @@ private:
 	CHpsdrDevice(const CHpsdrDevice& other);
 	CHpsdrDevice& operator=(const CHpsdrDevice& other);
 
+public: // interface
+	virtual signals::IBlock* Block() { return this; }		// from CAttributesBase
+
 protected:
 	explicit CHpsdrDevice(EBoardId boardId);
 
@@ -106,41 +109,12 @@ protected:
 		CAttributeBase* recv4_preamp;
 	} attrs;
 
-//	unsigned m_sampleRate;							// (config) incoming sample rate
-//	unsigned m_numReceiver;							// (config) incoming receiver count
-
-private:
-	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
-	const static float SCALE_16;
-
-	enum
-	{
-		SYNC = 0x7F,
-		MIC_RATE = 48000,							// all mic input is fixed at 48k regardless of IQ rate
-		MAX_CC_OUT = 10
-	};
-
-	unsigned int m_micSample;						// private to process_data
-	byte m_lastCCout;
-
-	byte m_CCout[16*4];
-	unsigned short m_CCoutSet;
-	unsigned short m_CCoutPending;
-	Lock m_CCoutLock;
-
-	byte* chooseCC();
-
-	volatile byte m_CC0in;
-	byte m_CCin[32*4];
-	Lock m_CCinLock;
-
 protected:
 	class Receiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline Receiver(signals::IBlock* parent, EBoardId boardId):m_parent(parent),m_bIsHermes(boardId == Hermes) { }
 		virtual ~Receiver();
-		//void buildAttrs(CAttributesBase* parent, TAttrDef* attrs, unsigned numAttrs);
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
@@ -176,8 +150,77 @@ protected:
 		Receiver& operator=(const Receiver& other);
 	};
 
-protected:
-	const EBoardId m_controllerType;
-	std::vector<Receiver> m_receivers;
+	class WideReceiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		inline WideReceiver(signals::IBlock* parent):m_parent(parent) { }
+		virtual ~WideReceiver();
+		void buildAttrs(const CHpsdrDevice& parent);
 
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		signals::IBlock* m_parent;
+
+	private:
+		const static char* NAME;
+		const static char* EP_NAME;
+
+	public: // IBlock interface
+		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+		virtual unsigned Release()					{ return m_parent->Release(); }
+		virtual const char* Name()					{ return NAME; }
+		virtual signals::IBlockDriver* Driver()		{ return m_parent->Driver(); }
+		virtual signals::IBlock* Parent()			{ m_parent->AddRef(); return m_parent; }
+		virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks)	{ return 0; }
+		virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP)		{ return 0; }
+		virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
+		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual bool Start()						{ return m_parent->Start(); }
+		virtual bool Stop()							{ return m_parent->Stop(); }
+	public: // COutEndpointBase interface
+		virtual signals::IBlock* Block()			{ AddRef(); return this; }
+		virtual signals::EType Type()				{ return signals::etypSingle; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
+
+	private:
+		WideReceiver(const Receiver& other);
+		WideReceiver& operator=(const Receiver& other);
+	};
+
+private:
+	enum
+	{
+		SYNC = 0x7F,
+		MIC_RATE = 48,							// all mic input is fixed at 48k regardless of IQ rate
+		MAX_CC_OUT = 10
+	};
+
+	unsigned int m_micSample;						// private to process_data
+
+	byte m_lastCCout;								// protected by m_CCoutLock
+	byte m_CCout[16*4];								// protected by m_CCoutLock
+	unsigned short m_CCoutSet;						// protected by m_CCoutLock
+	unsigned short m_CCoutPending;					// protected by m_CCoutLock
+	Lock m_CCoutLock;
+
+	byte* chooseCC();
+
+	volatile byte m_CC0in;
+	byte m_CCin[32*4];								// protected by m_CCinLock
+	bool m_CCinDirty[32];							// protected by m_CCinLock
+	Condition m_CCinUpdated;						// protected by m_CCinLock
+	Lock m_CCinLock;
+
+protected:
+	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
+	const static float SCALE_16;
+
+	const EBoardId m_controllerType;
+
+	std::vector<Receiver> m_receivers;				// protected by m_recvListLock
+	Lock m_recvListLock;
+
+	Receiver m_receiver1, m_receiver2, m_receiver3, m_receiver4;
+	WideReceiver m_wideRecv;
 };
