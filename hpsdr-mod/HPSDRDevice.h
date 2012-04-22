@@ -110,51 +110,37 @@ protected:
 	} attrs;
 
 protected:
-	class Receiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
+	class Receiver : public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Receiver(signals::IBlock* parent, EBoardId boardId):m_parent(parent),m_bIsHermes(boardId == Hermes) { }
-		virtual ~Receiver();
+		inline Receiver(signals::IBlock* parent, short recvNum):m_parent(parent),m_recvNum(recvNum) { }
+		virtual ~Receiver() {}
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
-		bool m_bIsHermes;
+		short m_recvNum;
 
 	private:
-		const static char* HERMES_NAME;
-		const static char* MERCURY_NAME;
-		const static char* EP_NAME;
-
-	public: // IBlock interface
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual const char* Name()					{ return m_bIsHermes ? HERMES_NAME : MERCURY_NAME; }
-		virtual signals::IBlockDriver* Driver()		{ return m_parent->Driver(); }
-		virtual signals::IBlock* Parent()			{ m_parent->AddRef(); return m_parent; }
-		virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks)	{ return 0; }
-		virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP)		{ return 0; }
-		virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual bool Start()						{ return m_parent->Start(); }
-		virtual bool Stop()							{ return m_parent->Stop(); }
-	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ AddRef(); return this; }
-		virtual signals::EType Type()				{ return signals::etypComplex; }
-		virtual const char* EPName()				{ return EP_NAME; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
-
-	private:
+		const static char* EP_NAME[];
+		const static char* EP_DESCR;
 		Receiver(const Receiver& other);
 		Receiver& operator=(const Receiver& other);
+
+	public: // COutEndpointBase interface
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return signals::etypComplex; }
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
+		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
-	class WideReceiver : public signals::IBlock, public COutEndpointBase, public CAttributesBase
+	class WideReceiver : public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline WideReceiver(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~WideReceiver();
+		virtual ~WideReceiver() {}
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
@@ -162,30 +148,17 @@ protected:
 		signals::IBlock* m_parent;
 
 	private:
-		const static char* NAME;
 		const static char* EP_NAME;
-
-	public: // IBlock interface
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual const char* Name()					{ return NAME; }
-		virtual signals::IBlockDriver* Driver()		{ return m_parent->Driver(); }
-		virtual signals::IBlock* Parent()			{ m_parent->AddRef(); return m_parent; }
-		virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks)	{ return 0; }
-		virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP)		{ return 0; }
-		virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual bool Start()						{ return m_parent->Start(); }
-		virtual bool Stop()							{ return m_parent->Stop(); }
-	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ AddRef(); return this; }
-		virtual signals::EType Type()				{ return signals::etypSingle; }
-		virtual const char* EPName()				{ return EP_NAME; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
-
-	private:
+		const static char* EP_DESCR;
 		WideReceiver(const Receiver& other);
 		WideReceiver& operator=(const Receiver& other);
+
+	public: // COutEndpointBase interface
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return signals::etypSingle; }
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
+		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
 private:

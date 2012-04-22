@@ -54,10 +54,10 @@ public: // IBlock implementation
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 //	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks);
-	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
-	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
+//	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
+//	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
 	virtual bool Start();
-//	virtual bool Stop();
+	virtual bool Stop();
 
 protected:
 	static const char* NAME;
@@ -77,6 +77,7 @@ protected:
 	unsigned m_lastIQSeq, m_lastWideSeq, m_nextSendSeq;
 	bool     m_iqStarting, m_wideStarting;
 	volatile byte m_lastRunStatus;
+	volatile bool m_sendThreadEnabled;
 
 private:
 	static unsigned __stdcall threadbegin_recv(void *param);

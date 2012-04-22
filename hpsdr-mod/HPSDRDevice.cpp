@@ -10,8 +10,7 @@ const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 #pragma warning(disable: 4355)
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
-	 m_receivers(4),m_receiver1(this, boardId),m_receiver2(this, boardId),m_receiver3(this, boardId),
-	 m_receiver4(this, boardId),m_wideRecv(this)
+	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -180,7 +179,7 @@ void CHpsdrDevice::send_frame(byte* frame)
 	for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
 	{
 		float audLeft = 0.0f, audRight = 0.0f;
-//		speaker_out(&audLeft, &audRight);
+		speaker_out(&audLeft, &audRight);
 
 		// send left & right data to the speakers on the receiver
 		int IntValue = int(SCALE_16 * audLeft);
@@ -192,7 +191,7 @@ void CHpsdrDevice::send_frame(byte* frame)
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 
 		float xmitI = 0.0f, xmitQ = 0.0f;
-//		xmit_out(&xmitI, &xmitQ);
+		xmit_out(&xmitI, &xmitQ);
 
 		// send I & Q data to the exciter
 		IntValue = int(SCALE_16 * xmitI);
@@ -207,19 +206,13 @@ void CHpsdrDevice::send_frame(byte* frame)
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Receiver
 
-const char* CHpsdrDevice::Receiver::HERMES_NAME = "Hermes (Receiver)";
-const char* CHpsdrDevice::Receiver::MERCURY_NAME = "Mercury (Receiver)";
-const char* CHpsdrDevice::Receiver::EP_NAME = "Received IQ Data";
+const char* CHpsdrDevice::Receiver::EP_NAME[] = {"recv1", "recv2", "recv3", "recv4" };
+const char* CHpsdrDevice::Receiver::EP_DESCR = "Received IQ Samples";
 
-unsigned CHpsdrDevice::Receiver::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
-{
-	if(ep && availEP)
-	{
-		AddRef();
-		ep[0] = this;
-	}
-	return 1;
-}
+// ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
+
+const char* CHpsdrDevice::WideReceiver::EP_NAME = "wide";
+const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC samples";
 
 // ----------------------------------------------------------------------------
 
