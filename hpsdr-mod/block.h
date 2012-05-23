@@ -14,15 +14,17 @@ namespace signals
 
 	enum EType : unsigned
 	{
-		etypNone    = 0x00,
-		etypBoolean = 0x08,
-		etypByte    = 0x0B,
+		etypNone	= 0x00,
+		etypEvent	= 0x01,
+		etypBoolean	= 0x08,
+		etypByte	= 0x0B,
 		etypShort	= 0x0C,
 		etypLong	= 0x0D,
 		etypSingle	= 0x15,
-		etypDouble  = 0x16,
+		etypDouble	= 0x16,
 		etypComplex	= 0x1D,
-		etypString  = 0x23,
+		etypString	= 0x23,
+		etypLRSingle = 0x2D
 	};
 
 	__interface IBlockDriver

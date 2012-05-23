@@ -65,7 +65,7 @@ public:
 		return true;
 	}
 
-	void push_back(const_reference val, DWORD milli = INFINITE)
+	bool push_back(const_reference val, DWORD milli = INFINITE)
 	{
 		Locker lock(m_lock);
 		while((m_back+1)%m_buffer.size() == m_front)

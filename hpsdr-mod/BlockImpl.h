@@ -75,6 +75,7 @@ public:
 	virtual const char* Description()	{ return m_descr; }
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
+	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
 //	virtual signals::EType Type() = 0;
 //	virtual bool isReadOnly();
 //	virtual const void* getValue() = 0;
@@ -110,7 +111,7 @@ private:
 
 protected:
 	CAttributeBase* addRemoteAttr(const char* pName, CAttributeBase* attr);
-	CAttributeBase* addLocalAttr(bool bVisible, CAttributeBase* attr);
+	template<class ATTR> ATTR* addLocalAttr(bool bVisible, ATTR* attr); // using a "fake generic" for typesafety
 //	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
 	CAttributeBase* GetByName2(const char* name);
 
@@ -125,6 +126,7 @@ private:
 };
 
 template<signals::EType ET> struct StoreType;
+template<> struct StoreType<signals::etypEvent>		{ typedef void type; };
 template<> struct StoreType<signals::etypBoolean>	{ typedef unsigned char type; };
 template<> struct StoreType<signals::etypByte>		{ typedef unsigned char type; };
 template<> struct StoreType<signals::etypShort>		{ typedef short type; };
@@ -133,6 +135,7 @@ template<> struct StoreType<signals::etypSingle>	{ typedef float type; };
 template<> struct StoreType<signals::etypDouble>	{ typedef double type; };
 template<> struct StoreType<signals::etypComplex>	{ typedef std::complex<float> type; };
 template<> struct StoreType<signals::etypString>	{ typedef std::string type; };
+template<> struct StoreType<signals::etypLRSingle>	{ typedef std::complex<float> type; };
 
 template<signals::EType ET>
 class CAttribute : public CAttributeBase
@@ -209,6 +212,24 @@ private:
 	std::string m_value;
 };
 
+template<>
+class CAttribute<signals::etypNone> : public CAttributeBase
+{
+public:
+	inline CAttribute(const char* pName, const char* pDescr):CAttributeBase(pName, pDescr) { }
+	virtual ~CAttribute()				{ }
+	virtual signals::EType Type()		{ return signals::etypString; }
+	virtual bool isReadOnly()			{ return false; }
+	virtual const void* getValue()		{ return NULL; }
+	virtual bool setValue(const void* newVal) { onSetValue(NULL); }
+	inline void fire()					{ setValue(NULL); }
+
+private:
+	typedef CAttribute<signals::etypNone> my_type;
+	CAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
+};
+
 template<signals::EType ET>
 class CROAttribute : public CAttribute<ET>
 {
@@ -263,11 +284,11 @@ public: // IEPBuffer
 	virtual unsigned Used()			{ return buffer.size(); }
 
 public: // IEPSender
-	virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout)
+	virtual unsigned Write(signals::EType type, const void* pBuffer, unsigned numElem, unsigned msTimeout)
 	{
 		if(type == ET)
 		{
-			store_type* pBuf = (store_type*)buffer;
+			store_type* pBuf = (store_type*)pBuffer;
 			unsigned idx = 0;
 			for(; idx < numElem; idx++)
 			{
@@ -281,7 +302,7 @@ public: // IEPSender
 	virtual void onSourceConnected(signals::IOutEndpoint* src)
 	{
 		ASSERT(!m_oep);
-		IOutEndpoint* oldEp(m_oep);
+		signals::IOutEndpoint* oldEp(m_oep);
 		m_oep = src;
 		if(m_oep) m_oep->AddRef();
 		if(oldEp) oldEp->Release();
@@ -316,3 +337,19 @@ public: // IEPReceiver
 	virtual unsigned AddRef()		{ return CRefcountObject::AddRef(); }
 	virtual unsigned Release()		{ return CRefcountObject::Release(); }
 };
+
+// ------------------------------------------------------------------------------------------------
+
+// using a template for type safety, hopefully this collapses down to the same implemenation...
+template<class ATTR> ATTR* CAttributesBase::addLocalAttr(bool bVisible, ATTR* attr)
+{
+	if(attr)
+	{
+		const char* name = attr->Name();
+		m_ownedAttrs.insert(attr);
+		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
+		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+		if(bVisible) m_visibleAttrs.insert(attr);
+	}
+	return attr;
+}

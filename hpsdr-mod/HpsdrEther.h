@@ -67,6 +67,7 @@ protected:
 
 	unsigned thread_recv();
 	unsigned thread_send();
+	void FlushPendingChanges();
 
 	const unsigned long	m_ipAddress;
 	const __int64		m_macAddress;

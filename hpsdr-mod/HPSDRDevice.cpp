@@ -10,7 +10,8 @@ const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 #pragma warning(disable: 4355)
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
-	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this)
+	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this),
+	 m_microphone(this),m_speaker(this),m_transmit(this)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -68,7 +69,7 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 			if(hasReceivers)
 			{
 				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
-				metis_sync(!!m_receivers[recv].Write(signals::etypComplex, &sample, 1, 0));
+				if(!m_receivers[recv].Write(signals::etypComplex, &sample, 1, 0)) attrs.sync_fault->fire();
 			}
 		}
 
@@ -81,7 +82,8 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 
 			// force the 16bit number to be signed and convert to float
 			short MicAmpl = (short(frame[0]) << 8) | frame[1];
-			mic_sample(MicAmpl / SCALE_16);
+			float sample = MicAmpl / SCALE_16;
+			if(!m_microphone.Write(signals::etypSingle, &sample, 1, 0)) attrs.sync_mic_fault->fire();
 		}
 		frame += 2;
 		remain -= 2;
@@ -178,27 +180,27 @@ void CHpsdrDevice::send_frame(byte* frame)
 
 	for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
 	{
-		float audLeft = 0.0f, audRight = 0.0f;
-		speaker_out(&audLeft, &audRight);
+		std::complex<float> audSample;
+		m_speaker.Read(signals::etypLRSingle, &audSample, 1, 0);
 
 		// send left & right data to the speakers on the receiver
-		int IntValue = int(SCALE_16 * audLeft);
+		int IntValue = int(SCALE_16 * audSample.real());
 		*frame++ = (byte)(IntValue >> 8);    // left hi
 		*frame++ = (byte)(IntValue & 0xff);  // left lo
 
-		IntValue = int(SCALE_16 * audRight);
+		IntValue = int(SCALE_16 * audSample.imag());
 		*frame++ = (byte)(IntValue >> 8);    // right hi
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 
-		float xmitI = 0.0f, xmitQ = 0.0f;
-		xmit_out(&xmitI, &xmitQ);
+		std::complex<float> iqSample;
+		m_speaker.Read(signals::etypComplex, &audSample, 1, 0);
 
 		// send I & Q data to the exciter
-		IntValue = int(SCALE_16 * xmitI);
+		IntValue = int(SCALE_16 * iqSample.real());
 		*frame++ = (byte)(IntValue >> 8);    // right hi
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 
-		IntValue = int(SCALE_16 * xmitQ);
+		IntValue = int(SCALE_16 * iqSample.imag());
 		*frame++ = (byte)(IntValue >> 8);    // right hi
 		*frame++ = (byte)(IntValue & 0xff);  // right lo
 	} // end for
@@ -256,7 +258,6 @@ public:
 		if(deflt) m_parent.setCCbits(m_addr, m_offset, m_mask, m_mask);
 	}
 
-	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
 	virtual ~CAttr_outBit() { }
 
 protected:
@@ -381,7 +382,6 @@ public:
 	}
 
 	virtual ~CAttr_outLong() { }
-	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
 
 protected:
 	virtual void nativeOnSetValue(const store_type& newVal)
@@ -433,6 +433,10 @@ void CHpsdrDevice::buildAttrs()
 		CAttributeBase* recv4_overflow;
 		CAttributeBase* recv4_version;
 */
+	// events
+	attrs.sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("syncFault", "Fires when a sync fault happens in a receive stream"));
+	attrs.wide_sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
+	attrs.sync_mic_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
 
 	// write-only
 	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};
@@ -517,4 +521,7 @@ void CHpsdrDevice::buildAttrs()
 	m_receiver3.buildAttrs(*this);
 	m_receiver4.buildAttrs(*this);
 	m_wideRecv.buildAttrs(*this);
+	m_microphone.buildAttrs(*this);
+	m_speaker.buildAttrs(*this);
+	m_transmit.buildAttrs(*this);
 }

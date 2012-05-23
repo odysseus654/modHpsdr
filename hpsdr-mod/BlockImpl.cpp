@@ -121,18 +121,6 @@ CAttributeBase* CAttributesBase::addRemoteAttr(const char* name, CAttributeBase*
 	return attr;
 }
 
-CAttributeBase* CAttributesBase::addLocalAttr(bool bVisible, CAttributeBase* attr)
-{
-	if(attr)
-	{
-		const char* name = attr->Name();
-		m_ownedAttrs.insert(attr);
-		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
-		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
-		if(bVisible) m_visibleAttrs.insert(attr);
-	}
-	return attr;
-}
 /*
 CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible)
 {

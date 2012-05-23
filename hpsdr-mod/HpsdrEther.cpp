@@ -316,14 +316,9 @@ bool CHpsdrEthernet::Start()
 	m_sendThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_send, this, CREATE_SUSPENDED, &threadId);
 	if(m_sendThread == (HANDLE)-1L) ThrowErrnoError(errno);
 	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
+	FlushPendingChanges();
+	m_sendThreadEnabled = true;
 	if(ResumeThread(m_sendThread) == -1L) ThrowLastError(GetLastError());
-
-	//// start thread to read Metis data from Ethernet.   DataLoop merely calls Process_Data, 
-	//// which calls usb_bulk_read() and rcvr.Process(),
-	//// and stuffs the demodulated audio into AudioRing buffer
-	Data_send(true); // send a frame to Ozy to prime the pump
-	Thread.Sleep(20);
-	Data_send(true); // send a frame to Ozy to prime the pump,with freq this time 
 
 	// start data from Metis
 	Metis_start_stop(true, true);
@@ -422,7 +417,7 @@ unsigned CHpsdrEthernet::thread_recv()
 							*wideDest++ = ((wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 							wideSrc += 2;
 						}
-						metis_sync(!!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0));
+						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0)) attrs.wide_sync_fault->fire();
 					}
 					break;
 				case 6: // endpoint 4: IQ + mic data
@@ -430,11 +425,10 @@ unsigned CHpsdrEthernet::thread_recv()
 					{
 						if(!m_iqStarting && m_lastIQSeq+1 != seq)
 						{
-							metis_sync(false);
+							attrs.sync_fault->fire();
 						}
 						else
 						{
-							metis_sync(true);
 							m_iqStarting = false;
 							m_lastIQSeq = seq;
 						}
@@ -511,4 +505,27 @@ unsigned CHpsdrEthernet::thread_send()
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
 	}
 	return 0;
+}
+
+void CHpsdrEthernet::FlushPendingChanges()
+{
+	ASSERT(!m_sendThreadEnabled);
+	if(m_sendThreadEnabled) return;
+
+	byte message[1032];
+	while(outPendingExists())
+	{
+		memset(message, 0, sizeof(message));
+		message[0] = 0xEF;
+		message[1] = 0xFE;
+		message[2] = 0x01;
+		message[3] = 0x02;
+		*(u_long*)message[4] = ::htonl(m_nextSendSeq++);
+
+		send_frame(message + 8);
+		send_frame(message + 520);
+
+		int ret = ::send(this->m_sock, (char*)message, sizeof(message), 0);
+		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
+	}
 }

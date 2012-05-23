@@ -28,6 +28,11 @@ protected:
 
 	struct
 	{
+		// events
+		CAttribute<signals::etypNone>* sync_fault;
+		CAttribute<signals::etypNone>* sync_mic_fault;
+		CAttribute<signals::etypNone>* wide_sync_fault;
+
 		// high-priority read-only
 		CAttributeBase* PPT;
 		CAttributeBase* DASH;
@@ -136,6 +141,31 @@ protected:
 		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
+	class Microphone : public COutEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		inline Microphone(signals::IBlock* parent):m_parent(parent) { }
+		virtual ~Microphone() {}
+		void buildAttrs(const CHpsdrDevice& parent);
+
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		signals::IBlock* m_parent;
+
+	private:
+		const static char* EP_NAME;
+		const static char* EP_DESCR;
+		Microphone(const Microphone& other);
+		Microphone& operator=(const Microphone& other);
+
+	public: // COutEndpointBase interface
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return signals::etypSingle; }
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
+		virtual signals::IAttributes* Attributes()	{ return this; }
+	};
+
 	class WideReceiver : public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
@@ -159,6 +189,60 @@ protected:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
 		virtual signals::IAttributes* Attributes()	{ return this; }
+	};
+
+	class Transmitter : public CInEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		inline Transmitter(signals::IBlock* parent):m_parent(parent) { }
+		virtual ~Transmitter() {}
+		void buildAttrs(const CHpsdrDevice& parent);
+
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		signals::IBlock* m_parent;
+
+	private:
+		const static char* EP_NAME;
+		const static char* EP_DESCR;
+		Transmitter(const Transmitter& other);
+		Transmitter& operator=(const Transmitter& other);
+
+	public: // CInEndpointBase interface
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+		virtual unsigned Release()					{ return m_parent->Release(); }
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return signals::etypComplex; }
+		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
+	};
+
+	class Speaker : public CInEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		inline Speaker(signals::IBlock* parent):m_parent(parent) { }
+		virtual ~Speaker() {}
+		void buildAttrs(const CHpsdrDevice& parent);
+
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		signals::IBlock* m_parent;
+
+	private:
+		const static char* EP_NAME;
+		const static char* EP_DESCR;
+		Speaker(const Speaker& other);
+		Speaker& operator=(const Speaker& other);
+
+	public: // CInEndpointBase interface
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+		virtual unsigned Release()					{ return m_parent->Release(); }
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return signals::etypLRSingle; }
+		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
 	};
 
 private:
@@ -188,6 +272,7 @@ private:
 protected:
 	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
 	const static float SCALE_16;
+	inline bool outPendingExists() const { return !!m_CCoutPending; }
 
 	const EBoardId m_controllerType;
 
@@ -196,4 +281,7 @@ protected:
 
 	Receiver m_receiver1, m_receiver2, m_receiver3, m_receiver4;
 	WideReceiver m_wideRecv;
+	Microphone m_microphone;
+	Speaker m_speaker;
+	Transmitter m_transmit;
 };
