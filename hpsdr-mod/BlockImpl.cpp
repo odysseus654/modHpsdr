@@ -21,8 +21,8 @@ bool CInEndpointBase::Connect(signals::IEPReceiver* recv)
 {
 	if(recv != m_connRecv)
 	{
-		if(recv) recv->AddRef();
-		if(m_connRecv) m_connRecv->Release();
+		if(recv) recv->onSinkConnected(this);
+		if(m_connRecv) m_connRecv->onSinkDisconnected(this);
 		m_connRecv = recv;
 	}
 	return true;
@@ -39,8 +39,8 @@ bool COutEndpointBase::Connect(signals::IEPSender* send)
 {
 	if(send != m_connSend)
 	{
-		if(send) send->onSourceConnected(this);
-		if(m_connSend) m_connSend->onSourceDisconnected(this);
+		if(send) send->AddRef();
+		if(m_connSend) m_connSend->Release();
 		m_connSend = send;
 	}
 	return true;

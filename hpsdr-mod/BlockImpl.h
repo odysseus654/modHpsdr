@@ -221,7 +221,7 @@ public:
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return NULL; }
-	virtual bool setValue(const void* newVal) { onSetValue(NULL); }
+	virtual bool setValue(const void* newVal) { onSetValue(NULL); return true; }
 	inline void fire()					{ setValue(NULL); }
 
 private:
@@ -271,10 +271,10 @@ protected:
 	typedef Buffer<store_type> buffer_type;
 
 	buffer_type buffer;
-	signals::IOutEndpoint* m_oep;
+	signals::IInEndpoint* m_iep;
 
 public:
-	inline CEPBuffer(typename buffer_type::size_type capacity):buffer(capacity), m_oep(NULL)
+	inline CEPBuffer(typename buffer_type::size_type capacity):buffer(capacity), m_iep(NULL)
 	{
 	}
 
@@ -299,31 +299,31 @@ public: // IEPSender
 		else return 0; // implicit translation not yet supported
 	}
 
-	virtual void onSourceConnected(signals::IOutEndpoint* src)
+	virtual void onSinkConnected(signals::IInEndpoint* src)
 	{
-		ASSERT(!m_oep);
-		signals::IOutEndpoint* oldEp(m_oep);
-		m_oep = src;
-		if(m_oep) m_oep->AddRef();
+		ASSERT(!m_iep);
+		signals::IInEndpoint* oldEp(m_iep);
+		m_iep = src;
+		if(m_iep) m_iep->AddRef();
 		if(oldEp) oldEp->Release();
 	}
 
-	virtual void onSourceDisconnected(signals::IOutEndpoint* src)
+	virtual void onSinkDisconnected(signals::IInEndpoint* src)
 	{
-		ASSERT(m_oep == src);
-		if(m_oep == src)
+		ASSERT(m_iep == src);
+		if(m_iep == src)
 		{
-			m_oep = NULL;
+			m_iep = NULL;
 			if(src) src->Release();
 		}
 	}
 
 public: // IEPReceiver
-	virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, unsigned msTimeout)
+	virtual unsigned Read(signals::EType type, void* pBuffer, unsigned numAvail, unsigned msTimeout)
 	{
 		if(type == ET)
 		{
-			store_type* pBuf = (store_type*)buffer;
+			store_type* pBuf = (store_type*)pBuffer;
 			unsigned idx = 0;
 			for(; idx < numAvail; idx++)
 			{

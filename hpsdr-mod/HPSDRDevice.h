@@ -22,8 +22,8 @@ public: // interface
 protected:
 	explicit CHpsdrDevice(EBoardId boardId);
 
-	bool receive_frame(byte* frame);
-	void send_frame(byte* frame);
+	unsigned receive_frame(byte* frame);
+	void send_frame(byte* frame, bool no_streams = false);
 	void buildAttrs();
 
 	struct
@@ -249,7 +249,6 @@ private:
 	enum
 	{
 		SYNC = 0x7F,
-		MIC_RATE = 48,							// all mic input is fixed at 48k regardless of IQ rate
 		MAX_CC_OUT = 10
 	};
 
@@ -270,13 +269,21 @@ private:
 	Lock m_CCinLock;
 
 protected:
+	friend class CAttr_out_recv_speed;
+
+	enum
+	{
+		MIC_RATE = 48								// all mic input is fixed at 48k regardless of IQ rate
+	};
+
 	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
 	const static float SCALE_16;
 	inline bool outPendingExists() const { return !!m_CCoutPending; }
 
+	unsigned int m_recvSpeed;
 	const EBoardId m_controllerType;
 
-	std::vector<Receiver> m_receivers;				// protected by m_recvListLock
+	std::vector<Receiver*> m_receivers;				// protected by m_recvListLock
 	Lock m_recvListLock;
 
 	Receiver m_receiver1, m_receiver2, m_receiver3, m_receiver4;

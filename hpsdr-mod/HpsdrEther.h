@@ -53,14 +53,20 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
+	virtual signals::IAttributes* Attributes() { return this; }
 //	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks);
 //	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
 //	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
 	virtual bool Start();
 	virtual bool Stop();
 
-protected:
+private:
 	static const char* NAME;
+
+	enum
+	{
+		MAX_SEND_LAG = 10		// how many frames behind are we permitting the send thread to catch up with?
+	};
 
 	SOCKET buildSocket() const;
 	void Metis_start_stop(bool runIQ, bool runWide);
@@ -78,7 +84,8 @@ protected:
 	unsigned m_lastIQSeq, m_lastWideSeq, m_nextSendSeq;
 	bool     m_iqStarting, m_wideStarting;
 	volatile byte m_lastRunStatus;
-	volatile bool m_sendThreadEnabled;
+	Semaphore m_sendThreadLock;
+	unsigned m_recvSamples;		// private to thread_recv
 
 private:
 	static unsigned __stdcall threadbegin_recv(void *param);

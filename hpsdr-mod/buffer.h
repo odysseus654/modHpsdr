@@ -20,7 +20,7 @@ public:
 	typedef typename vector_type::value_type value_type;
 
 	explicit Buffer(size_type size)
-		:m_buffer(size+1),m_back(0),m_back(0)
+		:m_buffer(size+1),m_back(0),m_front(0)
 	{
 	}
 
@@ -92,8 +92,8 @@ protected:
 	vector_type	m_buffer;
 	size_type	m_back;
 	size_type	m_front;
-	Lock		m_lock;
-	Condition	m_notEmpty;
+	mutable Lock		m_lock;
+	Condition	m_notEmpty, m_notFull;
 
 private:
 	typedef Buffer<Elem> my_type;

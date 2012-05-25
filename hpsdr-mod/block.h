@@ -54,15 +54,15 @@ namespace signals
 	__interface IEPSender
 	{
 		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
-		void onSourceConnected(IOutEndpoint* src);
-		void onSourceDisconnected(IOutEndpoint* src);
+		unsigned AddRef();
+		unsigned Release();
 	};
 
 	__interface IEPReceiver
 	{
 		unsigned Read(EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
-		unsigned AddRef();
-		unsigned Release();
+		void onSinkConnected(IInEndpoint* src);
+		void onSinkDisconnected(IInEndpoint* src);
 	};
 
 	__interface IEPBuffer : public IEPSender, public IEPReceiver

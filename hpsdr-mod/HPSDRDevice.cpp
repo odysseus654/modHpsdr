@@ -11,7 +11,7 @@ const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
 	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this),
-	 m_microphone(this),m_speaker(this),m_transmit(this)
+	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -19,10 +19,10 @@ CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 }
 #pragma warning(pop)
 
-bool CHpsdrDevice::receive_frame(byte* frame)
+unsigned CHpsdrDevice::receive_frame(byte* frame)
 {
 	// check that sync pulses are present in the front of rbuf...JAM
-	if(*frame++ != SYNC || *frame++ != SYNC || *frame++ != SYNC) return false;
+	if(*frame++ != SYNC || *frame++ != SYNC || *frame++ != SYNC) return 0;
 
 	// grab the received C&C code and dispatch the necessary notifiers
 	byte CC0 = *frame++;
@@ -42,16 +42,12 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 
 	int remain = 504; // 512 - 8 bytes
 
-	static const unsigned int recv_speed_options[] = { 48, 96, 192 };
-	ASSERT(attrs.recv_speed && attrs.recv_speed->Type() == signals::etypByte);
-	unsigned char recvIdx = *(unsigned char*)attrs.recv_speed->getValue();
-	unsigned int sampleRate = recv_speed_options[recvIdx];
-
 	Locker recvLock(m_recvListLock);
 	const std::vector<Receiver>::size_type numReceiver = max(1, m_receivers.size());
 	const bool hasReceivers = !m_receivers.empty();
 	const int sample_size = 6 * numReceiver + 2;
 
+	unsigned numSamples = 0;
 	while(remain > sample_size)
 	{
 		// receive a sample for each of the currentl-active receivers
@@ -69,14 +65,14 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 			if(hasReceivers)
 			{
 				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
-				if(!m_receivers[recv].Write(signals::etypComplex, &sample, 1, 0)) attrs.sync_fault->fire();
+				if(!m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0)) attrs.sync_fault->fire();
 			}
 		}
 
 		// technique taken from KK: ensure that no matter what the sample rate is we still get the
 		// proper mic rate (using a form of error diffusion?)
 		m_micSample += MIC_RATE;
-		if (m_micSample >= sampleRate)
+		if (m_micSample >= m_recvSpeed)
 		{
 			m_micSample = 0;
 
@@ -87,8 +83,9 @@ bool CHpsdrDevice::receive_frame(byte* frame)
 		}
 		frame += 2;
 		remain -= 2;
+		numSamples++;
 	}
-	return true;
+	return numSamples;
 }
 
 byte* CHpsdrDevice::chooseCC()
@@ -161,7 +158,7 @@ void CHpsdrDevice::setCCint(byte addr, unsigned long value)
 	m_CCoutPending |= CCoutMask;
 }
 
-void CHpsdrDevice::send_frame(byte* frame)
+void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 {
 	*frame++ = SYNC;
 	*frame++ = SYNC;
@@ -178,32 +175,39 @@ void CHpsdrDevice::send_frame(byte* frame)
 		*frame++ = *CC++;
 	}
 
-	for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
+	if(no_streams)
 	{
-		std::complex<float> audSample;
-		m_speaker.Read(signals::etypLRSingle, &audSample, 1, 0);
+		memset(frame, 0, 512);
+	}
+	else
+	{
+		for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
+		{
+			std::complex<float> audSample;
+			m_speaker.Read(signals::etypLRSingle, &audSample, 1, 0);
 
-		// send left & right data to the speakers on the receiver
-		int IntValue = int(SCALE_16 * audSample.real());
-		*frame++ = (byte)(IntValue >> 8);    // left hi
-		*frame++ = (byte)(IntValue & 0xff);  // left lo
+			// send left & right data to the speakers on the receiver
+			int IntValue = int(SCALE_16 * audSample.real());
+			*frame++ = (byte)(IntValue >> 8);    // left hi
+			*frame++ = (byte)(IntValue & 0xff);  // left lo
 
-		IntValue = int(SCALE_16 * audSample.imag());
-		*frame++ = (byte)(IntValue >> 8);    // right hi
-		*frame++ = (byte)(IntValue & 0xff);  // right lo
+			IntValue = int(SCALE_16 * audSample.imag());
+			*frame++ = (byte)(IntValue >> 8);    // right hi
+			*frame++ = (byte)(IntValue & 0xff);  // right lo
 
-		std::complex<float> iqSample;
-		m_speaker.Read(signals::etypComplex, &audSample, 1, 0);
+			std::complex<float> iqSample;
+			m_speaker.Read(signals::etypComplex, &audSample, 1, 0);
 
-		// send I & Q data to the exciter
-		IntValue = int(SCALE_16 * iqSample.real());
-		*frame++ = (byte)(IntValue >> 8);    // right hi
-		*frame++ = (byte)(IntValue & 0xff);  // right lo
+			// send I & Q data to the exciter
+			IntValue = int(SCALE_16 * iqSample.real());
+			*frame++ = (byte)(IntValue >> 8);    // right hi
+			*frame++ = (byte)(IntValue & 0xff);  // right lo
 
-		IntValue = int(SCALE_16 * iqSample.imag());
-		*frame++ = (byte)(IntValue >> 8);    // right hi
-		*frame++ = (byte)(IntValue & 0xff);  // right lo
-	} // end for
+			IntValue = int(SCALE_16 * iqSample.imag());
+			*frame++ = (byte)(IntValue >> 8);    // right hi
+			*frame++ = (byte)(IntValue & 0xff);  // right lo
+		} // end for
+	}
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Receiver
@@ -296,8 +300,9 @@ protected:
 		base::nativeOnSetValue(newVal);
 	}
 
-private:
+protected:
 	CHpsdrDevice& m_parent;
+private:
 	byte m_addr;
 	byte m_offset;
 	byte m_mask;
@@ -367,6 +372,32 @@ private:
 	{
 		m_parent.setCCbits(0, 0, 0x80, newVal == 0 ? 0 : 0x80);
 		m_parent.setCCbits(9, 1, 0x02, newVal <= 1 ? 0 : 0x02);
+	}
+};
+
+class CAttr_out_recv_speed : public CAttr_outBits
+{
+public:
+	CAttr_out_recv_speed(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
+		byte addr, byte offset, byte mask, byte shift, unsigned numOpt, const char** optList)
+		:CAttr_outBits(parent, name, descr, deflt, addr, offset, mask, shift, numOpt, optList)
+	{
+		setValue(deflt);
+	}
+
+protected:
+	virtual void nativeOnSetValue(const store_type& newVal)
+	{
+		setValue(newVal);
+		CAttr_outBits::nativeOnSetValue(newVal);
+	}
+
+private:
+	void setValue(const store_type& newVal)
+	{
+		static const unsigned int recv_speed_options[] = { 48, 96, 192 };
+		ASSERT(newVal >= 0 && newVal < 3);
+		m_parent.m_recvSpeed = recv_speed_options[newVal];
 	}
 };
 
@@ -440,7 +471,7 @@ void CHpsdrDevice::buildAttrs()
 
 	// write-only
 	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};
-	attrs.recv_speed = addLocalAttr(true, new CAttr_outBits(*this, "RecvRate", "Rate that receivers send data",
+	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "RecvRate", "Rate that receivers send data",
 		2, 0, 0, 0x3, 0, _countof(recv_speed_options), recv_speed_options));
 	if(m_controllerType != Hermes)
 	{

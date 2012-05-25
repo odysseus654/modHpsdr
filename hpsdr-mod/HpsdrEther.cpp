@@ -5,6 +5,8 @@
 #include <process.h>
 #include <set>
 
+#pragma comment(lib, "ws2_32.lib")
+
 void SetThreadName(const char* threadName, DWORD dwThreadID = -1)
 {
 	#pragma pack(push,8)
@@ -258,7 +260,7 @@ const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
 CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
 	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),
 	 m_recvThread(INVALID_HANDLE_VALUE),m_sendThread(INVALID_HANDLE_VALUE),m_sock(INVALID_SOCKET),
-	 m_lastRunStatus(0),m_sendThreadEnabled(false),m_iqStarting(false),m_wideStarting(false)
+	 m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false)
 {
 }
 
@@ -317,7 +319,7 @@ bool CHpsdrEthernet::Start()
 	if(m_sendThread == (HANDLE)-1L) ThrowErrnoError(errno);
 	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
 	FlushPendingChanges();
-	m_sendThreadEnabled = true;
+	m_sendThreadLock.open(0, MAX_SEND_LAG);
 	if(ResumeThread(m_sendThread) == -1L) ThrowLastError(GetLastError());
 
 	// start data from Metis
@@ -328,7 +330,7 @@ bool CHpsdrEthernet::Start()
 bool CHpsdrEthernet::Stop()
 {
 	// shut down sending thread
-	m_sendThreadEnabled = false;
+	m_sendThreadLock.close();
 
 	// shut down receive thread
 	Metis_start_stop(false, false);
@@ -342,6 +344,7 @@ bool CHpsdrEthernet::Stop()
 	shutdown(m_sock, SD_BOTH);
 	closesocket(m_sock);
 	m_sock = INVALID_SOCKET;
+	return true;
 }
 
 unsigned __stdcall CHpsdrEthernet::threadbegin_recv(void *param)
@@ -356,6 +359,7 @@ unsigned __stdcall CHpsdrEthernet::threadbegin_recv(void *param)
 #ifdef _DEBUG
 		DebugBreak();
 #endif
+		return 3;
 	}
 }
 
@@ -371,6 +375,7 @@ unsigned __stdcall CHpsdrEthernet::threadbegin_send(void *param)
 #ifdef _DEBUG
 		DebugBreak();
 #endif
+		return 3;
 	}
 }
 
@@ -421,16 +426,26 @@ unsigned CHpsdrEthernet::thread_recv()
 					}
 					break;
 				case 6: // endpoint 4: IQ + mic data
-					if((!m_iqStarting || !seq) && receive_frame(message+8) && receive_frame(message+520))
+					if(!m_iqStarting || !seq)
 					{
-						if(!m_iqStarting && m_lastIQSeq+1 != seq)
+						unsigned numSamples = receive_frame(message+8);
+						if(numSamples)
 						{
-							attrs.sync_fault->fire();
-						}
-						else
-						{
-							m_iqStarting = false;
-							m_lastIQSeq = seq;
+							numSamples += receive_frame(message+520);
+							if(!m_iqStarting && m_lastIQSeq+1 != seq)
+							{
+								attrs.sync_fault->fire();
+							}
+							else
+							{
+								m_iqStarting = false;
+								m_lastIQSeq = seq;
+							}
+							m_recvSamples += numSamples * MIC_RATE;
+							if(m_recvSamples > m_recvSpeed*128)
+							{
+								// release send thread
+							}
 						}
 					}
 					break;
@@ -489,7 +504,7 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 unsigned CHpsdrEthernet::thread_send()
 {
 	byte message[1032];
-	while(m_sendThreadEnabled)
+	while(m_sendThreadLock.sleep())
 	{
 		memset(message, 0, sizeof(message));
 		message[0] = 0xEF;
@@ -509,8 +524,8 @@ unsigned CHpsdrEthernet::thread_send()
 
 void CHpsdrEthernet::FlushPendingChanges()
 {
-	ASSERT(!m_sendThreadEnabled);
-	if(m_sendThreadEnabled) return;
+	ASSERT(!m_sendThreadLock.isOpen());
+	if(m_sendThreadLock.isOpen()) return;
 
 	byte message[1032];
 	while(outPendingExists())
@@ -522,8 +537,8 @@ void CHpsdrEthernet::FlushPendingChanges()
 		message[3] = 0x02;
 		*(u_long*)message[4] = ::htonl(m_nextSendSeq++);
 
-		send_frame(message + 8);
-		send_frame(message + 520);
+		send_frame(message + 8, true);
+		send_frame(message + 520, true);
 
 		int ret = ::send(this->m_sock, (char*)message, sizeof(message), 0);
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
