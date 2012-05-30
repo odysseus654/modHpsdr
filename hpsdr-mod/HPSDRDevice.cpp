@@ -215,10 +215,48 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 const char* CHpsdrDevice::Receiver::EP_NAME[] = {"recv1", "recv2", "recv3", "recv4" };
 const char* CHpsdrDevice::Receiver::EP_DESCR = "Received IQ Samples";
 
+void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_fault);
+}
+
 // ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
 
 const char* CHpsdrDevice::WideReceiver::EP_NAME = "wide";
 const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC samples";
+
+void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.wide_sync_fault);
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
+
+const char* CHpsdrDevice::Transmitter::EP_NAME = "send";
+const char* CHpsdrDevice::Transmitter::EP_DESCR = "IQ transmitter data";
+
+void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
+{
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Microphone
+
+const char* CHpsdrDevice::Microphone::EP_NAME = "mic";
+const char* CHpsdrDevice::Microphone::EP_DESCR = "Microphone audio input";
+
+void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_mic_fault);
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Speaker
+
+const char* CHpsdrDevice::Speaker::EP_NAME = "speak";
+const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
+
+void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
+{
+}
 
 // ----------------------------------------------------------------------------
 
@@ -226,21 +264,54 @@ template<signals::EType ET>
 class COptionedAttribute : public CAttribute<ET>
 {
 public:
-	COptionedAttribute(const char* name, const char* descr, byte deflt, unsigned numOpt, const char** optList)
-		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_optList(optList)
+	COptionedAttribute(const char* name, const char* descr, const store_type& deflt,
+		unsigned numOpt, const store_type* valList, const char** optList)
+		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_valList(valList),m_optList(optList)
 	{
 	}
 
 	virtual ~COptionedAttribute() { }
 
-	virtual unsigned options(const char** opts, unsigned availElem)
+	virtual unsigned options(const void* vals, const char** opts, unsigned availElem)
 	{
-		if(opts && availElem)
+		if((vals||opts) && availElem)
 		{
 			unsigned numCopy = min(availElem, m_numOpts);
 			for(unsigned idx=0; idx < numCopy; idx++)
 			{
-				opts[idx] = m_optList[idx];
+				if(vals) ((store_type*)vals)[idx] = m_valList;
+				if(opts) opts[idx] = m_optList[idx];
+			}
+		}
+		return m_numOpts;
+	}
+
+private:
+	unsigned m_numOpts;
+	const store_type* m_valList;
+	const char** m_optList;
+};
+
+template<signals::EType ET>
+class CNumOptionedAttribute : public CAttribute<ET>
+{
+public:
+	CNumOptionedAttribute(const char* name, const char* descr, const store_type& deflt, unsigned numOpt, const char** optList)
+		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_optList(optList)
+	{
+	}
+
+	virtual ~CNumOptionedAttribute() { }
+
+	virtual unsigned options(const void* vals, const char** opts, unsigned availElem)
+	{
+		if((vals||opts) && availElem)
+		{
+			unsigned numCopy = min(availElem, m_numOpts);
+			for(unsigned idx=0; idx < numCopy; idx++)
+			{
+				if(vals) ((store_type*)vals)[idx] = (store_type)idx;
+				if(opts) opts[idx] = m_optList[idx];
 			}
 		}
 		return m_numOpts;
@@ -278,10 +349,10 @@ private:
 	byte m_mask;
 };
 
-class CAttr_outBits : public COptionedAttribute<signals::etypByte>
+class CAttr_outBits : public CNumOptionedAttribute<signals::etypByte>
 {
-protected:
-	typedef COptionedAttribute<signals::etypByte> base;
+private:
+	typedef CNumOptionedAttribute<signals::etypByte> base;
 public:
 	CAttr_outBits(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
 		byte addr, byte offset, byte mask, byte shift, unsigned numOpt, const char** optList)
@@ -314,10 +385,10 @@ private:
 	}
 };
 
-class CAttr_out_alex_recv_ant : public COptionedAttribute<signals::etypByte>
+class CAttr_out_alex_recv_ant : public CNumOptionedAttribute<signals::etypByte>
 {
-protected:
-	typedef COptionedAttribute<signals::etypByte> base;
+private:
+	typedef CNumOptionedAttribute<signals::etypByte> base;
 public:
 	CAttr_out_alex_recv_ant(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
 		unsigned numOpt, const char** optList)
@@ -344,10 +415,10 @@ private:
 	}
 };
 
-class CAttr_out_mic_src : public COptionedAttribute<signals::etypByte>
+class CAttr_out_mic_src : public CNumOptionedAttribute<signals::etypByte>
 {
-protected:
-	typedef COptionedAttribute<signals::etypByte> base;
+private:
+	typedef CNumOptionedAttribute<signals::etypByte> base;
 public:
 	CAttr_out_mic_src(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
 		unsigned numOpt, const char** optList)
@@ -466,8 +537,8 @@ void CHpsdrDevice::buildAttrs()
 */
 	// events
 	attrs.sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("syncFault", "Fires when a sync fault happens in a receive stream"));
-	attrs.wide_sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
-	attrs.sync_mic_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
+	attrs.wide_sync_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
+	attrs.sync_mic_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
 
 	// write-only
 	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};

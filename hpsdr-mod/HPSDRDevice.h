@@ -127,6 +127,11 @@ protected:
 		signals::IBlock* m_parent;
 		short m_recvNum;
 
+		struct
+		{
+			CAttribute<signals::etypNone>* sync_fault;
+		} attrs;
+
 	private:
 		const static char* EP_NAME[];
 		const static char* EP_DESCR;
@@ -152,6 +157,11 @@ protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
 
+		struct
+		{
+			CAttribute<signals::etypNone>* sync_fault;
+		} attrs;
+
 	private:
 		const static char* EP_NAME;
 		const static char* EP_DESCR;
@@ -176,6 +186,11 @@ protected:
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
+
+		struct
+		{
+			CAttribute<signals::etypNone>* sync_fault;
+		} attrs;
 
 	private:
 		const static char* EP_NAME;

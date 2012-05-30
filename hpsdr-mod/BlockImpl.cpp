@@ -110,17 +110,6 @@ CAttributeBase* CAttributesBase::GetByName2(const char* name)
 	return NULL;
 }
 
-CAttributeBase* CAttributesBase::addRemoteAttr(const char* name, CAttributeBase* attr)
-{
-	if(attr)
-	{
-		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
-		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
-		m_visibleAttrs.insert(attr);
-	}
-	return attr;
-}
-
 /*
 CAttributeBase* CAttributesBase::buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible)
 {

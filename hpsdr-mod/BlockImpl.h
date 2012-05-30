@@ -75,7 +75,7 @@ public:
 	virtual const char* Description()	{ return m_descr; }
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
-	virtual unsigned options(const char** opts, unsigned availElem) { return 0; }
+	virtual unsigned options(const void* vals, const char** opts, unsigned availElem) { return 0; }
 //	virtual signals::EType Type() = 0;
 //	virtual bool isReadOnly();
 //	virtual const void* getValue() = 0;
@@ -109,9 +109,9 @@ private:
 	CAttributesBase(const CAttributesBase& other);
 	CAttributesBase& operator=(const CAttributesBase& other);
 
-protected:
-	CAttributeBase* addRemoteAttr(const char* pName, CAttributeBase* attr);
-	template<class ATTR> ATTR* addLocalAttr(bool bVisible, ATTR* attr); // using a "fake generic" for typesafety
+protected: // using a "fake generic" for typesafety
+	template<class ATTR> ATTR* addRemoteAttr(const char* pName, ATTR* attr);
+	template<class ATTR> ATTR* addLocalAttr(bool bVisible, ATTR* attr);
 //	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
 	CAttributeBase* GetByName2(const char* name);
 
@@ -350,6 +350,17 @@ template<class ATTR> ATTR* CAttributesBase::addLocalAttr(bool bVisible, ATTR* at
 		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
 		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
 		if(bVisible) m_visibleAttrs.insert(attr);
+	}
+	return attr;
+}
+
+template<class ATTR> ATTR* CAttributesBase::addRemoteAttr(const char* name, ATTR* attr)
+{
+	if(attr)
+	{
+		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
+		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
+		m_visibleAttrs.insert(attr);
 	}
 	return attr;
 }

@@ -43,7 +43,7 @@ class CHpsdrEthernet : public CHpsdrDevice, protected CRefcountObject
 {
 public:
 	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId);
-	virtual ~CHpsdrEthernet();
+	virtual ~CHpsdrEthernet() { Stop(); }
 
 	enum { METIS_PORT = 1024 };
 
@@ -54,9 +54,9 @@ public: // IBlock implementation
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IAttributes* Attributes() { return this; }
-//	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks);
-//	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
-//	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
+	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks) { return 0; }
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
+	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 	virtual bool Start();
 	virtual bool Stop();
 

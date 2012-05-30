@@ -264,6 +264,24 @@ CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoa
 {
 }
 
+unsigned CHpsdrEthernet::Incoming(signals::IInEndpoint** ep, unsigned availEP)
+{
+	if(ep && availEP > 0) ep[0] = &m_speaker;
+	if(ep && availEP > 1) ep[1] = &m_transmit;
+	return 2;
+}
+
+unsigned CHpsdrEthernet::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
+{
+	if(ep && availEP > 0) ep[0] = &m_microphone;
+	if(ep && availEP > 1) ep[1] = &m_wideRecv;
+	if(ep && availEP > 2) ep[2] = &m_receiver1;
+	if(ep && availEP > 3) ep[3] = &m_receiver2;
+	if(ep && availEP > 4) ep[4] = &m_receiver3;
+	if(ep && availEP > 5) ep[5] = &m_receiver4;
+	return 6;
+}
+
 SOCKET CHpsdrEthernet::buildSocket() const
 {
 	sockaddr_in iep;
@@ -336,14 +354,20 @@ bool CHpsdrEthernet::Stop()
 	Metis_start_stop(false, false);
 
 	// finish shutting down the sending thread
-	WaitForSingleObject(m_sendThread, INFINITE);
-	CloseHandle(m_sendThread);
-	m_sendThread = INVALID_HANDLE_VALUE;
+	if(m_sendThread != INVALID_HANDLE_VALUE)
+	{
+		WaitForSingleObject(m_sendThread, INFINITE);
+		CloseHandle(m_sendThread);
+		m_sendThread = INVALID_HANDLE_VALUE;
+	}
 
 	// shut down the socket
-	shutdown(m_sock, SD_BOTH);
-	closesocket(m_sock);
-	m_sock = INVALID_SOCKET;
+	if(m_sock != INVALID_SOCKET)
+	{
+		shutdown(m_sock, SD_BOTH);
+		closesocket(m_sock);
+		m_sock = INVALID_SOCKET;
+	}
 	return true;
 }
 
@@ -472,6 +496,8 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 	message[1] = 0xFE;
 	message[2] = 0x04;
 	message[3] = (runIQ ? 1 : 0) | (runWide ? 2 : 0);
+	if(m_lastRunStatus == message[3]) return;
+
 	if(!(m_lastRunStatus&1) && runIQ) m_iqStarting = true;
 	if(!(m_lastRunStatus&2) && runWide) m_wideStarting = true;
 	m_nextSendSeq = 0;

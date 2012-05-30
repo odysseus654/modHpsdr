@@ -117,7 +117,7 @@ namespace signals
 		bool isReadOnly();
 		const void* getValue();
 		bool setValue(const void* newVal);
-		unsigned options(const char** opts, unsigned availElem);
+		unsigned options(const void* values, const char** opts, unsigned availElem);
 	};
 
 	__interface IAttributeObserver
