@@ -218,6 +218,8 @@ const char* CHpsdrDevice::Receiver::EP_DESCR = "Received IQ Samples";
 void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_fault);
+	attrs.rate = addRemoteAttr("rate", parent.attrs.recv1_freq);
+//	attrs.preamp = addRemoteAttr("preamp", 
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
@@ -228,6 +230,7 @@ const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC sa
 void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.wide_sync_fault);
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
@@ -237,6 +240,7 @@ const char* CHpsdrDevice::Transmitter::EP_DESCR = "IQ transmitter data";
 
 void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
 {
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Microphone
@@ -247,6 +251,7 @@ const char* CHpsdrDevice::Microphone::EP_DESCR = "Microphone audio input";
 void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_mic_fault);
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Speaker
@@ -256,6 +261,7 @@ const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
 
 void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
 {
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
 // ----------------------------------------------------------------------------
@@ -279,7 +285,7 @@ public:
 			unsigned numCopy = min(availElem, m_numOpts);
 			for(unsigned idx=0; idx < numCopy; idx++)
 			{
-				if(vals) ((store_type*)vals)[idx] = m_valList;
+				if(vals) ((store_type*)vals)[idx] = m_valList[idx];
 				if(opts) opts[idx] = m_optList[idx];
 			}
 		}
@@ -446,31 +452,48 @@ private:
 	}
 };
 
-class CAttr_out_recv_speed : public CAttr_outBits
+class CAttr_out_recv_speed : public COptionedAttribute<signals::etypSingle>
 {
+private:
+	typedef COptionedAttribute<signals::etypSingle> base;
+	static const float recv_speed_options[3];
 public:
-	CAttr_out_recv_speed(CHpsdrDevice& parent, const char* name, const char* descr, byte deflt,
-		byte addr, byte offset, byte mask, byte shift, unsigned numOpt, const char** optList)
-		:CAttr_outBits(parent, name, descr, deflt, addr, offset, mask, shift, numOpt, optList)
+	CAttr_out_recv_speed(CHpsdrDevice& parent, const char* name, const char* descr, float deflt,
+		byte addr, byte offset, byte mask, byte shift)
+		:base(name, descr, deflt, _countof(recv_speed_options), recv_speed_options, NULL),
+		 m_rawValue(parent, name, descr, 0, addr, offset, mask, shift, 0, NULL),
+		 m_parent(parent)
 	{
 		setValue(deflt);
 	}
 
 protected:
+	CAttr_outBits m_rawValue;
+	CHpsdrDevice& m_parent;
+
+protected:
 	virtual void nativeOnSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
-		CAttr_outBits::nativeOnSetValue(newVal);
+		base::nativeOnSetValue(newVal);
 	}
 
 private:
 	void setValue(const store_type& newVal)
 	{
-		static const unsigned int recv_speed_options[] = { 48, 96, 192 };
-		ASSERT(newVal >= 0 && newVal < 3);
-		m_parent.m_recvSpeed = recv_speed_options[newVal];
+		int iFreq = int(newVal / 1000.0f + 0.5f);
+		for(unsigned idx = 0; idx < _countof(recv_speed_options); idx++)
+		{
+			if(recv_speed_options[idx] / 1000 == iFreq)
+			{
+				m_rawValue.nativeSetValue(idx);
+				m_parent.m_recvSpeed = iFreq;
+				break;
+			}
+		}
 	}
 };
+const float CAttr_out_recv_speed::recv_speed_options[] = { 48000.0f, 96000.0f, 192000.0f };
 
 class CAttr_outLong : public CAttribute<signals::etypLong>
 {
@@ -541,9 +564,7 @@ void CHpsdrDevice::buildAttrs()
 	attrs.sync_mic_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
 
 	// write-only
-	static const char* recv_speed_options[] = {"48 kHz", "96 kHz", "192 kHz"};
-	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "RecvRate", "Rate that receivers send data",
-		2, 0, 0, 0x3, 0, _countof(recv_speed_options), recv_speed_options));
+	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "RecvRate", "Rate that receivers send data", 192000.0f, 0, 0, 0x3, 0));
 	if(m_controllerType != Hermes)
 	{
 		static const char* src_10MHz_options[] = {"Atlas/Excalibur", "Penny", "Mercury"};

@@ -39,7 +39,6 @@ protected:
 		CAttributeBase* DOT;
 
 		// medium-priority read-only
-		CAttributeBase* recvOverflow;
 		CAttributeBase* hermes_I01;
 		CAttributeBase* hermes_I02;
 		CAttributeBase* hermes_I03;
@@ -130,6 +129,9 @@ protected:
 		struct
 		{
 			CAttribute<signals::etypNone>* sync_fault;
+			CAttributeBase* rate;
+			//CAttributeBase* preamp;
+			//CAttributeBase* freq;
 		} attrs;
 
 	private:
@@ -160,6 +162,8 @@ protected:
 		struct
 		{
 			CAttribute<signals::etypNone>* sync_fault;
+			CAttributeBase* rate;
+//			CAttributeBase* source;
 		} attrs;
 
 	private:
@@ -190,6 +194,7 @@ protected:
 		struct
 		{
 			CAttribute<signals::etypNone>* sync_fault;
+			CAttributeBase* rate;
 		} attrs;
 
 	private:
@@ -217,6 +222,11 @@ protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
 
+		struct
+		{
+			CAttributeBase* rate;
+		} attrs;
+
 	private:
 		const static char* EP_NAME;
 		const static char* EP_DESCR;
@@ -243,6 +253,11 @@ protected:
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
+
+		struct
+		{
+			CAttributeBase* rate;
+		} attrs;
 
 	private:
 		const static char* EP_NAME;
