@@ -39,6 +39,7 @@ protected:
 		CAttributeBase* DOT;
 
 		// medium-priority read-only
+		CAttributeBase* recv_overflow;
 		CAttributeBase* hermes_I01;
 		CAttributeBase* hermes_I02;
 		CAttributeBase* hermes_I03;
@@ -124,7 +125,7 @@ protected:
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
 		signals::IBlock* m_parent;
-		short m_recvNum;
+		const short m_recvNum;
 
 		struct
 		{
@@ -132,6 +133,8 @@ protected:
 			CAttributeBase* rate;
 			//CAttributeBase* preamp;
 			//CAttributeBase* freq;
+			//CAttributeBase* overflow;
+			//CAttributeBase* version;
 		} attrs;
 
 	private:
@@ -163,7 +166,7 @@ protected:
 		{
 			CAttribute<signals::etypNone>* sync_fault;
 			CAttributeBase* rate;
-//			CAttributeBase* source;
+			CAttributeBase* source;
 		} attrs;
 
 	private:
@@ -225,6 +228,7 @@ protected:
 		struct
 		{
 			CAttributeBase* rate;
+			CAttributeBase* version;
 		} attrs;
 
 	private:
@@ -272,7 +276,7 @@ protected:
 		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypLRSingle; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypLRSingle>(DEFAULT_BUFSIZE); }
 	};
 
 private:

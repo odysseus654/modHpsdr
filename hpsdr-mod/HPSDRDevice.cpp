@@ -220,6 +220,9 @@ void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_fault);
 	attrs.rate = addRemoteAttr("rate", parent.attrs.recv1_freq);
 //	attrs.preamp = addRemoteAttr("preamp", 
+//	CAttributeBase* freq;
+//	CAttributeBase* overflow;
+//	CAttributeBase* version;
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
@@ -241,6 +244,7 @@ const char* CHpsdrDevice::Transmitter::EP_DESCR = "IQ transmitter data";
 void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+	attrs.version = addRemoteAttr("version", parent.m_controllerType == Hermes ? parent.attrs.merc_software : parent.attrs.penny_software);
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Microphone
@@ -252,6 +256,7 @@ void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_mic_fault);
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+	attrs.source = addRemoteAttr("source", parent.attrs.src_mic);
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Speaker
@@ -264,7 +269,7 @@ void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
-// ----------------------------------------------------------------------------
+// ------------------------------------------------------------------ generic attribute handlers
 
 template<signals::EType ET>
 class COptionedAttribute : public CAttribute<ET>
@@ -328,9 +333,18 @@ private:
 	const char** m_optList;
 };
 
+class CAttr_inMonitor
+{
+public:
+	inline CAttr_inMonitor(byte addr):m_addr(addr) {}
+	virtual void evaluate(byte* inVal) PURE;
+
+	const byte m_addr;
+};
+
 class CAttr_outBit : public CAttribute<signals::etypBoolean>
 {
-protected:
+private:
 	typedef CAttribute<signals::etypBoolean> base;
 public:
 	CAttr_outBit(CHpsdrDevice& parent, const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
@@ -350,9 +364,33 @@ protected:
 
 private:
 	CHpsdrDevice& m_parent;
-	byte m_addr;
-	byte m_offset;
-	byte m_mask;
+	const byte m_addr;
+	const byte m_offset;
+	const byte m_mask;
+};
+
+class CAttr_inBit : public CROAttribute<signals::etypBoolean>, public CAttr_inMonitor
+{
+private:
+	typedef CROAttribute<signals::etypBoolean> base;
+	typedef CAttribute<signals::etypBoolean> rw_base;
+public:
+	CAttr_inBit(const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
+		:base(name, descr, deflt ? 1 : 0), CAttr_inMonitor(addr), m_offset(offset), m_mask(mask)
+	{
+	}
+
+	virtual ~CAttr_inBit() { }
+
+	virtual void evaluate(byte* inVal)
+	{
+		if(m_offset >= 4) {ASSERT(FALSE);return;}
+		rw_base::nativeSetValue((inVal[m_offset] & m_mask) ? 1 : 0);
+	}
+
+private:
+	const byte m_offset;
+	const byte m_mask;
 };
 
 class CAttr_outBits : public CNumOptionedAttribute<signals::etypByte>
@@ -380,16 +418,96 @@ protected:
 protected:
 	CHpsdrDevice& m_parent;
 private:
-	byte m_addr;
-	byte m_offset;
-	byte m_mask;
-	byte m_shift;
+	const byte m_addr;
+	const byte m_offset;
+	const byte m_mask;
+	const byte m_shift;
 
 	inline void setValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(m_addr, m_offset, m_mask, (newVal << m_shift) & m_mask);
 	}
 };
+
+class CAttr_inBits : public CROAttribute<signals::etypByte>, public CAttr_inMonitor
+{
+private:
+	typedef CROAttribute<signals::etypByte> base;
+	typedef CAttribute<signals::etypByte> rw_base;
+public:
+	CAttr_inBits(const char* name, const char* descr, byte deflt, byte addr, byte offset, byte mask, byte shift)
+		:base(name, descr, deflt), CAttr_inMonitor(addr), m_offset(offset), m_mask(mask), m_shift(shift)
+	{
+	}
+
+	virtual ~CAttr_inBits() { }
+
+	virtual void evaluate(byte* inVal)
+	{
+		if(m_offset >= 4) {ASSERT(FALSE);return;}
+		rw_base::nativeSetValue((inVal[m_offset] & m_mask) >> m_shift);
+	}
+
+private:
+	const byte m_offset;
+	const byte m_mask;
+	const byte m_shift;
+};
+
+class CAttr_outLong : public CAttribute<signals::etypLong>
+{
+private:
+	typedef CAttribute<signals::etypLong> base;
+public:
+	CAttr_outLong(CHpsdrDevice& parent, const char* name, const char* descr, long deflt, byte addr)
+		:base(name, descr, deflt), m_parent(parent), m_addr(addr)
+	{
+		if(deflt) setValue(deflt);
+	}
+
+	virtual ~CAttr_outLong() { }
+
+protected:
+	virtual void nativeOnSetValue(const store_type& newVal)
+	{
+		setValue(newVal);
+		base::nativeOnSetValue(newVal);
+	}
+
+private:
+	CHpsdrDevice& m_parent;
+	byte m_addr;
+
+	inline void setValue(const store_type& newVal)
+	{
+		m_parent.setCCint(m_addr, newVal);
+	}
+};
+
+class CAttr_inShort : public CROAttribute<signals::etypShort>, public CAttr_inMonitor
+{
+private:
+	typedef CROAttribute<signals::etypShort> base;
+	typedef CAttribute<signals::etypShort> rw_base;
+public:
+	CAttr_inShort(const char* name, const char* descr, short deflt, byte addr, byte offset)
+		:base(name, descr, deflt), CAttr_inMonitor(addr), m_offset(offset)
+	{
+	}
+
+	virtual ~CAttr_inShort() { }
+
+	virtual void evaluate(byte* inVal)
+	{
+		if(m_offset >= 3) {ASSERT(FALSE);return;}
+		rw_base::nativeSetValue((inVal[m_offset] << 8) | inVal[m_offset+1]);
+	}
+
+private:
+	const byte m_offset;
+};
+
+// ------------------------------------------------------------------ special attribute handlers
 
 class CAttr_out_alex_recv_ant : public CNumOptionedAttribute<signals::etypByte>
 {
@@ -464,7 +582,7 @@ public:
 		 m_rawValue(parent, name, descr, 0, addr, offset, mask, shift, 0, NULL),
 		 m_parent(parent)
 	{
-		setValue(deflt);
+		VERIFY(setValue(deflt));
 	}
 
 protected:
@@ -474,12 +592,14 @@ protected:
 protected:
 	virtual void nativeOnSetValue(const store_type& newVal)
 	{
-		setValue(newVal);
-		base::nativeOnSetValue(newVal);
+		if(setValue(newVal))
+		{
+			base::nativeOnSetValue(int(newVal / 1000.0f + 0.5f) * 1000.0f);
+		}
 	}
 
 private:
-	void setValue(const store_type& newVal)
+	bool setValue(const store_type& newVal)
 	{
 		int iFreq = int(newVal / 1000.0f + 0.5f);
 		for(unsigned idx = 0; idx < _countof(recv_speed_options); idx++)
@@ -488,76 +608,50 @@ private:
 			{
 				m_rawValue.nativeSetValue(idx);
 				m_parent.m_recvSpeed = iFreq;
-				break;
+				return true;
 			}
 		}
+		return false;
 	}
 };
 const float CAttr_out_recv_speed::recv_speed_options[] = { 48000.0f, 96000.0f, 192000.0f };
 
-class CAttr_outLong : public CAttribute<signals::etypLong>
-{
-protected:
-	typedef CAttribute<signals::etypLong> base;
-public:
-	CAttr_outLong(CHpsdrDevice& parent, const char* name, const char* descr, long deflt, byte addr)
-		:base(name, descr, deflt),m_parent(parent),m_addr(addr)
-	{
-		if(deflt) setValue(deflt);
-	}
-
-	virtual ~CAttr_outLong() { }
-
-protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
-	{
-		setValue(newVal);
-		base::nativeOnSetValue(newVal);
-	}
-
-private:
-	CHpsdrDevice& m_parent;
-	byte m_addr;
-
-	inline void setValue(const store_type& newVal)
-	{
-		m_parent.setCCint(m_addr, newVal);
-	}
-};
-
 void CHpsdrDevice::buildAttrs()
 {
-/*
-	struct
-	{
-		// high-priority read-only
-		CAttributeBase* PPT;
-		CAttributeBase* DASH;
-		CAttributeBase* DOT;
+	// high-priority read-only
+//	attr.PPT;
+//	attr.DASH;
+//	attr.DOT;
 
-		// medium-priority read-only
-		CAttributeBase* recvOverflow;
-		CAttributeBase* hermes_I01;
-		CAttributeBase* hermes_I02;
-		CAttributeBase* hermes_I03;
-		CAttributeBase* merc_software;
-		CAttributeBase* penny_software;
-		CAttributeBase* ozy_software;
-		CAttributeBase* AIN1;
-		CAttributeBase* AIN2;
-		CAttributeBase* AIN3;
-		CAttributeBase* AIN4;
-		CAttributeBase* AIN5;
-		CAttributeBase* AIN6;
-		CAttributeBase* recv1_overflow;
-		CAttributeBase* recv1_version;
-		CAttributeBase* recv2_overflow;
-		CAttributeBase* recv2_version;
-		CAttributeBase* recv3_overflow;
-		CAttributeBase* recv3_version;
-		CAttributeBase* recv4_overflow;
-		CAttributeBase* recv4_version;
-*/
+	// medium-priority read-only
+	attrs.recv_overflow = addLocalInAttr(true, new CAttr_inBit("recvOverflow", "Receiver ADC overloaded?", false, 0, 0, 0x1));
+	if(m_controllerType == Hermes)
+	{
+		attrs.hermes_I01 = addLocalInAttr(true, new CAttr_inBit("hermes_I01", "Hermes I01 active?", false, 0, 0, 0x2));
+		attrs.hermes_I02 = addLocalInAttr(true, new CAttr_inBit("hermes_I02", "Hermes I02 active?", false, 0, 0, 0x4));
+		attrs.hermes_I03 = addLocalInAttr(true, new CAttr_inBit("hermes_I03", "Hermes I03 active?", false, 0, 0, 0x8));
+	}
+	attrs.merc_software = addLocalInAttr(true, new CAttr_inBits("recvVersion", "Version of receiver software", 0, 0, 1, 0xFF, 0));
+	if(m_controllerType != Hermes)
+	{
+		attrs.penny_software = addLocalInAttr(true, new CAttr_inBits("xmitVersion", "Version of transmitter software", 0, 0, 2, 0xFF, 0));
+		attrs.ozy_software = addLocalInAttr(true, new CAttr_inBits("ifaceVersion", "Version of interface software", 0, 0, 3, 0xFF, 0));
+	}
+	attrs.AIN1 = addLocalInAttr(true, new CAttr_inShort("AIN1", "Forward power from Alex/Apollo", 0, 1, 2));
+	attrs.AIN2 = addLocalInAttr(true, new CAttr_inShort("AIN2", "Reverse power from Alex/Apollo", 0, 2, 0));
+	attrs.AIN3 = addLocalInAttr(true, new CAttr_inShort("AIN3", "AIN3 from Penny/Hermes", 0, 2, 2));
+	attrs.AIN4 = addLocalInAttr(true, new CAttr_inShort("AIN4", "AIN4 from Penny/Hermes", 0, 3, 0));
+	attrs.AIN5 = addLocalInAttr(true, new CAttr_inShort("AIN5", "Forward power from Penny/Hermes", 0, 1, 0));
+	attrs.AIN6 = addLocalInAttr(true, new CAttr_inShort("AIN6", "3.8v supply on Penny/Hermes", 0, 3, 2));
+	attrs.recv1_overflow = addLocalInAttr(true, new CAttr_inBit("recv1Overflow", "Receiver 1 ADC overloaded?", false, 4, 0, 0x1));
+	attrs.recv1_version = addLocalInAttr(true, new CAttr_inBits("recv1Version", "Receiver 1 software version", 0, 4, 0, 0xFE, 1));
+	attrs.recv2_overflow = addLocalInAttr(true, new CAttr_inBit("recv2Overflow", "Receiver 2 ADC overloaded?", false, 4, 1, 0x1));
+	attrs.recv2_version = addLocalInAttr(true, new CAttr_inBits("recv2Version", "Receiver 2 software version", 0, 4, 1, 0xFE, 1));
+	attrs.recv3_overflow = addLocalInAttr(true, new CAttr_inBit("recv3Overflow", "Receiver 3 ADC overloaded?", false, 4, 2, 0x1));
+	attrs.recv3_version = addLocalInAttr(true, new CAttr_inBits("recv3Version", "Receiver 3 software version", 0, 4, 2, 0xFE, 1));
+	attrs.recv4_overflow = addLocalInAttr(true, new CAttr_inBit("recv4Overflow", "Receiver 4 ADC overloaded?", false, 4, 3, 0x1));
+	attrs.recv4_version = addLocalInAttr(true, new CAttr_inBits("recv4Version", "Receiver 4 software version", 0, 4, 3, 0xFE, 1));
+
 	// events
 	attrs.sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("syncFault", "Fires when a sync fault happens in a receive stream"));
 	attrs.wide_sync_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
@@ -576,7 +670,7 @@ void CHpsdrDevice::buildAttrs()
 		attrs.enable_penny = addLocalAttr(true, new CAttr_outBit(*this, "EnablePenny", "Enable transmitter?", true, 0, 0, 0x20));
 		attrs.enable_merc = addLocalAttr(true, new CAttr_outBit(*this, "EnableMerc", "Enable receiver?", true, 0, 0, 0x40));
 		static const char* src_mic_options[] = {"Janus", "Penny Mic", "Penny Line-in"};
-		attrs.src_mic = addLocalAttr(true, new CAttr_out_mic_src(*this, "MicSource", "Microphone Source", 1,
+		attrs.src_mic = addLocalAttr(false, new CAttr_out_mic_src(*this, "MicSource", "Microphone Source", 1,
 			_countof(src_mic_options), src_mic_options));
 	}
 	static const char* class_e_options[] = {"Other", "Class E"};

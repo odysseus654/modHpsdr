@@ -112,6 +112,7 @@ private:
 protected: // using a "fake generic" for typesafety
 	template<class ATTR> ATTR* addRemoteAttr(const char* pName, ATTR* attr);
 	template<class ATTR> ATTR* addLocalAttr(bool bVisible, ATTR* attr);
+	template<class ATTR> ATTR* addLocalInAttr(bool bVisible, ATTR* attr);
 //	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
 	CAttributeBase* GetByName2(const char* name);
 
@@ -361,6 +362,16 @@ template<class ATTR> ATTR* CAttributesBase::addRemoteAttr(const char* name, ATTR
 		m_attributes.insert(TVoidMapToAttr::value_type(name, attr));
 		m_attrNames.insert(TStringMapToVoid::value_type(name, name));
 		m_visibleAttrs.insert(attr);
+	}
+	return attr;
+}
+
+template<class ATTR> ATTR* CAttributesBase::addLocalInAttr(bool bVisible, ATTR* attr)
+{
+	if(attr)
+	{
+		addLocalAttr(bVisible, attr);
+		// add to list of handlers for in handlers
 	}
 	return attr;
 }

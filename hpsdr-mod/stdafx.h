@@ -5,6 +5,8 @@
 
 #pragma once
 
+#define _CRTDBG_MAP_ALLOC
+
 #include "targetver.h"
 
 #include <stdio.h>
@@ -15,6 +17,10 @@
 
 #ifdef _DEBUG
   #define ASSERT(x) { if(!(x)) DebugBreak(); }
+  #define VERIFY(x)  { if(!(x)) DebugBreak(); }
 #else
-  #define ASSERT(x) (x)
+  #define ASSERT(x)
+  #define VERIFY(x) (x)
 #endif
+
+#define PURE =0
