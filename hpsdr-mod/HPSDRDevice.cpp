@@ -356,10 +356,10 @@ public:
 	virtual ~CAttr_outBit() { }
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		m_parent.setCCbits(m_addr, m_offset, m_mask, !!newVal ? m_mask : 0);
-		base::nativeOnSetValue(newVal);
+		base::onSetValue(newVal);
 	}
 
 private:
@@ -409,10 +409,10 @@ public:
 	virtual ~CAttr_outBits() { }
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
-		base::nativeOnSetValue(newVal);
+		base::onSetValue(newVal);
 	}
 
 protected:
@@ -468,10 +468,10 @@ public:
 	virtual ~CAttr_outLong() { }
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
-		base::nativeOnSetValue(newVal);
+		base::onSetValue(newVal);
 	}
 
 private:
@@ -524,10 +524,10 @@ public:
 	virtual ~CAttr_out_alex_recv_ant() { }
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
-		base::nativeOnSetValue(newVal);
+		base::onSetValue(newVal);
 	}
 
 private:
@@ -554,10 +554,10 @@ public:
 	virtual ~CAttr_out_mic_src() { }
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		setValue(newVal);
-		base::nativeOnSetValue(newVal);
+		base::onSetValue(newVal);
 	}
 
 private:
@@ -590,11 +590,11 @@ protected:
 	CHpsdrDevice& m_parent;
 
 protected:
-	virtual void nativeOnSetValue(const store_type& newVal)
+	virtual void onSetValue(const store_type& newVal)
 	{
 		if(setValue(newVal))
 		{
-			base::nativeOnSetValue(int(newVal / 1000.0f + 0.5f) * 1000.0f);
+			base::onSetValue(int(newVal / 1000.0f + 0.5f) * 1000.0f);
 		}
 	}
 

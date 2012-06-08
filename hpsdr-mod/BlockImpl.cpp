@@ -55,6 +55,7 @@ unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned num
 
 void CAttributeBase::Observe(signals::IAttributeObserver* obs)
 {
+	Locker lock(m_observersLock);
 	if(m_observers.find(obs) != m_observers.end())
 	{
 		m_observers.insert(obs);
@@ -63,19 +64,11 @@ void CAttributeBase::Observe(signals::IAttributeObserver* obs)
 
 void CAttributeBase::Unobserve(signals::IAttributeObserver* obs)
 {
+	Locker lock(m_observersLock);
 	TObserverList::iterator lookup = m_observers.find(obs);
 	if(lookup != m_observers.end())
 	{
 		m_observers.erase(lookup);
-	}
-}
-
-void CAttributeBase::onSetValue(const void* value)
-{
-	TObserverList transList(m_observers);
-	for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
-	{
-		(*trans)->OnChanged(m_name, Type(), value);
 	}
 }
 

@@ -1,4 +1,5 @@
 #pragma once
+#include "../ext/FastDelegate.h"
 
 class Condition;
 
@@ -116,4 +117,127 @@ public:
 
 private:
 	HANDLE m_sem;
+};
+
+template<class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>
+class AsyncDelegate
+{
+public:
+	inline AsyncDelegate(fastdelegate::FastDelegate2<PARM1,PARM2> func):m_func(func),m_pending(0) {}
+	inline bool isPending() const { return !!m_pending; }
+
+	bool fire(const PARM1& parm1, const PARM2& parm2)
+	{
+		ASSERT(!m_pending);
+		m_parm1 = parm1;
+		m_parm2 = parm2;
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		InterlockedIncrement(&m_pending);
+		return true;
+	}
+private:
+	fastdelegate::FastDelegate2<PARM1,PARM2> m_func;
+	PARM1 m_parm1;
+	PARM2 m_parm2;
+	volatile long m_pending;
+
+	static DWORD __stdcall staticCatch(void* parm)
+	{
+		AsyncDelegate<PARM1,PARM2>* caller = (AsyncDelegate<PARM1,PARM2>*)parm;
+		if(!caller) { ASSERT(FALSE); return 1; }
+		ASSERT(caller->m_pending && caller->m_func);
+		InterlockedDecrement(&caller->m_pending);
+		try
+		{
+			caller->m_func(caller->m_parm1, caller->m_parm2);
+		}
+		catch(...)
+		{
+	#ifdef _DEBUG
+			DebugBreak();
+	#endif
+			return 3;
+		}
+		return 0;
+	}
+};
+
+template<class PARM>
+class AsyncDelegate<PARM>
+{
+public:
+	inline AsyncDelegate(fastdelegate::FastDelegate1<PARM> func):m_func(func),m_pending(0) {}
+	inline bool isPending() const { return !!m_pending; }
+
+	bool fire(const PARM& parm)
+	{
+		ASSERT(!m_pending);
+		m_parm = parm;
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		InterlockedIncrement(&m_pending);
+		return true;
+	}
+private:
+	fastdelegate::FastDelegate1<PARM> m_func;
+	PARM m_parm;
+	volatile long m_pending;
+
+	static DWORD __stdcall staticCatch(void* parm)
+	{
+		AsyncDelegate<PARM>* caller = (AsyncDelegate<PARM>*)parm;
+		if(!caller) { ASSERT(FALSE); return 1; }
+		ASSERT(caller->m_pending && caller->m_func);
+		InterlockedDecrement(&caller->m_pending);
+		try
+		{
+			caller->m_func(caller->m_parm);
+		}
+		catch(...)
+		{
+	#ifdef _DEBUG
+			DebugBreak();
+	#endif
+			return 3;
+		}
+		return 0;
+	}
+};
+
+template<>
+class AsyncDelegate<>
+{
+public:
+	inline AsyncDelegate(fastdelegate::FastDelegate0<> func):m_func(func),m_pending(0) {}
+	inline bool isPending() const { return !!m_pending; }
+
+	bool fire()
+	{
+		ASSERT(!m_pending);
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		InterlockedIncrement(&m_pending);
+		return true;
+	}
+private:
+	fastdelegate::FastDelegate0<> m_func;
+	volatile long m_pending;
+
+	static DWORD __stdcall staticCatch(void* parm)
+	{
+		AsyncDelegate<>* caller = (AsyncDelegate<>*)parm;
+		if(!caller) { ASSERT(FALSE); return 1; }
+		ASSERT(caller->m_pending && caller->m_func);
+		InterlockedDecrement(&caller->m_pending);
+		try
+		{
+			caller->m_func();
+		}
+		catch(...)
+		{
+	#ifdef _DEBUG
+			DebugBreak();
+	#endif
+			return 3;
+		}
+		return 0;
+	}
 };

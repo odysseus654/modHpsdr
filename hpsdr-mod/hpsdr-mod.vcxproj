@@ -74,6 +74,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\ext\FastDelegate.h" />
     <ClInclude Include="block.h" />
     <ClInclude Include="BlockImpl.h" />
     <ClInclude Include="buffer.h" />

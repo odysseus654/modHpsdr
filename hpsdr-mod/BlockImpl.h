@@ -3,6 +3,7 @@
 
 #include "buffer.h"
 #include <complex>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -81,14 +82,14 @@ public:
 //	virtual const void* getValue() = 0;
 //	virtual bool setValue(const void* newVal) = 0;
 //	virtual void internalSetValue(const void* newVal) = 0;
-protected:
-	virtual void onSetValue(const void* value);
 private:
 	CAttributeBase(const CAttributeBase& other);
 	CAttributeBase& operator=(const CAttributeBase& other);
-private:
+protected:
 	typedef std::set<signals::IAttributeObserver*> TObserverList;
 	TObserverList m_observers;
+	Lock          m_observersLock;
+private:
 	const char* m_name;
 	const char* m_descr;
 };
@@ -138,6 +139,9 @@ template<> struct StoreType<signals::etypComplex>	{ typedef std::complex<float> 
 template<> struct StoreType<signals::etypString>	{ typedef std::string type; };
 template<> struct StoreType<signals::etypLRSingle>	{ typedef std::complex<float> type; };
 
+#pragma warning(push)
+#pragma warning(disable: 4355)
+
 template<signals::EType ET>
 class CAttribute : public CAttributeBase
 {
@@ -148,13 +152,13 @@ private:
 	CAttribute(const my_type& other);
 	my_type& operator=(const my_type& other);
 public:
-	inline CAttribute(const char* pName, const char* pDescr, const store_type& deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
+	inline CAttribute(const char* pName, const char* pDescr, const store_type& deflt)
+		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<ET>::catcher), m_value(deflt) { }
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return ET; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return &m_value; }
 	const store_type& nativeGetValue()	{ return m_value; }
-	virtual void nativeOnSetValue(const store_type& value) { onSetValue(&value); }
 
 	virtual bool setValue(const void* newVal)
 	{
@@ -167,13 +171,46 @@ public:
 		if(newVal != m_value)
 		{
 			m_value = newVal;
-			nativeOnSetValue(newVal);
+			onSetValue(newVal);
 		}
 		return true;
 	}
 
+protected:
+	virtual void onSetValue(const store_type& value)
+	{
+		TObserverList transList;
+		{
+			Locker obslock(m_observersLock);
+			transList = m_observers;
+		}
+		Locker listlock(m_funcListLock);
+		TFuncList::iterator nextFunc = m_funcList.begin();
+		for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
+		{
+			while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
+			if(nextFunc == m_funcList.end())
+			{
+				m_funcList.push_back(TFuncType(m_func));
+				nextFunc--;
+			}
+			ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
+			nextFunc->fire(*trans, value);
+		}
+	}
+
 private:
+	fastdelegate::FastDelegate2<signals::IAttributeObserver*, store_type> m_func;
+	typedef AsyncDelegate<signals::IAttributeObserver*, store_type> TFuncType;
+	typedef std::list<TFuncType> TFuncList;
+	TFuncList  m_funcList;
+	Lock       m_funcListLock;
 	store_type m_value;
+
+	void catcher(signals::IAttributeObserver* obs, store_type value)
+	{
+		obs->OnChanged(Name(), Type(), &value);
+	}
 };
 
 template<>
@@ -182,12 +219,12 @@ class CAttribute<signals::etypString> : public CAttributeBase
 protected:
 	typedef StoreType<signals::etypString>::type store_type;
 public:
-	inline CAttribute(const char* pName, const char* pDescr, const char *deflt):CAttributeBase(pName, pDescr),m_value(deflt) { }
+	inline CAttribute(const char* pName, const char* pDescr, const char *deflt)
+		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<signals::etypString>::catcher), m_value(deflt) { }
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
-	virtual void nativeOnSetValue(const std::string& value) { onSetValue(&value); }
 
 	virtual bool setValue(const void* newVal)
 	{
@@ -200,9 +237,44 @@ public:
 		if(strcmp(newVal.c_str(), m_value.c_str()) != 0)
 		{
 			m_value = newVal;
-			nativeOnSetValue(newVal);
+			onSetValue(newVal);
 		}
 		return true;
+	}
+
+protected:
+	virtual void onSetValue(const store_type& value)
+	{
+		TObserverList transList;
+		{
+			Locker obslock(m_observersLock);
+			transList = m_observers;
+		}
+		Locker listlock(m_funcListLock);
+		TFuncList::iterator nextFunc = m_funcList.begin();
+		for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
+		{
+			while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
+			if(nextFunc == m_funcList.end())
+			{
+				m_funcList.push_back(TFuncType(m_func));
+				nextFunc--;
+			}
+			ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
+			nextFunc->fire(*trans, value);
+		}
+	}
+
+private:
+	fastdelegate::FastDelegate2<signals::IAttributeObserver*, store_type> m_func;
+	typedef AsyncDelegate<signals::IAttributeObserver*, store_type> TFuncType;
+	typedef std::list<TFuncType> TFuncList;
+	TFuncList m_funcList;
+	Lock      m_funcListLock;
+
+	void catcher(signals::IAttributeObserver* obs, store_type value)
+	{
+		obs->OnChanged(Name(), Type(), value.c_str());
 	}
 
 private:
@@ -217,19 +289,56 @@ template<>
 class CAttribute<signals::etypNone> : public CAttributeBase
 {
 public:
-	inline CAttribute(const char* pName, const char* pDescr):CAttributeBase(pName, pDescr) { }
+	inline CAttribute(const char* pName, const char* pDescr)
+		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<signals::etypNone>::catcher) { }
 	virtual ~CAttribute()				{ }
-	virtual signals::EType Type()		{ return signals::etypString; }
+	virtual signals::EType Type()		{ return signals::etypNone; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return NULL; }
-	virtual bool setValue(const void* newVal) { onSetValue(NULL); return true; }
+	virtual bool setValue(const void* newVal) { onSetValue(); return true; }
 	inline void fire()					{ setValue(NULL); }
+
+protected:
+	virtual void onSetValue()
+	{
+		TObserverList transList;
+		{
+			Locker obslock(m_observersLock);
+			transList = m_observers;
+		}
+		Locker listlock(m_funcListLock);
+		TFuncList::iterator nextFunc = m_funcList.begin();
+		for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
+		{
+			while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
+			if(nextFunc == m_funcList.end())
+			{
+				m_funcList.push_back(TFuncType(m_func));
+				nextFunc--;
+			}
+			ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
+			nextFunc->fire(*trans);
+		}
+	}
 
 private:
 	typedef CAttribute<signals::etypNone> my_type;
 	CAttribute(const my_type& other);
 	my_type& operator=(const my_type& other);
+
+	fastdelegate::FastDelegate1<signals::IAttributeObserver*> m_func;
+	typedef AsyncDelegate<signals::IAttributeObserver*> TFuncType;
+	typedef std::list<TFuncType> TFuncList;
+	TFuncList m_funcList;
+	Lock      m_funcListLock;
+
+	void catcher(signals::IAttributeObserver* obs)
+	{
+		obs->OnChanged(Name(), Type(), NULL);
+	}
 };
+
+#pragma warning(pop)
 
 template<signals::EType ET>
 class CROAttribute : public CAttribute<ET>
