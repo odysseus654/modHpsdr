@@ -115,10 +115,12 @@ __declspec(noreturn) void ThrowErrnoError(int err)
 #pragma warning(pop)
 }
 
+hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+namespace hpsdr {
+
 // ------------------------------------------------------------------ class CHpsdrEthernetDriver
 
 const char* CHpsdrEthernetDriver::NAME = "OpenHPSDR Ethernet Devices";
-CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
 CHpsdrEthernetDriver::CHpsdrEthernetDriver()
 {
@@ -569,4 +571,6 @@ void CHpsdrEthernet::FlushPendingChanges()
 		int ret = ::send(this->m_sock, (char*)message, sizeof(message), 0);
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
 	}
+}
+
 }

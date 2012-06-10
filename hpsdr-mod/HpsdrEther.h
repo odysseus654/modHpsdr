@@ -4,6 +4,14 @@
 #include <list>
 #include <WinSock2.h>
 
+namespace hpsdr
+{
+	class CHpsdrEthernetDriver;
+}
+extern hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+
+namespace hpsdr {
+
 class CHpsdrEthernetDriver : public signals::IBlockDriver
 {
 public:
@@ -37,7 +45,6 @@ protected:
 
 	static void Metis_Discovery(std::list<CDiscoveredBoard>& discList);
 };
-extern CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
 class CHpsdrEthernet : public CHpsdrDevice, protected CRefcountObject
 {
@@ -92,3 +99,4 @@ private:
 	static unsigned __stdcall threadbegin_send(void *param);
 };
 
+}

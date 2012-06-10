@@ -1,20 +1,6 @@
 #include "stdafx.h"
 #include "BlockImpl.h"
 
-// ------------------------------------------------------------------ class CRefcountObject
-
-unsigned CRefcountObject::AddRef()
-{
-	return InterlockedIncrement(&m_refCount);
-}
-
-unsigned CRefcountObject::Release()
-{
-	unsigned newref = InterlockedDecrement(&m_refCount);
-	if(!newref) delete this;
-	return newref;
-}
-
 // ------------------------------------------------------------------ class CInEndpointBase
 
 bool CInEndpointBase::Connect(signals::IEPReceiver* recv)
@@ -72,7 +58,7 @@ void CAttributeBase::Unobserve(signals::IAttributeObserver* obs)
 	}
 }
 
-// ------------------------------------------------------------------ class IAttributesBase
+// ------------------------------------------------------------------ class CAttributesBase
 
 CAttributesBase::~CAttributesBase()
 {

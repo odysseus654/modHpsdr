@@ -1,5 +1,6 @@
 #pragma once
 #include "../ext/FastDelegate.h"
+#include <intrin.h>
 
 class Condition;
 
@@ -132,7 +133,7 @@ public:
 		m_parm1 = parm1;
 		m_parm2 = parm2;
 		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
-		InterlockedIncrement(&m_pending);
+		_InterlockedIncrement(&m_pending);
 		return true;
 	}
 private:
@@ -146,7 +147,7 @@ private:
 		AsyncDelegate<PARM1,PARM2>* caller = (AsyncDelegate<PARM1,PARM2>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
-		InterlockedDecrement(&caller->m_pending);
+		_InterlockedDecrement(&caller->m_pending);
 		try
 		{
 			caller->m_func(caller->m_parm1, caller->m_parm2);
@@ -174,7 +175,7 @@ public:
 		ASSERT(!m_pending);
 		m_parm = parm;
 		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
-		InterlockedIncrement(&m_pending);
+		_InterlockedIncrement(&m_pending);
 		return true;
 	}
 private:
@@ -187,7 +188,7 @@ private:
 		AsyncDelegate<PARM>* caller = (AsyncDelegate<PARM>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
-		InterlockedDecrement(&caller->m_pending);
+		_InterlockedDecrement(&caller->m_pending);
 		try
 		{
 			caller->m_func(caller->m_parm);
@@ -214,7 +215,7 @@ public:
 	{
 		ASSERT(!m_pending);
 		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
-		InterlockedIncrement(&m_pending);
+		_InterlockedIncrement(&m_pending);
 		return true;
 	}
 private:
@@ -226,7 +227,7 @@ private:
 		AsyncDelegate<>* caller = (AsyncDelegate<>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
-		InterlockedDecrement(&caller->m_pending);
+		_InterlockedDecrement(&caller->m_pending);
 		try
 		{
 			caller->m_func();

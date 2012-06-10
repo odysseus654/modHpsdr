@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "HPSDRDevice.h"
 
+namespace hpsdr {
+
 // ------------------------------------------------------------------ class CHpsdrDevice
 
 const float CHpsdrDevice::SCALE_32 = float(1 << 31);
@@ -272,12 +274,12 @@ void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
 // ------------------------------------------------------------------ generic attribute handlers
 
 template<signals::EType ET>
-class COptionedAttribute : public CAttribute<ET>
+class COptionedAttribute : public CRWAttribute<ET>
 {
 public:
 	COptionedAttribute(const char* name, const char* descr, const store_type& deflt,
 		unsigned numOpt, const store_type* valList, const char** optList)
-		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_valList(valList),m_optList(optList)
+		:CRWAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_valList(valList),m_optList(optList)
 	{
 	}
 
@@ -304,11 +306,11 @@ private:
 };
 
 template<signals::EType ET>
-class CNumOptionedAttribute : public CAttribute<ET>
+class CNumOptionedAttribute : public CRWAttribute<ET>
 {
 public:
 	CNumOptionedAttribute(const char* name, const char* descr, const store_type& deflt, unsigned numOpt, const char** optList)
-		:CAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_optList(optList)
+		:CRWAttribute<ET>(name, descr, deflt), m_numOpts(optList ? numOpt : 0),m_optList(optList)
 	{
 	}
 
@@ -328,6 +330,12 @@ public:
 		return m_numOpts;
 	}
 
+protected:
+	virtual bool isValidValue(const store_type& newVal) const
+	{
+		return newVal >= 0 && newVal < m_numOpts;
+	}
+
 private:
 	unsigned m_numOpts;
 	const char** m_optList;
@@ -342,10 +350,10 @@ public:
 	const byte m_addr;
 };
 
-class CAttr_outBit : public CAttribute<signals::etypBoolean>
+class CAttr_outBit : public CRWAttribute<signals::etypBoolean>
 {
 private:
-	typedef CAttribute<signals::etypBoolean> base;
+	typedef CRWAttribute<signals::etypBoolean> base;
 public:
 	CAttr_outBit(CHpsdrDevice& parent, const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
 		:base(name, descr, deflt ? 1 : 0),m_parent(parent),m_addr(addr),m_offset(offset),m_mask(mask)
@@ -373,7 +381,6 @@ class CAttr_inBit : public CROAttribute<signals::etypBoolean>, public CAttr_inMo
 {
 private:
 	typedef CROAttribute<signals::etypBoolean> base;
-	typedef CAttribute<signals::etypBoolean> rw_base;
 public:
 	CAttr_inBit(const char* name, const char* descr, bool deflt, byte addr, byte offset, byte mask)
 		:base(name, descr, deflt ? 1 : 0), CAttr_inMonitor(addr), m_offset(offset), m_mask(mask)
@@ -385,7 +392,7 @@ public:
 	virtual void evaluate(byte* inVal)
 	{
 		if(m_offset >= 4) {ASSERT(FALSE);return;}
-		rw_base::nativeSetValue((inVal[m_offset] & m_mask) ? 1 : 0);
+		privateSetValue((inVal[m_offset] & m_mask) ? 1 : 0);
 	}
 
 private:
@@ -433,7 +440,6 @@ class CAttr_inBits : public CROAttribute<signals::etypByte>, public CAttr_inMoni
 {
 private:
 	typedef CROAttribute<signals::etypByte> base;
-	typedef CAttribute<signals::etypByte> rw_base;
 public:
 	CAttr_inBits(const char* name, const char* descr, byte deflt, byte addr, byte offset, byte mask, byte shift)
 		:base(name, descr, deflt), CAttr_inMonitor(addr), m_offset(offset), m_mask(mask), m_shift(shift)
@@ -445,7 +451,7 @@ public:
 	virtual void evaluate(byte* inVal)
 	{
 		if(m_offset >= 4) {ASSERT(FALSE);return;}
-		rw_base::nativeSetValue((inVal[m_offset] & m_mask) >> m_shift);
+		privateSetValue((inVal[m_offset] & m_mask) >> m_shift);
 	}
 
 private:
@@ -454,10 +460,10 @@ private:
 	const byte m_shift;
 };
 
-class CAttr_outLong : public CAttribute<signals::etypLong>
+class CAttr_outLong : public CRWAttribute<signals::etypLong>
 {
 private:
-	typedef CAttribute<signals::etypLong> base;
+	typedef CRWAttribute<signals::etypLong> base;
 public:
 	CAttr_outLong(CHpsdrDevice& parent, const char* name, const char* descr, long deflt, byte addr)
 		:base(name, descr, deflt), m_parent(parent), m_addr(addr)
@@ -488,7 +494,6 @@ class CAttr_inShort : public CROAttribute<signals::etypShort>, public CAttr_inMo
 {
 private:
 	typedef CROAttribute<signals::etypShort> base;
-	typedef CAttribute<signals::etypShort> rw_base;
 public:
 	CAttr_inShort(const char* name, const char* descr, short deflt, byte addr, byte offset)
 		:base(name, descr, deflt), CAttr_inMonitor(addr), m_offset(offset)
@@ -500,7 +505,7 @@ public:
 	virtual void evaluate(byte* inVal)
 	{
 		if(m_offset >= 3) {ASSERT(FALSE);return;}
-		rw_base::nativeSetValue((inVal[m_offset] << 8) | inVal[m_offset+1]);
+		privateSetValue((inVal[m_offset] << 8) | inVal[m_offset+1]);
 	}
 
 private:
@@ -598,6 +603,17 @@ protected:
 		}
 	}
 
+protected:
+	virtual bool isValidValue(const store_type& newVal) const
+	{
+		int iFreq = int(newVal / 1000.0f + 0.5f);
+		for(unsigned idx = 0; idx < _countof(recv_speed_options); idx++)
+		{
+			if(recv_speed_options[idx] / 1000 == iFreq) return true;
+		}
+		return false;
+	}
+
 private:
 	bool setValue(const store_type& newVal)
 	{
@@ -653,9 +669,9 @@ void CHpsdrDevice::buildAttrs()
 	attrs.recv4_version = addLocalInAttr(true, new CAttr_inBits("recv4Version", "Receiver 4 software version", 0, 4, 3, 0xFE, 1));
 
 	// events
-	attrs.sync_fault = addLocalAttr(true, new CAttribute<signals::etypNone>("syncFault", "Fires when a sync fault happens in a receive stream"));
-	attrs.wide_sync_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
-	attrs.sync_mic_fault = addLocalAttr(false, new CAttribute<signals::etypNone>("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
+	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
+	attrs.wide_sync_fault = addLocalAttr(false, new CEventAttribute("wideSyncFault", "Fires when a sync fault happens in the wideband receive stream"));
+	attrs.sync_mic_fault = addLocalAttr(false, new CEventAttribute("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
 
 	// write-only
 	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "RecvRate", "Rate that receivers send data", 192000.0f, 0, 0, 0x3, 0));
@@ -741,4 +757,6 @@ void CHpsdrDevice::buildAttrs()
 	m_microphone.buildAttrs(*this);
 	m_speaker.buildAttrs(*this);
 	m_transmit.buildAttrs(*this);
+}
+
 }

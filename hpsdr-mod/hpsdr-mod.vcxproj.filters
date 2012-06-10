@@ -1,63 +1,61 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
-      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    <Filter Include="utils">
+      <UniqueIdentifier>{c2bd24f6-9b59-4852-815a-965b5970fbcd}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
-      <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    <Filter Include="Interface">
+      <UniqueIdentifier>{be3edccc-af64-471d-b799-2c32cbd72eee}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="Infrastructure">
+      <UniqueIdentifier>{4e102a0e-2cbf-49a4-9cba-0a2b60dd91a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation">
+      <UniqueIdentifier>{e36c0ee0-9d31-4934-b570-e93be8634dbc}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HPSDRDevice.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="block.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="HpsdrEther.h">
-      <Filter>Header Files</Filter>
+      <Filter>Interface</Filter>
     </ClInclude>
     <ClInclude Include="BlockImpl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="mt.h">
-      <Filter>Header Files</Filter>
+      <Filter>Interface</Filter>
     </ClInclude>
     <ClInclude Include="buffer.h">
-      <Filter>Header Files</Filter>
+      <Filter>utils</Filter>
     </ClInclude>
     <ClInclude Include="..\ext\FastDelegate.h">
-      <Filter>Header Files</Filter>
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="mt.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="HPSDRDevice.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="HpsdrEther.h">
+      <Filter>Implementation</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="BlockImpl.cpp">
+      <Filter>Interface</Filter>
     </ClCompile>
-    <ClCompile Include="hpsdr-mod.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Infrastructure</Filter>
     </ClCompile>
     <ClCompile Include="HPSDRDevice.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Implementation</Filter>
     </ClCompile>
     <ClCompile Include="HpsdrEther.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Implementation</Filter>
     </ClCompile>
-    <ClCompile Include="BlockImpl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
+    <ClCompile Include="hpsdr-mod.cpp" />
   </ItemGroup>
 </Project>

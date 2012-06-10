@@ -4,6 +4,8 @@
 #include <vector>
 typedef unsigned char byte;
 
+namespace hpsdr {
+
 class CHpsdrDevice : public CAttributesBase, public signals::IBlock
 {
 public:
@@ -29,9 +31,9 @@ protected:
 	struct
 	{
 		// events
-		CAttribute<signals::etypNone>* sync_fault;
-		CAttribute<signals::etypNone>* sync_mic_fault;
-		CAttribute<signals::etypNone>* wide_sync_fault;
+		CEventAttribute* sync_fault;
+		CEventAttribute* sync_mic_fault;
+		CEventAttribute* wide_sync_fault;
 
 		// high-priority read-only
 		CAttributeBase* PPT;
@@ -129,7 +131,7 @@ protected:
 
 		struct
 		{
-			CAttribute<signals::etypNone>* sync_fault;
+			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
 			//CAttributeBase* preamp;
 			//CAttributeBase* freq;
@@ -164,7 +166,7 @@ protected:
 
 		struct
 		{
-			CAttribute<signals::etypNone>* sync_fault;
+			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
 			CAttributeBase* source;
 		} attrs;
@@ -196,7 +198,7 @@ protected:
 
 		struct
 		{
-			CAttribute<signals::etypNone>* sync_fault;
+			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
 		} attrs;
 
@@ -326,3 +328,5 @@ protected:
 	Speaker m_speaker;
 	Transmitter m_transmit;
 };
+
+}

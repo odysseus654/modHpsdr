@@ -3,6 +3,7 @@
 
 #include "buffer.h"
 #include <complex>
+#include <intrin.h>
 #include <list>
 #include <map>
 #include <set>
@@ -13,8 +14,8 @@ class CRefcountObject
 public:
 	inline CRefcountObject():m_refCount(0) {}
 	virtual ~CRefcountObject() {}
-	virtual unsigned AddRef();
-	virtual unsigned Release();
+	inline unsigned AddRef() { return _InterlockedIncrement(&m_refCount); }
+	inline unsigned Release();
 
 private:
 	CRefcountObject(const CRefcountObject& other);
@@ -81,7 +82,6 @@ public:
 //	virtual bool isReadOnly();
 //	virtual const void* getValue() = 0;
 //	virtual bool setValue(const void* newVal) = 0;
-//	virtual void internalSetValue(const void* newVal) = 0;
 private:
 	CAttributeBase(const CAttributeBase& other);
 	CAttributeBase& operator=(const CAttributeBase& other);
@@ -147,36 +147,32 @@ class CAttribute : public CAttributeBase
 {
 protected:
 	typedef typename StoreType<ET>::type store_type;
+	typedef const store_type& param_type;
 private:
 	typedef CAttribute<ET> my_type;
 	CAttribute(const my_type& other);
 	my_type& operator=(const my_type& other);
-public:
-	inline CAttribute(const char* pName, const char* pDescr, const store_type& deflt)
+protected:
+	inline CAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<ET>::catcher), m_value(deflt) { }
+public:
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return ET; }
-	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return &m_value; }
 	const store_type& nativeGetValue()	{ return m_value; }
+//	virtual bool isReadOnly();
+//	virtual bool setValue(const void* newVal) = 0;
 
-	virtual bool setValue(const void* newVal)
-	{
-		if(!newVal) { ASSERT(FALSE); return false; }
-		return nativeSetValue(*(store_type*)newVal);
-	}
-
-	virtual bool nativeSetValue(const store_type& newVal)
+protected:
+	void privateSetValue(const store_type& newVal)
 	{
 		if(newVal != m_value)
 		{
 			m_value = newVal;
 			onSetValue(newVal);
 		}
-		return true;
 	}
 
-protected:
 	virtual void onSetValue(const store_type& value)
 	{
 		TObserverList transList;
@@ -218,31 +214,27 @@ class CAttribute<signals::etypString> : public CAttributeBase
 {
 protected:
 	typedef StoreType<signals::etypString>::type store_type;
-public:
-	inline CAttribute(const char* pName, const char* pDescr, const char *deflt)
+	typedef const char* param_type;
+protected:
+	inline CAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<signals::etypString>::catcher), m_value(deflt) { }
+public:
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return signals::etypString; }
-	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
+//	virtual bool isReadOnly();
+//	virtual bool setValue(const void* newVal) = 0;
 
-	virtual bool setValue(const void* newVal)
+protected:
+	void privateSetValue(const store_type& newVal)
 	{
-		if(!newVal) { ASSERT(false); return false; }
-		return nativeSetValue((const char*)newVal);
-	}
-
-	virtual bool nativeSetValue(const std::string& newVal)
-	{
-		if(strcmp(newVal.c_str(), m_value.c_str()) != 0)
+		if(newVal != m_value)
 		{
 			m_value = newVal;
 			onSetValue(newVal);
 		}
-		return true;
 	}
 
-protected:
 	virtual void onSetValue(const store_type& value)
 	{
 		TObserverList transList;
@@ -285,18 +277,89 @@ private:
 	std::string m_value;
 };
 
+template<signals::EType ET>
+class CRWAttribute : public CAttribute<ET>
+{
+private:
+	typedef CRWAttribute<ET> my_type;
+	typedef CAttribute<ET> base_type;
+	CRWAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
+protected:
+	inline CRWAttribute(const char* pName, const char* pDescr, param_type deflt)
+		:base_type(pName, pDescr, deflt) { }
+public:
+	virtual ~CRWAttribute()				{ }
+	virtual bool isReadOnly()			{ return false; }
+
+	virtual bool setValue(const void* newVal)
+	{
+		if(!newVal) { ASSERT(FALSE); return false; }
+		return nativeSetValue(*(store_type*)newVal);
+	}
+
+	virtual bool nativeSetValue(const store_type& newVal)
+	{
+		if(!isValidValue(newVal)) return false;
+		Locker lock(m_valueLock);
+		privateSetValue(newVal);
+		return true;
+	}
+
+protected:
+	virtual bool isValidValue(const store_type& newVal) const { return true; }
+
+private:
+	Lock m_valueLock;
+};
+
 template<>
-class CAttribute<signals::etypNone> : public CAttributeBase
+class CRWAttribute<signals::etypString> : public CAttribute<signals::etypString>
+{
+private:
+	typedef CRWAttribute<signals::etypString> my_type;
+	typedef CAttribute<signals::etypString> base_type;
+	CRWAttribute(const my_type& other);
+	my_type& operator=(const my_type& other);
+protected:
+	inline CRWAttribute(const char* pName, const char* pDescr, param_type deflt)
+		:base_type(pName, pDescr, deflt) { }
+public:
+	virtual ~CRWAttribute()				{ }
+	virtual bool isReadOnly()			{ return false; }
+
+	virtual bool setValue(const void* newVal)
+	{
+		if(!newVal) { ASSERT(false); return false; }
+		Locker lock(m_valueLock);
+		return nativeSetValue((const char*)newVal);
+	}
+
+	virtual bool nativeSetValue(const std::string& newVal)
+	{
+		if(!isValidValue(newVal)) return false;
+		privateSetValue(newVal);
+		return true;
+	}
+
+protected:
+	virtual bool isValidValue(const store_type& newVal) const { return true; }
+
+private:
+	Lock m_valueLock;
+};
+
+class CEventAttribute : public CAttributeBase
 {
 public:
-	inline CAttribute(const char* pName, const char* pDescr)
-		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<signals::etypNone>::catcher) { }
-	virtual ~CAttribute()				{ }
+	inline CEventAttribute(const char* pName, const char* pDescr)
+		:CAttributeBase(pName, pDescr), m_func(this, &CEventAttribute::catcher) { }
+	virtual ~CEventAttribute()			{ }
 	virtual signals::EType Type()		{ return signals::etypNone; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return NULL; }
-	virtual bool setValue(const void* newVal) { onSetValue(); return true; }
-	inline void fire()					{ setValue(NULL); }
+	virtual bool setValue(const void* newVal) { fire(); return true; }
+	inline void fire()					{ onSetValue(); }
 
 protected:
 	virtual void onSetValue()
@@ -322,9 +385,8 @@ protected:
 	}
 
 private:
-	typedef CAttribute<signals::etypNone> my_type;
-	CAttribute(const my_type& other);
-	my_type& operator=(const my_type& other);
+	CEventAttribute(const CEventAttribute& other);
+	CEventAttribute& operator=(const CEventAttribute& other);
 
 	fastdelegate::FastDelegate1<signals::IAttributeObserver*> m_func;
 	typedef AsyncDelegate<signals::IAttributeObserver*> TFuncType;
@@ -346,31 +408,13 @@ class CROAttribute : public CAttribute<ET>
 private:
 	typedef CAttribute<ET> parent_type;
 	typedef CROAttribute<ET> my_type;
-public:
-	inline CROAttribute(const char* pName, const char* pDescr, const store_type& deflt):CAttribute<ET>(pName, pDescr, deflt) { }
-	virtual bool isReadOnly()					{ return true; }
-	virtual bool setValue(const void* newVal)	{ return false; }
-	virtual bool nativeSetValue(const store_type& newVal) { return false; }
-private:
 	CROAttribute(const my_type& other);
 	my_type& operator=(const my_type& other);
-};
-
-template<>
-class CROAttribute<signals::etypString> : public CAttribute<signals::etypString>
-{
-private:
-	typedef CAttribute<signals::etypString> parent_type;
-	typedef CROAttribute<signals::etypString> my_type;
 public:
-	inline CROAttribute(const char* pName, const char* pDescr, const char* deflt)
+	inline CROAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:parent_type(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
 	virtual bool setValue(const void* newVal)	{ return false; }
-	virtual bool nativeSetValue(const std::string& newVal) { return false; }
-private:
-	CROAttribute(const my_type& other);
-	my_type& operator=(const my_type& other);
 };
 
 template<signals::EType ET>
@@ -449,6 +493,13 @@ public: // IEPReceiver
 };
 
 // ------------------------------------------------------------------------------------------------
+
+unsigned CRefcountObject::Release()
+{
+	unsigned newref = _InterlockedDecrement(&m_refCount);
+	if(!newref) delete this;
+	return newref;
+}
 
 // using a template for type safety, hopefully this collapses down to the same implemenation...
 template<class ATTR> ATTR* CAttributesBase::addLocalAttr(bool bVisible, ATTR* attr)
