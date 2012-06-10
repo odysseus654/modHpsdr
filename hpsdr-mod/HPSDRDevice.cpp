@@ -268,6 +268,7 @@ const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
 
 void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
 {
+	UNUSED_ALWAYS(parent);
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
@@ -348,6 +349,9 @@ public:
 	virtual void evaluate(byte* inVal) PURE;
 
 	const byte m_addr;
+private:
+	CAttr_inMonitor(const CAttr_inMonitor&);
+	CAttr_inMonitor& operator=(const CAttr_inMonitor&);
 };
 
 class CAttr_outBit : public CRWAttribute<signals::etypBoolean>
@@ -618,7 +622,7 @@ private:
 	bool setValue(const store_type& newVal)
 	{
 		int iFreq = int(newVal / 1000.0f + 0.5f);
-		for(unsigned idx = 0; idx < _countof(recv_speed_options); idx++)
+		for(byte idx = 0; idx < _countof(recv_speed_options); idx++)
 		{
 			if(recv_speed_options[idx] / 1000 == iFreq)
 			{

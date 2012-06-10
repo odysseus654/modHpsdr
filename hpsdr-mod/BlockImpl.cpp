@@ -119,3 +119,51 @@ void CAttributesBase::Unobserve(signals::IAttributeObserver* obs)
 		(*trans)->Unobserve(obs);
 	}
 }
+
+// ------------------------------------------------------------------ class CAttribute<etypString>
+
+void CAttribute<signals::etypString>::onSetValue(const store_type& value)
+{
+	TObserverList transList;
+	{
+		Locker obslock(m_observersLock);
+		transList = m_observers;
+	}
+	Locker listlock(m_funcListLock);
+	TFuncList::iterator nextFunc = m_funcList.begin();
+	for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
+	{
+		while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
+		if(nextFunc == m_funcList.end())
+		{
+			m_funcList.push_back(TFuncType(m_func));
+			nextFunc--;
+		}
+		ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
+		nextFunc->fire(*trans, value);
+	}
+}
+
+// ------------------------------------------------------------------ class CEventAttribute
+
+void CEventAttribute::fire()
+{
+	TObserverList transList;
+	{
+		Locker obslock(m_observersLock);
+		transList = m_observers;
+	}
+	Locker listlock(m_funcListLock);
+	TFuncList::iterator nextFunc = m_funcList.begin();
+	for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
+	{
+		while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
+		if(nextFunc == m_funcList.end())
+		{
+			m_funcList.push_back(TFuncType(m_func));
+			nextFunc--;
+		}
+		ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
+		nextFunc->fire(*trans);
+	}
+}

@@ -77,7 +77,7 @@ public:
 	virtual const char* Description()	{ return m_descr; }
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
-	virtual unsigned options(const void* vals, const char** opts, unsigned availElem) { return 0; }
+	virtual unsigned options(const void* /* vals */, const char** /* opts */, unsigned /* availElem */) { return 0; }
 //	virtual signals::EType Type() = 0;
 //	virtual bool isReadOnly();
 //	virtual const void* getValue() = 0;
@@ -226,34 +226,14 @@ public:
 //	virtual bool setValue(const void* newVal) = 0;
 
 protected:
+	virtual void onSetValue(const store_type& value);
+
 	void privateSetValue(const store_type& newVal)
 	{
 		if(newVal != m_value)
 		{
 			m_value = newVal;
 			onSetValue(newVal);
-		}
-	}
-
-	virtual void onSetValue(const store_type& value)
-	{
-		TObserverList transList;
-		{
-			Locker obslock(m_observersLock);
-			transList = m_observers;
-		}
-		Locker listlock(m_funcListLock);
-		TFuncList::iterator nextFunc = m_funcList.begin();
-		for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
-		{
-			while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
-			if(nextFunc == m_funcList.end())
-			{
-				m_funcList.push_back(TFuncType(m_func));
-				nextFunc--;
-			}
-			ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
-			nextFunc->fire(*trans, value);
 		}
 	}
 
@@ -307,7 +287,7 @@ public:
 	}
 
 protected:
-	virtual bool isValidValue(const store_type& newVal) const { return true; }
+	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }
 
 private:
 	Lock m_valueLock;
@@ -331,19 +311,19 @@ public:
 	virtual bool setValue(const void* newVal)
 	{
 		if(!newVal) { ASSERT(false); return false; }
-		Locker lock(m_valueLock);
 		return nativeSetValue((const char*)newVal);
 	}
 
 	virtual bool nativeSetValue(const std::string& newVal)
 	{
 		if(!isValidValue(newVal)) return false;
+		Locker lock(m_valueLock);
 		privateSetValue(newVal);
 		return true;
 	}
 
 protected:
-	virtual bool isValidValue(const store_type& newVal) const { return true; }
+	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }
 
 private:
 	Lock m_valueLock;
@@ -358,31 +338,8 @@ public:
 	virtual signals::EType Type()		{ return signals::etypNone; }
 	virtual bool isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return NULL; }
-	virtual bool setValue(const void* newVal) { fire(); return true; }
-	inline void fire()					{ onSetValue(); }
-
-protected:
-	virtual void onSetValue()
-	{
-		TObserverList transList;
-		{
-			Locker obslock(m_observersLock);
-			transList = m_observers;
-		}
-		Locker listlock(m_funcListLock);
-		TFuncList::iterator nextFunc = m_funcList.begin();
-		for(TObserverList::const_iterator trans = transList.begin(); trans != transList.end(); trans++)
-		{
-			while(nextFunc != m_funcList.end() && nextFunc->isPending()) nextFunc++;
-			if(nextFunc == m_funcList.end())
-			{
-				m_funcList.push_back(TFuncType(m_func));
-				nextFunc--;
-			}
-			ASSERT(nextFunc != m_funcList.end() && !nextFunc->isPending());
-			nextFunc->fire(*trans);
-		}
-	}
+	virtual bool setValue(const void* newVal) { UNUSED_ALWAYS(newVal); fire(); return true; }
+	void fire();
 
 private:
 	CEventAttribute(const CEventAttribute& other);
@@ -414,7 +371,7 @@ public:
 	inline CROAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:parent_type(pName, pDescr, deflt) { }
 	virtual bool isReadOnly()					{ return true; }
-	virtual bool setValue(const void* newVal)	{ return false; }
+	virtual bool setValue(const void* /* newVal */) { return false; }
 };
 
 template<signals::EType ET>

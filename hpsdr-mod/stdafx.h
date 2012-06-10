@@ -18,9 +18,13 @@
 #ifdef _DEBUG
   #define ASSERT(x) { if(!(x)) DebugBreak(); }
   #define VERIFY(x)  { if(!(x)) DebugBreak(); }
+  #define UNUSED(x)
+  #define UNUSED_ALWAYS(x) (x)
 #else
   #define ASSERT(x)
   #define VERIFY(x) (x)
+  #define UNUSED(x) (x)
+  #define UNUSED_ALWAYS(x) (x)
 #endif
 
 #define PURE =0

@@ -61,7 +61,7 @@ public: // IBlock implementation
 	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IAttributes* Attributes() { return this; }
-	virtual unsigned Children(signals::IBlock** blocks, unsigned availBlocks) { return 0; }
+	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 	virtual bool Start();

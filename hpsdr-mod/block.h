@@ -12,7 +12,7 @@ namespace signals
 	__interface IInEndpoint;
 	__interface IOutEndpoint;
 
-	enum EType : unsigned
+	enum EType
 	{
 		etypNone	= 0x00,
 		etypEvent	= 0x01,
