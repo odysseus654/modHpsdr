@@ -2,7 +2,6 @@
 #include "HPSDRDevice.h"
 
 #include "error.h"
-#include <process.h>
 
 namespace hpsdr {
 
@@ -16,52 +15,29 @@ const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
 	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this),
-	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThread(INVALID_HANDLE_VALUE),
-	 m_attrThreadEnabled(true)
+	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThreadEnabled(true),
+	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr))
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
 	memset(m_CCinDirty, 0, sizeof(m_CCinDirty));
 
-	// launch the attrubute thread
-	unsigned threadId;
-	m_attrThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_attr, this, CREATE_SUSPENDED, &threadId);
-	if(m_attrThread == INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
-	if(!SetThreadPriority(m_attrThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
-	if(ResumeThread(m_attrThread) == -1L) ThrowLastError(GetLastError());
+	// launch the attribute thread
+	m_attrThread.launch(THREAD_PRIORITY_HIGHEST);
 }
 #pragma warning(pop)
 
 CHpsdrDevice::~CHpsdrDevice()
 {
 	// shut down attribute thread
-	if(m_attrThread != INVALID_HANDLE_VALUE)
+	if(m_attrThread.running())
 	{
 		{
 			Locker lock(m_CCinLock);
 			m_attrThreadEnabled = false;
 			m_CCinUpdated.wakeAll();
 		}
-
-		WaitForSingleObject(m_attrThread, INFINITE);
-		CloseHandle(m_attrThread);
-		m_attrThread = INVALID_HANDLE_VALUE;
-	}
-}
-
-unsigned __stdcall CHpsdrDevice::threadbegin_attr(void *param)
-{
-	SetThreadName("HPSDR Attribute Monitor Thread");
-	try
-	{
-		return ((CHpsdrDevice*)param)->thread_attr();
-	}
-	catch(...)
-	{
-#ifdef _DEBUG
-		DebugBreak();
-#endif
-		return 3;
+		m_attrThread.close();
 	}
 }
 
@@ -134,14 +110,15 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 	return numSamples;
 }
 
-unsigned CHpsdrDevice::thread_attr()
+void CHpsdrDevice::thread_attr()
 {
+	ThreadBase::SetThreadName("HPSDR Attribute Monitor Thread");
 	Locker lock(m_CCinLock);
 	for(;;)
 	{
-		if(!m_attrThreadEnabled) return 0;
+		if(!m_attrThreadEnabled) return;
 		m_CCinUpdated.sleep(lock);
-		if(!m_attrThreadEnabled) return 0;
+		if(!m_attrThreadEnabled) return;
 
 		for(TInAttrList::const_iterator trans = m_inAttrs.begin(); trans != m_inAttrs.end(); trans++)
 		{

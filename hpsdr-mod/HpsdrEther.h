@@ -78,25 +78,21 @@ private:
 	SOCKET buildSocket() const;
 	void Metis_start_stop(bool runIQ, bool runWide);
 
-	unsigned thread_recv();
-	unsigned thread_send();
+	void thread_recv();
+	void thread_send();
 	void FlushPendingChanges();
 
 	const unsigned long	m_ipAddress;
 	const __int64		m_macAddress;
 	const byte			m_controllerVersion;
 
-	HANDLE   m_recvThread, m_sendThread;
+	Thread<> m_recvThread, m_sendThread;
 	SOCKET   m_sock;
 	unsigned m_lastIQSeq, m_lastWideSeq, m_nextSendSeq;
 	bool     m_iqStarting, m_wideStarting;
 	volatile byte m_lastRunStatus;
 	Semaphore m_sendThreadLock;
 	unsigned m_recvSamples;		// private to thread_recv
-
-private:
-	static unsigned __stdcall threadbegin_recv(void *param);
-	static unsigned __stdcall threadbegin_send(void *param);
 };
 
 }

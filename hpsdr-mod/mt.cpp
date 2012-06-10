@@ -1,7 +1,9 @@
 #include "stdafx.h"
 #include "mt.h"
 
-void SetThreadName(const char* threadName, DWORD dwThreadID /* = -1 */)
+#include <process.h>
+
+void ThreadBase::SetThreadName(const char* threadName, DWORD dwThreadID /* = -1 */)
 {
 	#pragma pack(push,8)
 	typedef struct tagTHREADNAME_INFO
@@ -26,5 +28,25 @@ void SetThreadName(const char* threadName, DWORD dwThreadID /* = -1 */)
 	}
 	__except(EXCEPTION_EXECUTE_HANDLER)
 	{
+	}
+}
+
+void ThreadBase::doThreadLaunch(unsigned ( __stdcall *start )( void * ), void* param)
+{
+	close();
+	unsigned threadId;
+	m_hdl = (HANDLE)_beginthreadex(NULL, 0, start, param, CREATE_SUSPENDED, &threadId);
+	if(m_hdl == INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
+	if(m_reqPriority != THREAD_PRIORITY_NORMAL && !SetThreadPriority(m_hdl, THREAD_PRIORITY_TIME_CRITICAL)) ThrowLastError(GetLastError());
+	if(!m_reqSuspended) resume();
+}
+
+void ThreadBase::close()
+{
+	if(m_hdl)
+	{
+		WaitForSingleObject(m_hdl, INFINITE);
+		CloseHandle(m_hdl);
+		m_hdl = INVALID_HANDLE_VALUE;
 	}
 }

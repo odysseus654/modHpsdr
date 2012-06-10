@@ -3,7 +3,6 @@
 
 #include "block.h"
 #include "error.h"
-#include <process.h>
 #include <set>
 
 #pragma comment(lib, "ws2_32.lib")
@@ -53,6 +52,9 @@ unsigned CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned avail
 	}
 	return discList.size();
 }
+
+#pragma warning(push)
+#pragma warning(disable: 4127)
 
 void CHpsdrEthernetDriver::Metis_Discovery(std::list<CDiscoveredBoard>& discList)
 {
@@ -148,16 +150,24 @@ void CHpsdrEthernetDriver::Metis_Discovery(std::list<CDiscoveredBoard>& discList
 	::closesocket(sock);
 }
 
+#pragma warning(pop)
+
 // ------------------------------------------------------------------ class CHpsdrEthernet
 
 const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
 
+#pragma warning(push)
+#pragma warning(disable: 4355)
+
 CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
 	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),
-	 m_recvThread(INVALID_HANDLE_VALUE),m_sendThread(INVALID_HANDLE_VALUE),m_sock(INVALID_SOCKET),
-	 m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false)
+	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
+	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
+	 m_sock(INVALID_SOCKET),m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false)
 {
 }
+
+#pragma warning(pop)
 
 unsigned CHpsdrEthernet::Incoming(signals::IInEndpoint** ep, unsigned availEP)
 {
@@ -227,13 +237,10 @@ bool CHpsdrEthernet::Start()
 	m_sock = buildSocket();
 
 	// spawn the recv + send threads
-	unsigned threadId;
-	m_sendThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_send, this, CREATE_SUSPENDED, &threadId);
-	if(m_sendThread == INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
-	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_TIME_CRITICAL)) ThrowLastError(GetLastError());
+	m_sendThread.launch(THREAD_PRIORITY_TIME_CRITICAL, true);
 	FlushPendingChanges();
 	m_sendThreadLock.open(0, MAX_SEND_LAG);
-	if(ResumeThread(m_sendThread) == -1L) ThrowLastError(GetLastError());
+	m_sendThread.resume();
 
 	// start data from Metis
 	Metis_start_stop(true, true);
@@ -249,12 +256,7 @@ bool CHpsdrEthernet::Stop()
 	Metis_start_stop(false, false);
 
 	// finish shutting down the sending thread
-	if(m_sendThread != INVALID_HANDLE_VALUE)
-	{
-		WaitForSingleObject(m_sendThread, INFINITE);
-		CloseHandle(m_sendThread);
-		m_sendThread = INVALID_HANDLE_VALUE;
-	}
+	m_sendThread.close();
 
 	// shut down the socket
 	if(m_sock != INVALID_SOCKET)
@@ -266,40 +268,12 @@ bool CHpsdrEthernet::Stop()
 	return true;
 }
 
-unsigned __stdcall CHpsdrEthernet::threadbegin_recv(void *param)
-{
-	SetThreadName("Metis Receive Thread");
-	try
-	{
-		return ((CHpsdrEthernet*)param)->thread_recv();
-	}
-	catch(...)
-	{
-#ifdef _DEBUG
-		DebugBreak();
-#endif
-		return 3;
-	}
-}
+#pragma warning(push)
+#pragma warning(disable: 4127)
 
-unsigned __stdcall CHpsdrEthernet::threadbegin_send(void *param)
+void CHpsdrEthernet::thread_recv()
 {
-	SetThreadName("Metis Send Thread");
-	try
-	{
-		return ((CHpsdrEthernet*)param)->thread_send();
-	}
-	catch(...)
-	{
-#ifdef _DEBUG
-		DebugBreak();
-#endif
-		return 3;
-	}
-}
-
-unsigned CHpsdrEthernet::thread_recv()
-{
+	ThreadBase::SetThreadName("Metis Receive Thread");
 	byte message[1032];
 
 	fd_set fds;
@@ -372,8 +346,9 @@ unsigned CHpsdrEthernet::thread_recv()
 			}
 		}
 	}
-	return 0;
 }
+
+#pragma warning(pop)
 
 /* 
 	* Send a UDP/IP packet to the IP address and port of the Metis board
@@ -396,21 +371,16 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 	if(!(m_lastRunStatus&1) && runIQ) m_iqStarting = true;
 	if(!(m_lastRunStatus&2) && runWide) m_wideStarting = true;
 	m_nextSendSeq = 0;
-	if(!m_lastRunStatus && message[3] && m_recvThread == INVALID_HANDLE_VALUE)
+	if(!m_lastRunStatus && message[3] && !m_recvThread.running())
 	{
-		unsigned threadId;
-		m_recvThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_recv, this, CREATE_SUSPENDED, &threadId);
-		if(m_recvThread ==INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
-		if(!SetThreadPriority(m_recvThread, THREAD_PRIORITY_TIME_CRITICAL)) ThrowLastError(GetLastError());
+		m_recvThread.launch(THREAD_PRIORITY_TIME_CRITICAL, true);
 		m_lastRunStatus = message[3];
-		if(ResumeThread(m_recvThread) == -1L) ThrowLastError(GetLastError());
+		m_recvThread.resume();
 	}
-	else if(m_lastRunStatus && !message[3] && m_recvThread != INVALID_HANDLE_VALUE)
+	else if(m_lastRunStatus && !message[3] && m_recvThread.running())
 	{
 		m_lastRunStatus = 0;
-		WaitForSingleObject(m_recvThread, INFINITE);
-		CloseHandle(m_recvThread);
-		m_recvThread = INVALID_HANDLE_VALUE;
+		m_recvThread.close();
 	}
 
 	if(::send(this->m_sock, (char*)message, sizeof(message), 0) == SOCKET_ERROR)
@@ -422,8 +392,9 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 
 // Send two frames of 512 bytes to Metis/Hermes/Griffin
 // The left & right audio to be sent comes from AudioRing buffer, which is filled by ProcessData()
-unsigned CHpsdrEthernet::thread_send()
+void CHpsdrEthernet::thread_send()
 {
+	ThreadBase::SetThreadName("Metis Send Thread");
 	byte message[1032];
 	while(m_sendThreadLock.sleep())
 	{
@@ -440,7 +411,6 @@ unsigned CHpsdrEthernet::thread_send()
 		int ret = ::send(this->m_sock, (char*)message, sizeof(message), 0);
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
 	}
-	return 0;
 }
 
 void CHpsdrEthernet::FlushPendingChanges()

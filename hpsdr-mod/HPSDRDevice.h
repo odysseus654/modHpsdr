@@ -297,8 +297,7 @@ public:
 	};
 
 private:
-	static unsigned __stdcall threadbegin_attr(void *param);
-	unsigned thread_attr();
+	void thread_attr();
 
 	enum
 	{
@@ -306,7 +305,7 @@ private:
 		MAX_CC_OUT = 10
 	};
 
-	HANDLE   m_attrThread;
+	Thread<> m_attrThread;
 	volatile bool m_attrThreadEnabled;
 	unsigned int m_micSample;						// private to process_data
 
