@@ -2,118 +2,11 @@
 #include "HpsdrEther.h"
 
 #include "block.h"
+#include "error.h"
 #include <process.h>
 #include <set>
 
 #pragma comment(lib, "ws2_32.lib")
-
-void SetThreadName(const char* threadName, DWORD dwThreadID = -1)
-{
-	#pragma pack(push,8)
-	typedef struct tagTHREADNAME_INFO
-	{
-		DWORD dwType; // Must be 0x1000.
-		LPCSTR szName; // Pointer to name (in user addr space).
-		DWORD dwThreadID; // Thread ID (-1=caller thread).
-		DWORD dwFlags; // Reserved for future use, must be zero.
-	} THREADNAME_INFO;
-	#pragma pack(pop)
-	enum { MS_VC_EXCEPTION = 0x406D1388 };
-
-	THREADNAME_INFO info;
-	info.dwType = 0x1000;
-	info.szName = threadName;
-	info.dwThreadID = dwThreadID;
-	info.dwFlags = 0;
-
-	__try
-	{
-		RaiseException( MS_VC_EXCEPTION, 0, sizeof(info)/sizeof(ULONG_PTR), (ULONG_PTR*)&info );
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER)
-	{
-	}
-}
-
-class socket_exception : public std::runtime_error
-{
-public:
-	int code;
-	inline socket_exception(int err, const char* str)
-		:std::runtime_error(str),code(err)
-	{}
-	inline socket_exception(int err)
-		:std::runtime_error(""),code(err)
-	{}
-};
-
-__declspec(noreturn) void ThrowSocketError(int err)
-{
-	LPSTR lpMsgBuf = "Unknown error";
-	if (FormatMessageA(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, err, 0,
-			(LPSTR)&lpMsgBuf, 0, NULL))
-	{
-		std::string errStr = lpMsgBuf;
-		LocalFree(lpMsgBuf);
-		throw socket_exception(err, errStr.c_str());
-	} else {
-		throw socket_exception(err);
-	}
-}
-
-class lasterr_exception : public std::runtime_error
-{
-public:
-	DWORD code;
-	inline lasterr_exception(int err, const char* str)
-		:std::runtime_error(str),code(err)
-	{}
-	inline lasterr_exception(int err)
-		:std::runtime_error(""),code(err)
-	{}
-};
-
-__declspec(noreturn) void ThrowLastError(DWORD err)
-{
-	LPSTR lpMsgBuf = "Unknown error";
-	if (FormatMessageA(
-			FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM |
-			FORMAT_MESSAGE_IGNORE_INSERTS,
-			NULL, err, 0,
-			(LPSTR)&lpMsgBuf, 0, NULL))
-	{
-		std::string errStr = lpMsgBuf;
-		LocalFree(lpMsgBuf);
-		throw lasterr_exception(err, errStr.c_str());
-	} else {
-		throw lasterr_exception(err);
-	}
-}
-
-class errno_exception : public std::runtime_error
-{
-public:
-	int code;
-	inline errno_exception(int err, const char* str)
-		:std::runtime_error(str),code(err)
-	{}
-	inline errno_exception(int err)
-		:std::runtime_error(""),code(err)
-	{}
-};
-
-__declspec(noreturn) void ThrowErrnoError(int err)
-{
-#pragma warning(push)
-#pragma warning(disable: 4996)
-	throw errno_exception(err, strerror(err));
-#pragma warning(pop)
-}
 
 hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 namespace hpsdr {
@@ -336,8 +229,8 @@ bool CHpsdrEthernet::Start()
 	// spawn the recv + send threads
 	unsigned threadId;
 	m_sendThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_send, this, CREATE_SUSPENDED, &threadId);
-	if(m_sendThread == (HANDLE)-1L) ThrowErrnoError(errno);
-	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
+	if(m_sendThread == INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
+	if(!SetThreadPriority(m_sendThread, THREAD_PRIORITY_TIME_CRITICAL)) ThrowLastError(GetLastError());
 	FlushPendingChanges();
 	m_sendThreadLock.open(0, MAX_SEND_LAG);
 	if(ResumeThread(m_sendThread) == -1L) ThrowLastError(GetLastError());
@@ -507,8 +400,8 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 	{
 		unsigned threadId;
 		m_recvThread = (HANDLE)_beginthreadex(NULL, 0, threadbegin_recv, this, CREATE_SUSPENDED, &threadId);
-		if(m_recvThread == (HANDLE)-1L) ThrowErrnoError(errno);
-		if(!SetThreadPriority(m_recvThread, THREAD_PRIORITY_HIGHEST)) ThrowLastError(GetLastError());
+		if(m_recvThread ==INVALID_HANDLE_VALUE) ThrowErrnoError(errno);
+		if(!SetThreadPriority(m_recvThread, THREAD_PRIORITY_TIME_CRITICAL)) ThrowLastError(GetLastError());
 		m_lastRunStatus = message[3];
 		if(ResumeThread(m_recvThread) == -1L) ThrowLastError(GetLastError());
 	}

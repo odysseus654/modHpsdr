@@ -9,6 +9,8 @@ namespace hpsdr {
 class CHpsdrDevice : public CAttributesBase, public signals::IBlock
 {
 public:
+	virtual ~CHpsdrDevice();
+
 	enum EBoardId { Ozy = -1, Metis = 0, Hermes = 1, Griffin = 2 };
 
 	void setCCbits(byte addr, byte offset, byte mask, byte value);
@@ -281,13 +283,31 @@ protected:
 		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypLRSingle>(DEFAULT_BUFSIZE); }
 	};
 
+public:
+	class CAttr_inMonitor
+	{
+	public:
+		inline CAttr_inMonitor(byte addr):m_addr(addr) {}
+		virtual void evaluate(byte* inVal) PURE;
+
+		const byte m_addr;
+	private:
+		CAttr_inMonitor(const CAttr_inMonitor&);
+		CAttr_inMonitor& operator=(const CAttr_inMonitor&);
+	};
+
 private:
+	static unsigned __stdcall threadbegin_attr(void *param);
+	unsigned thread_attr();
+
 	enum
 	{
 		SYNC = 0x7F,
 		MAX_CC_OUT = 10
 	};
 
+	HANDLE   m_attrThread;
+	volatile bool m_attrThreadEnabled;
 	unsigned int m_micSample;						// private to process_data
 
 	byte m_lastCCout;								// protected by m_CCoutLock
@@ -304,7 +324,13 @@ private:
 	Condition m_CCinUpdated;						// protected by m_CCinLock
 	Lock m_CCinLock;
 
+	typedef std::list<CAttr_inMonitor*> TInAttrList;
+	TInAttrList m_inAttrs;
+
 protected:
+	template<class ATTR> ATTR* addLocalInAttr(bool bVisible, ATTR* attr);
+	inline bool outPendingExists() const { return !!m_CCoutPending; }
+
 	friend class CAttr_out_recv_speed;
 
 	enum
@@ -314,7 +340,6 @@ protected:
 
 	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
 	const static float SCALE_16;
-	inline bool outPendingExists() const { return !!m_CCoutPending; }
 
 	unsigned int m_recvSpeed;
 	const EBoardId m_controllerType;
@@ -328,5 +353,17 @@ protected:
 	Speaker m_speaker;
 	Transmitter m_transmit;
 };
+
+// ------------------------------------------------------------------------------------------------
+
+template<class ATTR> ATTR* CHpsdrDevice::addLocalInAttr(bool bVisible, ATTR* attr)
+{
+	if(attr)
+	{
+		addLocalAttr(bVisible, attr);
+		m_inAttrs.push_back(attr);
+	}
+	return attr;
+}
 
 }

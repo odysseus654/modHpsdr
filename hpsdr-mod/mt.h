@@ -1,4 +1,5 @@
 #pragma once
+#include "error.h"
 #include "../ext/FastDelegate.h"
 #include <intrin.h>
 
@@ -105,6 +106,7 @@ public:
 	{
 		close();
 		m_sem = CreateSemaphore(NULL, count, maxCount, NULL);
+		if(!m_sem) ThrowLastError(GetLastError());
 	}
 
 	void close()
@@ -127,14 +129,13 @@ public:
 	inline AsyncDelegate(fastdelegate::FastDelegate2<PARM1,PARM2> func):m_func(func),m_pending(0) {}
 	inline bool isPending() const { return !!m_pending; }
 
-	bool fire(const PARM1& parm1, const PARM2& parm2)
+	void fire(const PARM1& parm1, const PARM2& parm2)
 	{
 		ASSERT(!m_pending);
 		m_parm1 = parm1;
 		m_parm2 = parm2;
-		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) ThrowLastError(GetLastError());
 		_InterlockedIncrement(&m_pending);
-		return true;
 	}
 private:
 	fastdelegate::FastDelegate2<PARM1,PARM2> m_func;
@@ -170,13 +171,12 @@ public:
 	inline AsyncDelegate(fastdelegate::FastDelegate1<PARM> func):m_func(func),m_pending(0) {}
 	inline bool isPending() const { return !!m_pending; }
 
-	bool fire(const PARM& parm)
+	void fire(const PARM& parm)
 	{
 		ASSERT(!m_pending);
 		m_parm = parm;
-		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) ThrowLastError(GetLastError());
 		_InterlockedIncrement(&m_pending);
-		return true;
 	}
 private:
 	fastdelegate::FastDelegate1<PARM> m_func;
@@ -211,12 +211,11 @@ public:
 	inline AsyncDelegate(fastdelegate::FastDelegate0<> func):m_func(func),m_pending(0) {}
 	inline bool isPending() const { return !!m_pending; }
 
-	bool fire()
+	void fire()
 	{
 		ASSERT(!m_pending);
-		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) return false;
+		if(!QueueUserWorkItem(staticCatch, this, WT_EXECUTEDEFAULT)) ThrowLastError(GetLastError());
 		_InterlockedIncrement(&m_pending);
-		return true;
 	}
 private:
 	fastdelegate::FastDelegate0<> m_func;
@@ -242,3 +241,5 @@ private:
 		return 0;
 	}
 };
+
+void SetThreadName(const char* threadName, DWORD dwThreadID = -1);

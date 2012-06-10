@@ -42,6 +42,9 @@
     <ClInclude Include="HpsdrEther.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="error.h">
+      <Filter>utils</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlockImpl.cpp">
@@ -57,5 +60,11 @@
       <Filter>Implementation</Filter>
     </ClCompile>
     <ClCompile Include="hpsdr-mod.cpp" />
+    <ClCompile Include="mt.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="error.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
