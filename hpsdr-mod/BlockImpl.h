@@ -285,7 +285,6 @@ public:
 		return true;
 	}
 
-protected:
 	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }
 
 private:
@@ -321,7 +320,6 @@ public:
 		return true;
 	}
 
-protected:
 	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }
 
 private:

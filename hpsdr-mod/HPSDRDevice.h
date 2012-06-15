@@ -6,9 +6,12 @@ typedef unsigned char byte;
 
 namespace hpsdr {
 
+class CAttr_outBits;
+
 class CHpsdrDevice : public CAttributesBase, public signals::IBlock
 {
 public:
+	class Receiver;
 	virtual ~CHpsdrDevice();
 
 	enum EBoardId { Ozy = -1, Metis = 0, Hermes = 1, Griffin = 2 };
@@ -29,6 +32,9 @@ protected:
 	unsigned receive_frame(byte* frame);
 	void send_frame(byte* frame, bool no_streams = false);
 	void buildAttrs();
+
+	short AttachReceiver(Receiver& recv);
+	void DetachReceiver(const Receiver& recv, unsigned short attachedRecv);
 
 	struct
 	{
@@ -56,14 +62,8 @@ protected:
 		CAttributeBase* AIN4;
 		CAttributeBase* AIN5;
 		CAttributeBase* AIN6;
-		CAttributeBase* recv1_overflow;
-		CAttributeBase* recv1_version;
-		CAttributeBase* recv2_overflow;
-		CAttributeBase* recv2_version;
-		CAttributeBase* recv3_overflow;
-		CAttributeBase* recv3_version;
-		CAttributeBase* recv4_overflow;
-		CAttributeBase* recv4_version;
+		CAttributeBase* recvX_overflow[4];
+		CAttributeBase* recvX_version[4];
 
 		// write-only
 		CAttributeBase* enable_penny;
@@ -83,12 +83,10 @@ protected:
 		CAttributeBase* timestamp;
 
 		CAttributeBase* recv_duplex;
+		CAttr_outBits*  num_recv;
 		CAttributeBase* recv_clone;
 		CAttributeBase* send_freq;
-		CAttributeBase* recv1_freq;
-		CAttributeBase* recv2_freq;
-		CAttributeBase* recv3_freq;
-		CAttributeBase* recv4_freq;
+		CRWAttribute<signals::etypLong>* recvX_freq[4];
 		CAttributeBase* send_drive_level;
 		CAttributeBase* mic_boost;
 		CAttributeBase* apollo_filter_enable;
@@ -112,33 +110,40 @@ protected:
 		CAttributeBase* alex_lpf_10m;
 		CAttributeBase* alex_lpf_15m;
 
-		CAttributeBase* recv1_preamp;
-		CAttributeBase* recv2_preamp;
-		CAttributeBase* recv3_preamp;
-		CAttributeBase* recv4_preamp;
+		CRWAttribute<signals::etypBoolean>* recvX_preamp[4];
 	} attrs;
 
-protected:
+public:
 	class Receiver : public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Receiver(signals::IBlock* parent, short recvNum):m_parent(parent),m_recvNum(recvNum) { }
+		inline Receiver(CHpsdrDevice* parent, short recvNum):m_parent(parent),m_recvNum(recvNum),m_attachedRecv(-1) { }
 		virtual ~Receiver() {}
 		void buildAttrs(const CHpsdrDevice& parent);
+		void setProxy(CHpsdrDevice& parent, short attachedRecv);
+
+	public:
+		template<class target_type>
+		class IAttrProxy
+		{
+		public:
+			virtual void setProxy(target_type& target) PURE;
+		};
 
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
-		signals::IBlock* m_parent;
+		CHpsdrDevice* m_parent;
 		const short m_recvNum;
+		short m_attachedRecv;
 
 		struct
 		{
 			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
-			//CAttributeBase* preamp;
-			//CAttributeBase* freq;
-			//CAttributeBase* overflow;
-			//CAttributeBase* version;
+			IAttrProxy<CRWAttribute<signals::etypBoolean> >* preamp;
+			IAttrProxy<CRWAttribute<signals::etypLong> >* freq;
+			IAttrProxy<signals::IAttribute>* overflow;
+			IAttrProxy<signals::IAttribute>* version;
 		} attrs;
 
 	private:
@@ -153,6 +158,8 @@ protected:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
 		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual bool Connect(signals::IEPSender* send);
+		virtual bool Disconnect();
 	};
 
 	class Microphone : public COutEndpointBase, public CAttributesBase

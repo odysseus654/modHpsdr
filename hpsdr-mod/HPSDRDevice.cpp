@@ -14,7 +14,7 @@ const float CHpsdrDevice::SCALE_16 = float(1 << 15);
 #pragma warning(disable: 4355)
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
-	 m_receivers(4),m_receiver1(this, 1),m_receiver2(this, 2),m_receiver3(this, 3),m_receiver4(this, 4),m_wideRecv(this),
+	 m_receivers(4),m_receiver1(this, 0),m_receiver2(this, 1),m_receiver3(this, 2),m_receiver4(this, 3),m_wideRecv(this),
 	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThreadEnabled(true),
 	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr))
 {
@@ -240,7 +240,7 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 			*frame++ = (byte)(IntValue & 0xff);  // right lo
 
 			std::complex<float> iqSample;
-			m_speaker.Read(signals::etypComplex, &audSample, 1, 0);
+			m_transmit.Read(signals::etypComplex, &audSample, 1, 0);
 
 			// send I & Q data to the exciter
 			IntValue = int(SCALE_16 * iqSample.real());
@@ -252,66 +252,6 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 			*frame++ = (byte)(IntValue & 0xff);  // right lo
 		} // end for
 	}
-}
-
-// ------------------------------------------------------------------ class CHpsdrDevice::Receiver
-
-const char* CHpsdrDevice::Receiver::EP_NAME[] = {"recv1", "recv2", "recv3", "recv4" };
-const char* CHpsdrDevice::Receiver::EP_DESCR = "Received IQ Samples";
-
-void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
-{
-	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_fault);
-	attrs.rate = addRemoteAttr("rate", parent.attrs.recv1_freq);
-//	attrs.preamp = addRemoteAttr("preamp", 
-//	CAttributeBase* freq;
-//	CAttributeBase* overflow;
-//	CAttributeBase* version;
-}
-
-// ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
-
-const char* CHpsdrDevice::WideReceiver::EP_NAME = "wide";
-const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC samples";
-
-void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
-{
-	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.wide_sync_fault);
-	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
-}
-
-// ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
-
-const char* CHpsdrDevice::Transmitter::EP_NAME = "send";
-const char* CHpsdrDevice::Transmitter::EP_DESCR = "IQ transmitter data";
-
-void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
-{
-	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
-	attrs.version = addRemoteAttr("version", parent.m_controllerType == Hermes ? parent.attrs.merc_software : parent.attrs.penny_software);
-}
-
-// ------------------------------------------------------------------ class CHpsdrDevice::Microphone
-
-const char* CHpsdrDevice::Microphone::EP_NAME = "mic";
-const char* CHpsdrDevice::Microphone::EP_DESCR = "Microphone audio input";
-
-void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
-{
-	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_mic_fault);
-	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
-	attrs.source = addRemoteAttr("source", parent.attrs.src_mic);
-}
-
-// ------------------------------------------------------------------ class CHpsdrDevice::Speaker
-
-const char* CHpsdrDevice::Speaker::EP_NAME = "speak";
-const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
-
-void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
-{
-	UNUSED_ALWAYS(parent);
-	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
 }
 
 // ------------------------------------------------------------------ generic attribute handlers
@@ -373,7 +313,6 @@ public:
 		return m_numOpts;
 	}
 
-protected:
 	virtual bool isValidValue(const store_type& newVal) const
 	{
 		return newVal >= 0 && newVal < m_numOpts;
@@ -546,6 +485,87 @@ private:
 	const byte m_offset;
 };
 
+// ------------------------------------------------------------------ attribute proxies
+
+template<signals::EType ET>
+class CAttr_outProxy : public CRWAttribute<ET>, public CHpsdrDevice::Receiver::IAttrProxy<CRWAttribute<ET> >
+{
+private:
+	typedef CRWAttribute<ET> base_type;
+	Lock m_proxyLock;
+
+public:
+	inline CAttr_outProxy(const char* pName, const char* pDescr, base_type& ref)
+		:base_type(pName, pDescr, ref.nativeGetValue()), refObject(ref), proxyObject(NULL) { }
+
+	virtual void setProxy(base_type& target)
+	{
+		Locker lock(m_proxyLock);
+		proxyObject = &target;
+		if(proxyObject) proxyObject->nativeSetValue(nativeGetValue());
+	}
+
+	virtual bool isValidValue(const store_type& newVal) const { return refObject.isValidValue(newVal); }
+
+protected:
+	virtual void onSetValue(const store_type& value)
+	{
+		Locker lock(m_proxyLock);
+		if(proxyObject) proxyObject->nativeSetValue(value);
+	}
+
+	base_type& refObject;
+	base_type* proxyObject;
+};
+
+class CAttr_inProxy : public CAttributeBase, public CHpsdrDevice::Receiver::IAttrProxy<signals::IAttribute>
+{
+public:
+	inline CAttr_inProxy(const char* pName, const char* pDescr, signals::IAttribute& ref)
+		:CAttributeBase(pName, pDescr), refObject(ref), proxyObject(NULL) { }
+	virtual ~CAttr_inProxy()			{ }
+	virtual unsigned options(const void* vals, const char** opts, unsigned availElem)
+		{ return refObject.options(vals,opts,availElem); }
+	virtual signals::EType Type()		{ return refObject.Type(); }
+	virtual bool isReadOnly()			{ return true; }
+	virtual bool setValue(const void* newVal) { return false; }
+	virtual const void* getValue()		{ Locker lock(m_proxyLock); return proxyObject ? proxyObject->getValue() : NULL; }
+	virtual void setProxy(signals::IAttribute& target);
+
+private:
+	CAttr_inProxy(const CAttr_inProxy& other);
+	CAttr_inProxy& operator=(const CAttr_inProxy& other);
+private:
+	Lock m_proxyLock;
+	signals::IAttribute& refObject;
+	signals::IAttribute* proxyObject;
+};
+
+void CAttr_inProxy::setProxy(signals::IAttribute& target)
+{
+	Locker proxyLock(m_proxyLock);
+	if(proxyObject)
+	{
+		Locker obsLock(m_observersLock);
+		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
+		{
+			proxyObject->Unobserve(*trans);
+		}
+	}
+
+	proxyObject = &target;
+
+	if(proxyObject)
+	{
+		Locker obsLock(m_observersLock);
+		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
+		{
+			proxyObject->Observe(*trans);
+			(*trans)->OnChanged(Name(), proxyObject->Type(), proxyObject->getValue());
+		}
+	}
+}
+
 // ------------------------------------------------------------------ special attribute handlers
 
 class CAttr_out_alex_recv_ant : public CNumOptionedAttribute<signals::etypByte>
@@ -637,7 +657,7 @@ protected:
 		}
 	}
 
-protected:
+public:
 	virtual bool isValidValue(const store_type& newVal) const
 	{
 		int iFreq = int(newVal / 1000.0f + 0.5f);
@@ -666,6 +686,103 @@ private:
 };
 const float CAttr_out_recv_speed::recv_speed_options[] = { 48000.0f, 96000.0f, 192000.0f };
 
+// ------------------------------------------------------------------ class CHpsdrDevice::Receiver
+
+const char* CHpsdrDevice::Receiver::EP_NAME[] = {"recv1", "recv2", "recv3", "recv4" };
+const char* CHpsdrDevice::Receiver::EP_DESCR = "Received IQ Samples";
+
+void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_fault);
+	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
+	attrs.preamp = addLocalAttr(true, new CAttr_outProxy<signals::etypBoolean>("preamp", "Enable preamp?", *parent.attrs.recvX_preamp[0]));
+	attrs.freq = addLocalAttr(true, new CAttr_outProxy<signals::etypLong>("freq", "Frequency", *parent.attrs.recvX_freq[0]));
+	attrs.overflow = addLocalAttr(true, new CAttr_inProxy("overflow", "ADC overloaded?", *parent.attrs.recvX_overflow[0]));
+	attrs.version = addLocalAttr(true, new CAttr_inProxy("version", "Software version", *parent.attrs.recvX_version[0]));
+}
+
+bool CHpsdrDevice::Receiver::Connect(signals::IEPSender* send)
+{
+	if(!COutEndpointBase::Connect(send)) return false;
+	{
+		Lock lock(m_parent->m_recvListLock);
+		if(m_attachedRecv < 0)
+		{
+			m_parent->AttachReceiver(*this);
+			ASSERT(m_attachedRecv < 0);
+		}
+	}
+	return true;
+}
+
+bool CHpsdrDevice::Receiver::Disconnect()
+{
+	{
+		Lock lock(m_parent->m_recvListLock);
+		if(m_attachedRecv >= 0)
+		{
+			m_parent->DetachReceiver(*this, m_attachedRecv);
+			m_attachedRecv = -1;
+		}
+	}
+	return COutEndpointBase::Disconnect();
+}
+
+void CHpsdrDevice::Receiver::setProxy(CHpsdrDevice& parent, short attachedRecv)
+{
+	attrs.preamp->setProxy(*parent.attrs.recvX_preamp[attachedRecv]);
+	attrs.freq->setProxy(*parent.attrs.recvX_freq[attachedRecv]);
+	attrs.overflow->setProxy(*parent.attrs.recvX_overflow[attachedRecv]);
+	attrs.version->setProxy(*parent.attrs.recvX_version[attachedRecv]);
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::WideReceiver
+
+const char* CHpsdrDevice::WideReceiver::EP_NAME = "wide";
+const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC samples";
+
+void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.wide_sync_fault);
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
+
+const char* CHpsdrDevice::Transmitter::EP_NAME = "send";
+const char* CHpsdrDevice::Transmitter::EP_DESCR = "IQ transmitter data";
+
+void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+	attrs.version = addRemoteAttr("version", parent.m_controllerType == Hermes ? parent.attrs.merc_software : parent.attrs.penny_software);
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Microphone
+
+const char* CHpsdrDevice::Microphone::EP_NAME = "mic";
+const char* CHpsdrDevice::Microphone::EP_DESCR = "Microphone audio input";
+
+void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
+{
+	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.sync_mic_fault);
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+	attrs.source = addRemoteAttr("source", parent.attrs.src_mic);
+}
+
+// ------------------------------------------------------------------ class CHpsdrDevice::Speaker
+
+const char* CHpsdrDevice::Speaker::EP_NAME = "speak";
+const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
+
+void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
+{
+	UNUSED_ALWAYS(parent);
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypSingle>("rate", "Data rate", 48000.0f));
+}
+
+// ------------------------------------------------------------------ main attributes
+
 void CHpsdrDevice::buildAttrs()
 {
 	// high-priority read-only
@@ -693,14 +810,14 @@ void CHpsdrDevice::buildAttrs()
 	attrs.AIN4 = addLocalInAttr(true, new CAttr_inShort("AIN4", "AIN4 from Penny/Hermes", 0, 3, 0));
 	attrs.AIN5 = addLocalInAttr(true, new CAttr_inShort("AIN5", "Forward power from Penny/Hermes", 0, 1, 0));
 	attrs.AIN6 = addLocalInAttr(true, new CAttr_inShort("AIN6", "3.8v supply on Penny/Hermes", 0, 3, 2));
-	attrs.recv1_overflow = addLocalInAttr(true, new CAttr_inBit("recv1Overflow", "Receiver 1 ADC overloaded?", false, 4, 0, 0x1));
-	attrs.recv1_version = addLocalInAttr(true, new CAttr_inBits("recv1Version", "Receiver 1 software version", 0, 4, 0, 0xFE, 1));
-	attrs.recv2_overflow = addLocalInAttr(true, new CAttr_inBit("recv2Overflow", "Receiver 2 ADC overloaded?", false, 4, 1, 0x1));
-	attrs.recv2_version = addLocalInAttr(true, new CAttr_inBits("recv2Version", "Receiver 2 software version", 0, 4, 1, 0xFE, 1));
-	attrs.recv3_overflow = addLocalInAttr(true, new CAttr_inBit("recv3Overflow", "Receiver 3 ADC overloaded?", false, 4, 2, 0x1));
-	attrs.recv3_version = addLocalInAttr(true, new CAttr_inBits("recv3Version", "Receiver 3 software version", 0, 4, 2, 0xFE, 1));
-	attrs.recv4_overflow = addLocalInAttr(true, new CAttr_inBit("recv4Overflow", "Receiver 4 ADC overloaded?", false, 4, 3, 0x1));
-	attrs.recv4_version = addLocalInAttr(true, new CAttr_inBits("recv4Version", "Receiver 4 software version", 0, 4, 3, 0xFE, 1));
+	attrs.recvX_overflow[0] = addLocalInAttr(false, new CAttr_inBit("recv1Overflow", "Receiver 1 ADC overloaded?", false, 4, 0, 0x1));
+	attrs.recvX_version[0] = addLocalInAttr(false, new CAttr_inBits("recv1Version", "Receiver 1 software version", 0, 4, 0, 0xFE, 1));
+	attrs.recvX_overflow[1] = addLocalInAttr(false, new CAttr_inBit("recv2Overflow", "Receiver 2 ADC overloaded?", false, 4, 1, 0x1));
+	attrs.recvX_version[1] = addLocalInAttr(false, new CAttr_inBits("recv2Version", "Receiver 2 software version", 0, 4, 1, 0xFE, 1));
+	attrs.recvX_overflow[2] = addLocalInAttr(false, new CAttr_inBit("recv3Overflow", "Receiver 3 ADC overloaded?", false, 4, 2, 0x1));
+	attrs.recvX_version[2] = addLocalInAttr(false, new CAttr_inBits("recv3Version", "Receiver 3 software version", 0, 4, 2, 0xFE, 1));
+	attrs.recvX_overflow[3] = addLocalInAttr(false, new CAttr_inBit("recv4Overflow", "Receiver 4 ADC overloaded?", false, 4, 3, 0x1));
+	attrs.recvX_version[3] = addLocalInAttr(false, new CAttr_inBits("recv4Version", "Receiver 4 software version", 0, 4, 3, 0xFE, 1));
 
 	// events
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
@@ -743,12 +860,14 @@ void CHpsdrDevice::buildAttrs()
 //	attrs.timestamp = addLocalAttr(true, new CAttr_outBit(*this, "Timestamp", "Send 1pps through mic stream?", false, 0, 3, 0x40));
 
 	attrs.recv_duplex = addLocalAttr(true, new CAttr_outBit(*this, "Duplex", "Duplex?", true, 0, 3, 0x04));
+	attrs.num_recv = addLocalAttr(false, new CAttr_outBits(*this, "NumRecv", "Number of active receivers - 1",
+		max(m_receivers.size(),1)-1, 0, 3, 0x7, 3, 0, NULL));
 	attrs.recv_clone = addLocalAttr(true, new CAttr_outBit(*this, "RecvClone", "Common Mercury frequency?", false, 0, 3, 0x80));
 	attrs.send_freq = addLocalAttr(true, new CAttr_outLong(*this, "SendFreq", "Transmit Frequency", 0, 1));
-	attrs.recv1_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv1Freq", "Receiver 1 Frequency", 0, 2));
-	attrs.recv2_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv2Freq", "Receiver 2 Frequency", 0, 3));
-	attrs.recv3_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv3Freq", "Receiver 3 Frequency", 0, 4));
-	attrs.recv4_freq = addLocalAttr(true, new CAttr_outLong(*this, "Recv4Freq", "Receiver 4 Frequency", 0, 5));
+	attrs.recvX_freq[0] = addLocalAttr(false, new CAttr_outLong(*this, "Recv1Freq", "Receiver 1 Frequency", 0, 2));
+	attrs.recvX_freq[1] = addLocalAttr(false, new CAttr_outLong(*this, "Recv2Freq", "Receiver 2 Frequency", 0, 3));
+	attrs.recvX_freq[2] = addLocalAttr(false, new CAttr_outLong(*this, "Recv3Freq", "Receiver 3 Frequency", 0, 4));
+	attrs.recvX_freq[3] = addLocalAttr(false, new CAttr_outLong(*this, "Recv4Freq", "Receiver 4 Frequency", 0, 5));
 	attrs.send_drive_level = addLocalAttr(true, new CAttr_outBits(*this, "SendDriveLevel", "Hermes/PennyLane Drive Level",
 		255, 9, 0, 0xFF, 0, 0, NULL));
 	attrs.mic_boost = addLocalAttr(true, new CAttr_outBit(*this, "MicBoost", "Boost microphone signal by 20dB?", false, 9, 1, 0x01));
@@ -778,10 +897,10 @@ void CHpsdrDevice::buildAttrs()
 	attrs.alex_lpf_10m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF10m", "Select Alex 12/10 m LPF?", false, 9, 3, 0x20));
 	attrs.alex_lpf_15m = addLocalAttr(true, new CAttr_outBit(*this, "AlexLPF15m", "Select Alex 17/15 m LPF?", false, 9, 3, 0x40));
 
-	attrs.recv1_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 1 preamp?", false, 10, 0, 0x01));
-	attrs.recv2_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 2 preamp?", false, 10, 0, 0x02));
-	attrs.recv3_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 3 preamp?", false, 10, 0, 0x04));
-	attrs.recv4_preamp = addLocalAttr(true, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 4 preamp?", false, 10, 0, 0x08));
+	attrs.recvX_preamp[0] = addLocalAttr(false, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 1 preamp?", false, 10, 0, 0x01));
+	attrs.recvX_preamp[1] = addLocalAttr(false, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 2 preamp?", false, 10, 0, 0x02));
+	attrs.recvX_preamp[2] = addLocalAttr(false, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 3 preamp?", false, 10, 0, 0x04));
+	attrs.recvX_preamp[3] = addLocalAttr(false, new CAttr_outBit(*this, "Recv1Preamp", "Enable receiver 4 preamp?", false, 10, 0, 0x08));
 
 	m_receiver1.buildAttrs(*this);
 	m_receiver2.buildAttrs(*this);
@@ -791,6 +910,41 @@ void CHpsdrDevice::buildAttrs()
 	m_microphone.buildAttrs(*this);
 	m_speaker.buildAttrs(*this);
 	m_transmit.buildAttrs(*this);
+}
+
+short CHpsdrDevice::AttachReceiver(CHpsdrDevice::Receiver& recv)
+{
+	// ASSUMES m_recvListLock IS HELD
+	unsigned numRecv = m_receivers.size();
+	if(numRecv >= 4)
+	{
+		ASSERT(FALSE);
+		return -1;
+	}
+	m_receivers.resize(numRecv+1);
+	m_receivers[numRecv] = &recv;
+	recv.setProxy(*this, numRecv);
+	if(attrs.num_recv) attrs.num_recv->nativeSetValue(numRecv);
+	return numRecv;
+}
+
+void CHpsdrDevice::DetachReceiver(const CHpsdrDevice::Receiver& recv, unsigned short attachedRecv)
+{
+	// ASSUMES m_recvListLock IS HELD
+	unsigned numRecv = m_receivers.size();
+	if(numRecv <= attachedRecv || m_receivers[attachedRecv] != &recv)
+	{
+		ASSERT(FALSE);
+		return;
+	}
+	if(numRecv > (unsigned)attachedRecv+1)
+	{
+		Receiver* moved = m_receivers[numRecv-1];
+		m_receivers[attachedRecv] = moved;
+		moved->setProxy(*this, attachedRecv);
+	}
+	m_receivers.resize(numRecv-1);
+	if(attrs.num_recv) attrs.num_recv->nativeSetValue(max(numRecv-1,1)-1);
 }
 
 }

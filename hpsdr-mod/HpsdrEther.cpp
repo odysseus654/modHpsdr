@@ -338,6 +338,7 @@ void CHpsdrEthernet::thread_recv()
 							if(m_recvSamples > m_recvSpeed*128)
 							{
 								// release send thread
+								m_sendThreadLock.wake();
 							}
 						}
 					}
