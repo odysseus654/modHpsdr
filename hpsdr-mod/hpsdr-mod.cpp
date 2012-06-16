@@ -15,8 +15,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	signals::IBlock* hpsdr = devices[0];
 	ASSERT(hpsdr != NULL);
-	VERIFY(hpsdr->Start());
+//	VERIFY(hpsdr->Start());
 
+	VERIFY(!hpsdr->Release());
 	return 0;
 }
 

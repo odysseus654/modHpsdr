@@ -378,8 +378,17 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 	message[3] = (runIQ ? 1 : 0) | (runWide ? 2 : 0);
 	if(m_lastRunStatus == message[3]) return;
 
-	if(!(m_lastRunStatus&1) && runIQ) m_iqStarting = true;
-	if(!(m_lastRunStatus&2) && runWide) m_wideStarting = true;
+	if(!(m_lastRunStatus&1) && runIQ)
+	{
+		m_iqStarting = true;
+		m_recvSamples = 0;
+		m_lastIQSeq = 0;
+	}
+	if(!(m_lastRunStatus&2) && runWide)
+	{
+		m_wideStarting = true;
+		m_lastWideSeq = 0;
+	}
 	m_nextSendSeq = 0;
 	if(!m_lastRunStatus && message[3] && !m_recvThread.running())
 	{

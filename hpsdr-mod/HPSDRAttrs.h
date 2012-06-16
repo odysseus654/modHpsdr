@@ -65,7 +65,7 @@ public:
 
 	virtual bool isValidValue(const store_type& newVal) const
 	{
-		return newVal >= 0 && newVal < m_numOpts;
+		return newVal >= 0 && (!m_numOpts || newVal < m_numOpts);
 	}
 
 private:

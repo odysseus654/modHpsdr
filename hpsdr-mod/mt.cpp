@@ -43,7 +43,7 @@ void ThreadBase::doThreadLaunch(unsigned ( __stdcall *start )( void * ), void* p
 
 void ThreadBase::close()
 {
-	if(m_hdl)
+	if(m_hdl != INVALID_HANDLE_VALUE)
 	{
 		WaitForSingleObject(m_hdl, INFINITE);
 		CloseHandle(m_hdl);

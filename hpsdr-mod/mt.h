@@ -137,8 +137,8 @@ public:
 		ASSERT(!m_pending);
 		m_parm1 = parm1;
 		m_parm2 = parm2;
-		m_oper(staticCatch, this);
 		_InterlockedIncrement(&m_pending);
+		m_oper(staticCatch, this);
 	}
 private:
 	delegate_type m_func;
@@ -182,8 +182,8 @@ public:
 	{
 		ASSERT(!m_pending);
 		m_parm = parm;
-		m_oper(staticCatch, this);
 		_InterlockedIncrement(&m_pending);
+		m_oper(staticCatch, this);
 	}
 private:
 	delegate_type m_func;
@@ -224,8 +224,8 @@ public:
 	void fire()
 	{
 		ASSERT(!m_pending);
-		m_oper(staticCatch, this);
 		_InterlockedIncrement(&m_pending);
+		m_oper(staticCatch, this);
 	}
 private:
 	delegate_type m_func;

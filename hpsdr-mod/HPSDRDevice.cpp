@@ -8,20 +8,22 @@ namespace hpsdr {
 
 // ------------------------------------------------------------------ class CHpsdrDevice
 
-const float CHpsdrDevice::SCALE_32 = float(1 << 31);
-const float CHpsdrDevice::SCALE_16 = float(1 << 15);
+const float CHpsdrDevice::SCALE_32 = float(1U << 31);
+const float CHpsdrDevice::SCALE_16 = float(1U << 15);
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
-	 m_receivers(4),m_receiver1(this, 0),m_receiver2(this, 1),m_receiver3(this, 2),m_receiver4(this, 3),m_wideRecv(this),
+	 m_receiver1(this, 0),m_receiver2(this, 1),m_receiver3(this, 2),m_receiver4(this, 3),m_wideRecv(this),
 	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThreadEnabled(true),
 	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr))
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
 	memset(m_CCinDirty, 0, sizeof(m_CCinDirty));
+
+	buildAttrs();
 
 	// launch the attribute thread
 	m_attrThread.launch(THREAD_PRIORITY_HIGHEST);
