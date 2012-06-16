@@ -9,6 +9,7 @@ namespace hpsdr
 	class CHpsdrEthernetDriver;
 }
 extern hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers);
 
 namespace hpsdr {
 

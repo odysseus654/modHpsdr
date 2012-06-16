@@ -73,4 +73,9 @@
       <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="hpsdr-mod32.def">
+      <Filter>Interface</Filter>
+    </None>
+  </ItemGroup>
 </Project>

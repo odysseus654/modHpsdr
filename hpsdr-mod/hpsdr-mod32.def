@@ -1,0 +1,4 @@
+LIBRARY hpsdr
+
+EXPORTS
+	QueryDrivers

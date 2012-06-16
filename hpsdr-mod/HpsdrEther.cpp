@@ -7,6 +7,15 @@
 
 #pragma comment(lib, "ws2_32.lib")
 
+extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
+{
+	if(drivers && availDrivers)
+	{
+		drivers[0] = &DRIVER_HpsdrEthernet;
+	}
+	return 1;
+}
+
 hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 namespace hpsdr {
 

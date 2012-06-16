@@ -278,7 +278,7 @@ public:
 		{ return refObject.options(vals,opts,availElem); }
 	virtual signals::EType Type()		{ return refObject.Type(); }
 	virtual bool isReadOnly()			{ return true; }
-	virtual bool setValue(const void* newVal) { return false; }
+	virtual bool setValue(const void* newVal) { UNUSED_ALWAYS(newVal); return false; }
 	virtual const void* getValue()		{ Locker lock(m_proxyLock); return proxyObject ? proxyObject->getValue() : NULL; }
 	virtual void setProxy(signals::IAttribute& target);
 

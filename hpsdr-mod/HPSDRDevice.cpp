@@ -430,7 +430,7 @@ void CHpsdrDevice::buildAttrs()
 
 	attrs.recv_duplex = addLocalAttr(true, new CAttr_outBit(*this, "Duplex", "Duplex?", true, 0, 3, 0x04));
 	attrs.num_recv = addLocalAttr(false, new CAttr_outBits(*this, "NumRecv", "Number of active receivers - 1",
-		max(m_receivers.size(),1)-1, 0, 3, 0x7, 3, 0, NULL));
+		(byte)max(m_receivers.size(),1)-1, 0, 3, 0x7, 3, 0, NULL));
 	attrs.recv_clone = addLocalAttr(true, new CAttr_outBit(*this, "RecvClone", "Common Mercury frequency?", false, 0, 3, 0x80));
 	attrs.send_freq = addLocalAttr(true, new CAttr_outLong(*this, "SendFreq", "Transmit Frequency", 0, 1));
 	attrs.recvX_freq[0] = addLocalAttr(false, new CAttr_outLong(*this, "Recv1Freq", "Receiver 1 Frequency", 0, 2));
@@ -492,9 +492,9 @@ short CHpsdrDevice::AttachReceiver(CHpsdrDevice::Receiver& recv)
 	}
 	m_receivers.resize(numRecv+1);
 	m_receivers[numRecv] = &recv;
-	recv.setProxy(*this, numRecv);
-	if(attrs.num_recv) attrs.num_recv->nativeSetValue(numRecv);
-	return numRecv;
+	recv.setProxy(*this, (short)numRecv);
+	if(attrs.num_recv) attrs.num_recv->nativeSetValue((byte)numRecv);
+	return (short)numRecv;
 }
 
 void CHpsdrDevice::DetachReceiver(const CHpsdrDevice::Receiver& recv, unsigned short attachedRecv)
@@ -513,7 +513,7 @@ void CHpsdrDevice::DetachReceiver(const CHpsdrDevice::Receiver& recv, unsigned s
 		moved->setProxy(*this, attachedRecv);
 	}
 	m_receivers.resize(numRecv-1);
-	if(attrs.num_recv) attrs.num_recv->nativeSetValue(max(numRecv-1,1)-1);
+	if(attrs.num_recv) attrs.num_recv->nativeSetValue((byte)max(numRecv-1,1)-1);
 }
 
 }
