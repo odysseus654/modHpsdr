@@ -45,6 +45,9 @@
     <ClInclude Include="error.h">
       <Filter>utils</Filter>
     </ClInclude>
+    <ClInclude Include="HPSDRAttrs.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BlockImpl.cpp">
@@ -65,6 +68,9 @@
     </ClCompile>
     <ClCompile Include="error.cpp">
       <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="HPSDRAttrs.cpp">
+      <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>
 </Project>

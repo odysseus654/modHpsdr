@@ -80,6 +80,7 @@
     <ClInclude Include="BlockImpl.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="error.h" />
+    <ClInclude Include="HPSDRAttrs.h" />
     <ClInclude Include="HPSDRDevice.h" />
     <ClInclude Include="HpsdrEther.h" />
     <ClInclude Include="mt.h" />
@@ -90,6 +91,7 @@
     <ClCompile Include="BlockImpl.cpp" />
     <ClCompile Include="error.cpp" />
     <ClCompile Include="hpsdr-mod.cpp" />
+    <ClCompile Include="HPSDRAttrs.cpp" />
     <ClCompile Include="HPSDRDevice.cpp" />
     <ClCompile Include="HpsdrEther.cpp" />
     <ClCompile Include="mt.cpp" />
