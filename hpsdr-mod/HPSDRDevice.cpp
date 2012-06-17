@@ -26,7 +26,7 @@ CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	buildAttrs();
 
 	// launch the attribute thread
-	m_attrThread.launch(THREAD_PRIORITY_HIGHEST);
+	m_attrThread.launch(THREAD_PRIORITY_ABOVE_NORMAL);
 }
 #pragma warning(pop)
 
@@ -55,6 +55,7 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 
 	byte CCframe = ((CC0 & 0xF8) >> 1);
 	byte* recvCC = m_CCin + CCframe;
+	CCframe = CCframe >> 2;
 	{
 		Locker lock(m_CCinLock);
 		*recvCC++ = *frame++;
@@ -73,7 +74,7 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 	const int sample_size = 6 * numReceiver + 2;
 
 	unsigned numSamples = 0;
-	while(remain > sample_size)
+	while(remain >= sample_size)
 	{
 		// receive a sample for each of the currentl-active receivers
 		for (unsigned recv = 0; recv < numReceiver; recv++)
@@ -90,7 +91,8 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 			if(hasReceivers)
 			{
 				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
-				if(!m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0)) attrs.sync_fault->fire();
+				ASSERT(m_receivers[recv]->isConnected());
+				if(!m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0) && m_receivers[recv]->isConnected()) attrs.sync_fault->fire();
 			}
 		}
 
@@ -104,7 +106,7 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 			// force the 16bit number to be signed and convert to float
 			short MicAmpl = (short(frame[0]) << 8) | frame[1];
 			float sample = MicAmpl / SCALE_16;
-			if(!m_microphone.Write(signals::etypSingle, &sample, 1, 0)) attrs.sync_mic_fault->fire();
+			if(!m_microphone.Write(signals::etypSingle, &sample, 1, 0) && m_microphone.isConnected()) attrs.sync_mic_fault->fire();
 		}
 		frame += 2;
 		remain -= 2;
@@ -116,22 +118,47 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 void CHpsdrDevice::thread_attr()
 {
 	ThreadBase::SetThreadName("HPSDR Attribute Monitor Thread");
-	Locker lock(m_CCinLock);
+
+	byte curAddr = 0;
+	byte CCin[4];
 	for(;;)
 	{
-		if(!m_attrThreadEnabled) return;
-		m_CCinUpdated.sleep(lock);
-		if(!m_attrThreadEnabled) return;
+		{
+			Locker lock(m_CCinLock);
+			for(;;)
+			{
+				byte nextAddr = curAddr;
+				if(!m_attrThreadEnabled) return;
+				bool bFoundDirty = false;
+				do
+				{
+					if(m_CCinDirty[nextAddr])
+					{
+						curAddr = nextAddr;
+						bFoundDirty = true;
+						break;
+					}
+					nextAddr = (nextAddr+1)%32;
+				}
+				while(nextAddr != curAddr);
+				if(bFoundDirty)
+				{
+					memcpy(CCin, m_CCin + curAddr*4, 4);
+					m_CCinDirty[curAddr] = false;
+					break;
+				}
+				m_CCinUpdated.sleep(lock);
+			}
+		}
 
 		for(TInAttrList::const_iterator trans = m_inAttrs.begin(); trans != m_inAttrs.end(); trans++)
 		{
 			CAttr_inMonitor* monitor = *trans;
-			if(m_CCinDirty[monitor->m_addr])
+			if(monitor->m_addr == curAddr)
 			{
-				monitor->evaluate(m_CCin + monitor->m_addr*4);
+				monitor->evaluate(CCin);
 			}
 		}
-		memset(m_CCinDirty, 0, sizeof(m_CCinDirty));
 	}
 }
 
@@ -212,7 +239,7 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 	*frame++ = SYNC;
 
 	{
-		bool MOX = false;
+		bool MOX = false; // FUTURE TODO: must be false if no_streams!
 		Locker outLock(m_CCoutLock);
 		byte* CC = chooseCC();
 		*frame++ = ((m_lastCCout << 1) | (MOX ? 1 : 0));
@@ -224,7 +251,7 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 
 	if(no_streams)
 	{
-		memset(frame, 0, 512);
+		memset(frame, 0, 504);
 	}
 	else
 	{
@@ -396,7 +423,7 @@ void CHpsdrDevice::buildAttrs()
 	attrs.sync_mic_fault = addLocalAttr(false, new CEventAttribute("micSyncFault", "Fires when an overrun occurs receiving microphone data"));
 
 	// write-only
-	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "RecvRate", "Rate that receivers send data", 192000.0f, 0, 0, 0x3, 0));
+	attrs.recv_speed = addLocalAttr(true, new CAttr_out_recv_speed(*this, "recvRate", "Rate that receivers send data", 192000, 0, 0, 0x3, 0));
 	if(m_controllerType != Hermes)
 	{
 		static const char* src_10MHz_options[] = {"Atlas/Excalibur", "Penny", "Mercury"};
@@ -419,9 +446,9 @@ void CHpsdrDevice::buildAttrs()
 	static const char* alex_atten_options[] = {"0 dB", "10 dB", "20 dB", "30 dB"};
 	attrs.alex_atten = addLocalAttr(true, new CAttr_outBits(*this, "AlexAtten", "Alex Attenuator",
 		0, 0, 2, 0x3, 0, _countof(alex_atten_options), alex_atten_options));
-	attrs.recv_preamp = addLocalAttr(true, new CAttr_outBit(*this, "RecvPreamp", "Enable receiver preamp?", true, 0, 2, 0x04));
-	attrs.recv_adc_dither = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcDither", "Enable receiver ADC dithering?", true, 0, 2, 0x08));
-	attrs.recv_adc_random = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcRandom", "Enable receiver ADC random?", true, 0, 2, 0x10));
+	attrs.recv_preamp = addLocalAttr(true, new CAttr_outBit(*this, "RecvPreamp", "Enable receiver preamp?", false, 0, 2, 0x04));
+	attrs.recv_adc_dither = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcDither", "Enable receiver ADC dithering?", false, 0, 2, 0x08));
+	attrs.recv_adc_random = addLocalAttr(true, new CAttr_outBit(*this, "RecvAdcRandom", "Enable receiver ADC random?", false, 0, 2, 0x10));
 	static const char* alex_recv_ant[] = {"None", "Rx1", "Rx2", "XV"};
 	attrs.alex_recv_ant = addLocalAttr(true, new CAttr_out_alex_recv_ant(*this, "AlexRecvAnt", "Alex Rx Antenna",
 		0, _countof(alex_recv_ant), alex_recv_ant));

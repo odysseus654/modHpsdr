@@ -23,7 +23,7 @@ friend class Condition;
 class Locker
 {
 public:
-	explicit Locker(Lock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
+	explicit inline Locker(Lock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
 	{
 		if(bLocked) lock();
 	}
@@ -33,13 +33,13 @@ public:
 		unlock();
 	}
 
-	void set(Lock& lock)
+	inline void set(Lock& lock)
 	{
 		unlock();
 		m_lock = &lock;
 	}
 
-	void lock()
+	inline void lock()
 	{
 		if(m_lock && !m_bLocked)
 		{
@@ -48,7 +48,7 @@ public:
 		}
 	}
 
-	bool tryLock()
+	inline bool tryLock()
 	{
 		if(m_lock && (m_bLocked || m_lock->tryLock()))
 		{
@@ -61,7 +61,7 @@ public:
 		}
 	}
 
-	void unlock()
+	inline void unlock()
 	{
 		if(m_lock && m_bLocked)
 		{
@@ -97,26 +97,13 @@ public:
 	inline Semaphore():m_sem(NULL)				{ }
 	inline Semaphore(unsigned count, unsigned maxCount) { open(count, maxCount); }
 	~Semaphore()								{ close(); }
-	inline bool sleep(DWORD milli = INFINITE)	{ return m_sem && WaitForSingleObject(m_sem, milli) == WAIT_OBJECT_0; }
+	inline bool sleep(DWORD milli = INFINITE)	{ return m_sem && WaitForSingleObject(m_sem, milli) == WAIT_OBJECT_0 && m_sem; }
 	inline bool wake(unsigned count = 1)		{ return m_sem && ReleaseSemaphore(m_sem, count, NULL); }
 	inline bool isOpen() const					{ return !!m_sem; }
 //	void reset()								{ while(sleep(0)); }
 
-	void open(unsigned count, unsigned maxCount)
-	{
-		close();
-		m_sem = CreateSemaphore(NULL, count, maxCount, NULL);
-		if(!m_sem) ThrowLastError(GetLastError());
-	}
-
-	void close()
-	{
-		if(m_sem)
-		{
-			CloseHandle(m_sem);
-			m_sem = NULL;
-		}
-	}
+	void open(unsigned count, unsigned maxCount);
+	void close();
 
 private:
 	HANDLE m_sem;

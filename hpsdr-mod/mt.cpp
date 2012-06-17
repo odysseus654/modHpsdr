@@ -3,6 +3,28 @@
 
 #include <process.h>
 
+void Semaphore::open(unsigned count, unsigned maxCount)
+{
+	close();
+	m_sem = CreateSemaphore(NULL, count, maxCount, NULL);
+	if(!m_sem) ThrowLastError(GetLastError());
+}
+
+void Semaphore::close()
+{
+	if(m_sem)
+	{
+		HANDLE sem = m_sem;
+		m_sem = NULL;
+		ReleaseSemaphore(sem, 1, NULL);
+		ReleaseSemaphore(sem, 1, NULL);
+		ReleaseSemaphore(sem, 1, NULL);
+		CloseHandle(m_sem);
+	}
+}
+
+// ------------------------------------------------------------------------------------------------ ThreadBase
+
 void ThreadBase::SetThreadName(const char* threadName, DWORD dwThreadID /* = -1 */)
 {
 	#pragma pack(push,8)

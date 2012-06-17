@@ -354,14 +354,14 @@ private:
 	}
 };
 
-class CAttr_out_recv_speed : public COptionedAttribute<signals::etypSingle>
+class CAttr_out_recv_speed : public COptionedAttribute<signals::etypLong>
 {
 private:
-	typedef COptionedAttribute<signals::etypSingle> base;
-	static const float recv_speed_options[3];
+	typedef COptionedAttribute<signals::etypLong> base;
+	static const long recv_speed_options[3];
 	bool setValue(const store_type& newVal);
 public:
-	inline CAttr_out_recv_speed(CHpsdrDevice& parent, const char* name, const char* descr, float deflt,
+	inline CAttr_out_recv_speed(CHpsdrDevice& parent, const char* name, const char* descr, long deflt,
 		byte addr, byte offset, byte mask, byte shift)
 		:base(name, descr, deflt, _countof(recv_speed_options), recv_speed_options, NULL),
 		 m_rawValue(parent, name, descr, 0, addr, offset, mask, shift, 0, NULL),
@@ -381,7 +381,7 @@ protected:
 	{
 		if(setValue(newVal))
 		{
-			base::onSetValue(int(newVal / 1000.0f + 0.5f) * 1000.0f);
+			base::onSetValue(((newVal + 500) / 1000) * 1000);
 		}
 	}
 };

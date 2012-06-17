@@ -42,7 +42,7 @@ unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned num
 void CAttributeBase::Observe(signals::IAttributeObserver* obs)
 {
 	Locker lock(m_observersLock);
-	if(m_observers.find(obs) != m_observers.end())
+	if(m_observers.find(obs) == m_observers.end())
 	{
 		m_observers.insert(obs);
 	}

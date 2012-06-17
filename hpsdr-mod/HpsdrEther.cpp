@@ -172,7 +172,8 @@ CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoa
 	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),
 	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
 	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
-	 m_sock(INVALID_SOCKET),m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false)
+	 m_sock(INVALID_SOCKET),m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false),
+	 m_nextSendSeq(0)
 {
 }
 
@@ -216,15 +217,15 @@ SOCKET CHpsdrEthernet::buildSocket() const
 			ThrowSocketError(WSAGetLastError());
 		}
 
-		static const int SendBufferSize = 1032;
+		static const int SendBufferSize = 2064;  // 4 outgoing packets
 		if(::setsockopt(sock, SOL_SOCKET, SO_SNDBUF, (char*)&SendBufferSize, sizeof(SendBufferSize)) == SOCKET_ERROR)
 		{
 			ThrowSocketError(WSAGetLastError());
 		}
-
+/*
 		static const u_long Blocking = 1;
 		if(::ioctlsocket(sock, FIONBIO, (u_long*)&Blocking) == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
-
+*/
 		// create an endpoint for sending to Metis
 		memset(&iep, 0, sizeof(iep));
 		iep.sin_family = AF_INET;
@@ -286,8 +287,6 @@ void CHpsdrEthernet::thread_recv()
 	byte message[1032];
 
 	fd_set fds;
-	FD_ZERO(&fds) ;
-	FD_SET(this->m_sock, &fds);
 
 	struct timeval tv;
 	tv.tv_sec = 1;
@@ -295,6 +294,9 @@ void CHpsdrEthernet::thread_recv()
 
 	while(m_lastRunStatus)
 	{
+		FD_ZERO(&fds) ;
+		FD_SET(this->m_sock, &fds);
+
 		int ret = select(1, &fds, NULL, NULL, &tv);
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
 		if(ret != 0)
@@ -321,10 +323,10 @@ void CHpsdrEthernet::thread_recv()
 						float* wideDest = wideBuff;
 						for(int i=0; i < 512; i++)
 						{
-							*wideDest++ = ((wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
+							*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 							wideSrc += 2;
 						}
-						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0)) attrs.wide_sync_fault->fire();
+						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0) && m_wideRecv.isConnected()) attrs.wide_sync_fault->fire();
 					}
 					break;
 				case 6: // endpoint 4: IQ + mic data
@@ -422,7 +424,7 @@ void CHpsdrEthernet::thread_send()
 		message[1] = 0xFE;
 		message[2] = 0x01;
 		message[3] = 0x02;
-		*(u_long*)message[4] = ::htonl(m_nextSendSeq++);
+		*(u_long*)&message[4] = ::htonl(m_nextSendSeq++);
 
 		send_frame(message + 8);
 		send_frame(message + 520);
@@ -445,7 +447,7 @@ void CHpsdrEthernet::FlushPendingChanges()
 		message[1] = 0xFE;
 		message[2] = 0x01;
 		message[3] = 0x02;
-		*(u_long*)message[4] = ::htonl(m_nextSendSeq++);
+		*(u_long*)&message[4] = ::htonl(m_nextSendSeq++);
 
 		send_frame(message + 8, true);
 		send_frame(message + 520, true);

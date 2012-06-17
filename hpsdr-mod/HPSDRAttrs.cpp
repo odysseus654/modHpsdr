@@ -32,11 +32,11 @@ void CAttr_inProxy::setProxy(signals::IAttribute& target)
 
 // ------------------------------------------------------------------ CAttr_out_recv_speed
 
-const float CAttr_out_recv_speed::recv_speed_options[] = { 48000.0f, 96000.0f, 192000.0f };
+const long CAttr_out_recv_speed::recv_speed_options[] = { 48000, 96000, 192000 };
 
 bool CAttr_out_recv_speed::isValidValue(const store_type& newVal) const
 {
-	int iFreq = int(newVal / 1000.0f + 0.5f);
+	int iFreq = (newVal + 500) / 1000;
 	for(unsigned idx = 0; idx < _countof(recv_speed_options); idx++)
 	{
 		if(recv_speed_options[idx] / 1000 == iFreq) return true;
@@ -46,7 +46,7 @@ bool CAttr_out_recv_speed::isValidValue(const store_type& newVal) const
 
 bool CAttr_out_recv_speed::setValue(const store_type& newVal)
 {
-	int iFreq = int(newVal / 1000.0f + 0.5f);
+	int iFreq = (newVal + 500) / 1000;
 	for(byte idx = 0; idx < _countof(recv_speed_options); idx++)
 	{
 		if(recv_speed_options[idx] / 1000 == iFreq)
