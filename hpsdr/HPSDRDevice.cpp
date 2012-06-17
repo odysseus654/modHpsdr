@@ -126,7 +126,7 @@ void CHpsdrDevice::thread_attr()
 			Locker lock(m_CCinLock);
 			for(;;)
 			{
-				unsigned int nextAddr = curAddr;
+				byte nextAddr = curAddr;
 				unsigned int nextMask = 1UL << nextAddr;
 				if(!m_attrThreadEnabled) return;
 				bool bFoundDirty = false;
