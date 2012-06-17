@@ -35,8 +35,11 @@ public:
 	signals::IAttribute* m_attr;
 
 protected:
+	static Lock st_screenLock;
+
 	inline void reportValue(signals::EType type, const void* value) const
 	{
+		Locker lock(st_screenLock);
 		std::cout << m_prefix.c_str() << "/" << m_name.c_str() << ": " << valueToString(type, value).c_str() << std::endl;
 	}
 
@@ -86,6 +89,7 @@ protected:
 		return buffer;
 	}
 };
+Lock CAttrObserver::st_screenLock;
 
 // IBlock
 // IOutEndpoint
@@ -121,7 +125,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	recvSpeed->setValue(&newSpeed);
 
 	VERIFY(hpsdr->Start());
-	Sleep(10000);
+	Sleep(30000);
 	VERIFY(hpsdr->Stop());
 
 	for(TObservList::iterator trans = obsList.begin(); trans != obsList.end(); trans++)
@@ -131,4 +135,3 @@ int _tmain(int argc, _TCHAR* argv[])
 	VERIFY(!hpsdr->Release());
 	return 0;
 }
-
