@@ -1,13 +1,13 @@
 
 *.suo
 /Debug
-/hpsdr-mod/Debug
+/hpsdr/Debug
 /ipch
 /hpsdr-mod.opensdf
 /hpsdr-mod.sdf
 /hpsdr-mod.opensdf
 /hpsdr-mod.sdf
-/hpsdr-mod/Release
+/hpsdr/Release
 /Release
-/hpsdr-mod/Smoketest
+/hpsdr/Smoketest
 /Smoketest

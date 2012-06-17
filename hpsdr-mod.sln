@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual C++ Express 2010
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hpsdr-mod", "hpsdr-mod\hpsdr-mod.vcxproj", "{1AF5D4F2-6441-42FD-BC9B-490309C28DF4}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hpsdr", "hpsdr\hpsdr.vcxproj", "{1AF5D4F2-6441-42FD-BC9B-490309C28DF4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
