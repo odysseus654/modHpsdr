@@ -326,7 +326,7 @@ private:
 
 	volatile byte m_CC0in;
 	byte m_CCin[32*4];								// protected by m_CCinLock
-	bool m_CCinDirty[32];							// protected by m_CCinLock
+	unsigned int m_CCinDirty;						// protected by m_CCinLock
 	Condition m_CCinUpdated;						// protected by m_CCinLock
 	Lock m_CCinLock;
 

@@ -204,7 +204,11 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs, store_type value)
 	{
-		obs->OnChanged(Name(), Type(), &value);
+		Locker obslock(m_observersLock);
+		if(m_observers.find(obs) != m_observers.end())
+		{
+			obs->OnChanged(Name(), Type(), &value);
+		}
 	}
 };
 
@@ -245,7 +249,11 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs, store_type value)
 	{
-		obs->OnChanged(Name(), Type(), value.c_str());
+		Locker obslock(m_observersLock);
+		if(m_observers.find(obs) != m_observers.end())
+		{
+			obs->OnChanged(Name(), Type(), value.c_str());
+		}
 	}
 
 private:
@@ -350,7 +358,11 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs)
 	{
-		obs->OnChanged(Name(), Type(), NULL);
+		Locker obslock(m_observersLock);
+		if(m_observers.find(obs) != m_observers.end())
+		{
+			obs->OnChanged(Name(), Type(), NULL);
+		}
 	}
 };
 

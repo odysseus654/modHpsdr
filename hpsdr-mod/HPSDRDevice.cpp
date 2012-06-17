@@ -17,11 +17,10 @@ CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
 	 m_receiver1(this, 0),m_receiver2(this, 1),m_receiver3(this, 2),m_receiver4(this, 3),m_wideRecv(this),
 	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThreadEnabled(true),
-	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr))
+	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr)), m_CCinDirty(0)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
-	memset(m_CCinDirty, 0, sizeof(m_CCinDirty));
 
 	buildAttrs();
 
@@ -62,7 +61,7 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
 		*recvCC++ = *frame++;
-		m_CCinDirty[CCframe] = true;
+		m_CCinDirty |= (1UL<<CCframe);
 		m_CCinUpdated.wakeAll();
 	}
 
@@ -127,24 +126,35 @@ void CHpsdrDevice::thread_attr()
 			Locker lock(m_CCinLock);
 			for(;;)
 			{
-				byte nextAddr = curAddr;
+				unsigned int nextAddr = curAddr;
+				unsigned int nextMask = 1UL << nextAddr;
 				if(!m_attrThreadEnabled) return;
 				bool bFoundDirty = false;
-				do
+				if(m_CCinDirty)
 				{
-					if(m_CCinDirty[nextAddr])
+					do
 					{
-						curAddr = nextAddr;
-						bFoundDirty = true;
-						break;
+						if(m_CCinDirty & nextMask)
+						{
+							bFoundDirty = true;
+							break;
+						}
+						nextMask = nextMask << 1;
+						nextAddr++;
+						if(!nextMask)
+						{
+							nextMask = 1;
+							nextAddr = 0;
+						}
 					}
-					nextAddr = (nextAddr+1)%32;
+					while(nextAddr != curAddr);
+					ASSERT(bFoundDirty); // if we didn't find anything, how'd we get past the "if"?
 				}
-				while(nextAddr != curAddr);
 				if(bFoundDirty)
 				{
-					memcpy(CCin, m_CCin + curAddr*4, 4);
-					m_CCinDirty[curAddr] = false;
+					curAddr = nextAddr;
+					*(long*)&CCin = *(long*)(m_CCin + curAddr*4);
+					m_CCinDirty &= ~nextMask;
 					break;
 				}
 				m_CCinUpdated.sleep(lock);
