@@ -124,9 +124,9 @@ int _tmain(int argc, _TCHAR* argv[])
 	long newSpeed = 48000;
 	recvSpeed->setValue(&newSpeed);
 
-	VERIFY(hpsdr->Start());
+	hpsdr->Start();
 	Sleep(30000);
-	VERIFY(hpsdr->Stop());
+	hpsdr->Stop();
 
 	for(TObservList::iterator trans = obsList.begin(); trans != obsList.end(); trans++)
 	{

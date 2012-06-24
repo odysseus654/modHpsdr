@@ -38,6 +38,7 @@ namespace signals
 		etypSingle	= 0x15,
 		etypDouble	= 0x16,
 		etypComplex	= 0x1D,
+		etypCmplDbl = 0x1E,
 		etypString	= 0x23,
 		etypLRSingle = 0x2D
 	};
@@ -62,8 +63,8 @@ namespace signals
 		unsigned Incoming(IInEndpoint** ep, unsigned availEP);
 		unsigned Outgoing(IOutEndpoint** ep, unsigned availEP);
 		IAttributes* Attributes();
-		bool Start();
-		bool Stop();
+		void Start();
+		void Stop();
 	};
 
 	__interface IEPSender

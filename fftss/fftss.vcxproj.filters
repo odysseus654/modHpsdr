@@ -1,0 +1,209 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Infrastructure">
+      <UniqueIdentifier>{55b934fb-f247-4b84-b448-9b2de7527fbd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{3584d998-2dce-4b2c-9ee1-c7a6d27319d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation">
+      <UniqueIdentifier>{e56fbb7f-2537-42eb-88bb-c3134424faf7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Library Compilation">
+      <UniqueIdentifier>{678dff45-0c1a-4612-a1f5-9b956f22821c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\block.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\BlockImpl.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\buffer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\mt.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\FastDelegate.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\error.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="fftss\include\win32config.h">
+      <Filter>Library Compilation</Filter>
+    </ClInclude>
+    <ClInclude Include="fftss\include\fftss.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="fftss\include\libfftss.h">
+      <Filter>Library Compilation</Filter>
+    </ClInclude>
+    <ClInclude Include="fftssDriver.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Infrastructure</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_2d.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_3d.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_copy.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_counter.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_cpuid.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_destroy_plan.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_execute.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_execute_dft.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_execute_dft_1d.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_execute_inplace_dft_1d.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_fma.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_get_wtime.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_kset.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_malloc.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_set.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_table.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_test.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\fftss_version.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_fma_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_fma_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_fma_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_fma_u4.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse2_1_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse2_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse2_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse2_u4.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_sse3_u4.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r4_u4.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_fma_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_fma_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_fma_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_sse2_n.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_sse2_o.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_sse2_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftss\libfftss\r8_u1.c">
+      <Filter>Library Compilation</Filter>
+    </ClCompile>
+    <ClCompile Include="fftssDriver.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fftss32.def">
+      <Filter>Infrastructure</Filter>
+    </None>
+  </ItemGroup>
+</Project>

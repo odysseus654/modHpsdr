@@ -80,8 +80,8 @@ public: // IBlock implementation
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
-	virtual bool Start();
-	virtual bool Stop();
+	virtual void Start();
+	virtual void Stop();
 
 private:
 	static const char* NAME;

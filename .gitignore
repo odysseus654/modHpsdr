@@ -11,3 +11,7 @@
 /Release
 /hpsdr/Smoketest
 /Smoketest
+/common/Debug
+/common/Release
+/fftss/Debug
+/fftss/Release

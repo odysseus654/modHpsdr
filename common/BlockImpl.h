@@ -150,6 +150,7 @@ template<> struct StoreType<signals::etypLong>		{ typedef long type; };
 template<> struct StoreType<signals::etypSingle>	{ typedef float type; };
 template<> struct StoreType<signals::etypDouble>	{ typedef double type; };
 template<> struct StoreType<signals::etypComplex>	{ typedef std::complex<float> type; };
+template<> struct StoreType<signals::etypCmplDbl>	{ typedef std::complex<double> type; };
 template<> struct StoreType<signals::etypString>	{ typedef std::string type; };
 template<> struct StoreType<signals::etypLRSingle>	{ typedef std::complex<float> type; };
 

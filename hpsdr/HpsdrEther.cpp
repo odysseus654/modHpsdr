@@ -257,7 +257,7 @@ SOCKET CHpsdrEthernet::buildSocket() const
 	return sock;
 }
 
-bool CHpsdrEthernet::Start()
+void CHpsdrEthernet::Start()
 {
 	m_sock = buildSocket();
 
@@ -269,10 +269,9 @@ bool CHpsdrEthernet::Start()
 
 	// start data from Metis
 	Metis_start_stop(true, true);
-	return true;
 }
 
-bool CHpsdrEthernet::Stop()
+void CHpsdrEthernet::Stop()
 {
 	// shut down sending thread
 	m_sendThreadLock.close();
@@ -290,7 +289,6 @@ bool CHpsdrEthernet::Stop()
 		closesocket(m_sock);
 		m_sock = INVALID_SOCKET;
 	}
-	return true;
 }
 
 #pragma warning(push)

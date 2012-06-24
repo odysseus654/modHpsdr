@@ -1,35 +1,17 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="utils">
-      <UniqueIdentifier>{c2bd24f6-9b59-4852-815a-965b5970fbcd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Interface">
-      <UniqueIdentifier>{be3edccc-af64-471d-b799-2c32cbd72eee}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Infrastructure">
       <UniqueIdentifier>{4e102a0e-2cbf-49a4-9cba-0a2b60dd91a8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Implementation">
       <UniqueIdentifier>{e36c0ee0-9d31-4934-b570-e93be8634dbc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{591b414b-a173-46ab-9927-69c382572c9e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="block.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="BlockImpl.h">
-      <Filter>Interface</Filter>
-    </ClInclude>
-    <ClInclude Include="buffer.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\ext\FastDelegate.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="mt.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="stdafx.h">
       <Filter>Infrastructure</Filter>
     </ClInclude>
@@ -42,17 +24,29 @@
     <ClInclude Include="HpsdrEther.h">
       <Filter>Implementation</Filter>
     </ClInclude>
-    <ClInclude Include="error.h">
-      <Filter>utils</Filter>
-    </ClInclude>
     <ClInclude Include="HPSDRAttrs.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\block.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\BlockImpl.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\buffer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\mt.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\FastDelegate.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="error.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BlockImpl.cpp">
-      <Filter>Interface</Filter>
-    </ClCompile>
     <ClCompile Include="stdafx.cpp">
       <Filter>Infrastructure</Filter>
     </ClCompile>
@@ -62,20 +56,19 @@
     <ClCompile Include="HpsdrEther.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
-    <ClCompile Include="hpsdr-mod.cpp" />
-    <ClCompile Include="mt.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
-    <ClCompile Include="error.cpp">
-      <Filter>utils</Filter>
-    </ClCompile>
     <ClCompile Include="HPSDRAttrs.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
+    <ClCompile Include="hpsdr.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="hpsdr-mod32.def">
-      <Filter>Interface</Filter>
+    <ResourceCompile Include="hpsdr.rc">
+      <Filter>Infrastructure</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="hpsdr32.def">
+      <Filter>Infrastructure</Filter>
     </None>
   </ItemGroup>
 </Project>

@@ -1,0 +1,161 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>fftss</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IgnoreImportLibrary>true</IgnoreImportLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <IgnoreImportLibrary>true</IgnoreImportLibrary>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;FFTSS_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)common;$(ProjectDir)fftss\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ModuleDefinitionFile>fftss32.def</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;FFTSS_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(SolutionDir)common;$(ProjectDir)fftss\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <ModuleDefinitionFile>fftss32.def</ModuleDefinitionFile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="..\common\block.h" />
+    <ClInclude Include="..\common\BlockImpl.h" />
+    <ClInclude Include="..\common\buffer.h" />
+    <ClInclude Include="..\common\error.h" />
+    <ClInclude Include="..\common\mt.h" />
+    <ClInclude Include="..\ext\FastDelegate.h" />
+    <ClInclude Include="fftssDriver.h" />
+    <ClInclude Include="fftss\include\fftss.h" />
+    <ClInclude Include="fftss\include\libfftss.h" />
+    <ClInclude Include="fftss\include\win32config.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="fftssDriver.cpp" />
+    <ClCompile Include="fftss\libfftss\fftss.c" />
+    <ClCompile Include="fftss\libfftss\fftss_2d.c" />
+    <ClCompile Include="fftss\libfftss\fftss_3d.c" />
+    <ClCompile Include="fftss\libfftss\fftss_copy.c" />
+    <ClCompile Include="fftss\libfftss\fftss_counter.c" />
+    <ClCompile Include="fftss\libfftss\fftss_cpuid.c" />
+    <ClCompile Include="fftss\libfftss\fftss_destroy_plan.c" />
+    <ClCompile Include="fftss\libfftss\fftss_execute.c" />
+    <ClCompile Include="fftss\libfftss\fftss_execute_dft.c" />
+    <ClCompile Include="fftss\libfftss\fftss_execute_dft_1d.c" />
+    <ClCompile Include="fftss\libfftss\fftss_execute_inplace_dft_1d.c" />
+    <ClCompile Include="fftss\libfftss\fftss_fma.c" />
+    <ClCompile Include="fftss\libfftss\fftss_get_wtime.c" />
+    <ClCompile Include="fftss\libfftss\fftss_kset.c" />
+    <ClCompile Include="fftss\libfftss\fftss_malloc.c" />
+    <ClCompile Include="fftss\libfftss\fftss_set.c" />
+    <ClCompile Include="fftss\libfftss\fftss_table.c" />
+    <ClCompile Include="fftss\libfftss\fftss_test.c" />
+    <ClCompile Include="fftss\libfftss\fftss_version.c" />
+    <ClCompile Include="fftss\libfftss\r4_fma_n.c" />
+    <ClCompile Include="fftss\libfftss\r4_fma_o.c" />
+    <ClCompile Include="fftss\libfftss\r4_fma_u1.c" />
+    <ClCompile Include="fftss\libfftss\r4_fma_u4.c" />
+    <ClCompile Include="fftss\libfftss\r4_n.c" />
+    <ClCompile Include="fftss\libfftss\r4_o.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse2_1_n.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse2_o.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse2_u1.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse2_u4.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_n.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_o.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_h_u1.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_n.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_o.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_u1.c" />
+    <ClCompile Include="fftss\libfftss\r4_sse3_u4.c" />
+    <ClCompile Include="fftss\libfftss\r4_u1.c" />
+    <ClCompile Include="fftss\libfftss\r4_u4.c" />
+    <ClCompile Include="fftss\libfftss\r8_fma_n.c" />
+    <ClCompile Include="fftss\libfftss\r8_fma_o.c" />
+    <ClCompile Include="fftss\libfftss\r8_fma_u1.c" />
+    <ClCompile Include="fftss\libfftss\r8_n.c" />
+    <ClCompile Include="fftss\libfftss\r8_o.c" />
+    <ClCompile Include="fftss\libfftss\r8_sse2_n.c" />
+    <ClCompile Include="fftss\libfftss\r8_sse2_o.c" />
+    <ClCompile Include="fftss\libfftss\r8_sse2_u1.c" />
+    <ClCompile Include="fftss\libfftss\r8_u1.c" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="fftss32.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\common.vcxproj">
+      <Project>{1dcce8f0-edb3-4ae7-b2e0-6013cb682e22}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
