@@ -154,4 +154,43 @@ bool CFFTransformBase::startPlan(bool bLockHeld)
 	}
 }
 
+void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>* owner)
+{
+	ThreadBase::SetThreadName("FFTSS Transform Thread");
+
+	CFFTransformBase::TComplexDbl buffer[CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE];
+
+	unsigned residue = 0;
+	while(owner->m_bDataThreadEnabled)
+	{
+		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer + residue,
+			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue,
+			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_TIMEOUT);
+		if(recvCount)
+		{
+			residue += recvCount;
+			Locker lock(owner->m_planLock);
+			if(!owner->m_currPlan)
+			{
+				if(!owner->startPlan(true))
+				{
+					residue = 0;		// no plan!
+					continue;
+				}
+			}
+
+			ASSERT(owner->m_inBuffer && owner->m_bufSize);
+			if(owner->m_bufSize >= residue)
+			{
+				memcpy(owner->m_inBuffer, buffer, sizeof(CFFTransformBase::TComplexDbl) * owner->m_bufSize);
+				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
+				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
+				unsigned outSent = owner->m_outgoing.Write(signals::etypCmplDbl, owner->m_outBuffer, owner->m_bufSize, 0);
+				if(outSent < owner->m_bufSize && owner->m_outgoing.isConnected()) owner->m_outgoing.attrs.sync_fault->fire();
+				residue -= owner->m_bufSize;
+			}
+		}
+	}
+}
+
 }
