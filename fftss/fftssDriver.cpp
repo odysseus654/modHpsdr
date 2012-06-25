@@ -42,7 +42,94 @@ signals::IBlock * CFFTransformDriver::Create()
 
 // ------------------------------------------------------------------ class CFFTransform
 
-// public: virtual bool __thiscall fftss::CFFTransform<30,30>::COutgoing::Connect(struct signals::IEPSender *)
-// public: virtual bool __thiscall fftss::CFFTransform<30,30>::COutgoing::Disconnect(void)
+CFFTransformBase::CFFTransformBase()
+	:m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
+	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan))
+{
+//	buildAttrs();
+}
+
+CFFTransformBase::~CFFTransformBase()
+{
+	clearPlan();
+}
+
+const char* CFFTransformBase::NAME = "FFT Transform using fftss";
+
+void CFFTransformBase::clearPlan()
+{
+	if(m_currPlan)
+	{
+		::fftss_destroy_plan(m_currPlan);
+		m_currPlan = NULL;
+	}
+	if(m_inBuffer)
+	{
+		::fftss_free(m_inBuffer);
+		m_inBuffer = NULL;
+	}
+	if(m_outBuffer)
+	{
+		::fftss_free(m_outBuffer);
+		m_outBuffer = NULL;
+	}
+	m_bufSize = 0;
+
+}
+
+void CFFTransformBase::buildAttrs()
+{
+	attrs.blockSize = addLocalAttr(true, new CAttr_block_size(*this, "blockSize", "Number of samples to process in each block", DEFAULT_BLOCK_SIZE));
+
+//	m_outgoing.buildAttrs(*this);
+}
+
+void CFFTransformBase::setBlockSize(long blockSize)
+{
+	long prevValue = InterlockedExchange(&m_requestSize, blockSize);
+	if(blockSize != prevValue)
+	{
+		m_refreshPlanEvent.fire();
+	}
+}
+
+void CFFTransformBase::refreshPlan()
+{
+	{
+		Locker lock(m_planLock);
+		if(m_requestSize == m_bufSize) return;
+	}
+	startPlan(false);
+}
+
+bool CFFTransformBase::startPlan(bool bLockHeld)
+{
+	long reqSize = m_requestSize;
+	if(!reqSize) return false;
+
+	TComplexDbl* tempIn = (TComplexDbl*)::fftss_malloc(sizeof(TComplexDbl)*reqSize);
+	TComplexDbl* tempOut = (TComplexDbl*)::fftss_malloc(sizeof(TComplexDbl)*reqSize);
+
+	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, FFTSS_FORWARD, FFTSS_MEASURE);
+//	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, -1, 0);
+
+	Locker lock(m_planLock, !bLockHeld);
+	if(m_bufSize != reqSize && reqSize == m_requestSize)
+	{
+		clearPlan();
+		m_currPlan = newPlan;
+		m_inBuffer = tempIn;
+		m_outBuffer = tempOut;
+		m_bufSize = reqSize;
+		return true;
+	}
+	else
+	{
+		::fftss_destroy_plan(newPlan);
+		::fftss_free(tempIn);
+		::fftss_free(tempOut);
+		return m_bufSize == reqSize;
+	}
+}
 
 }

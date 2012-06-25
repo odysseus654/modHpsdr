@@ -49,17 +49,15 @@ protected:
 	static const char* NAME;
 };
 
-#pragma warning(disable: 4355)
-template<signals::EType ETin, signals::EType ETout>
-class CFFTransform : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+class CFFTransformBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
 {
 public:
-	CFFTransform();
-	virtual ~CFFTransform();
+	CFFTransformBase();
+	virtual ~CFFTransformBase();
 
 private:
-	CFFTransform(const CFFTransform& other);
-	CFFTransform operator=(const CFFTransform& other);
+	CFFTransformBase(const CFFTransformBase& other);
+	CFFTransformBase& operator=(const CFFTransformBase& other);
 
 public: // IBlock implementation
 	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
@@ -70,8 +68,8 @@ public: // IBlock implementation
 	virtual signals::IBlock* Block()		{ return this; }
 	virtual signals::IAttributes* Attributes() { return this; }
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
-	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
-	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
+//	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
+//	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 	virtual void Start()					{ startPlan(false); }
 	virtual void Stop()						{}
 
@@ -87,14 +85,14 @@ public:
 	private:
 		typedef CRWAttribute<signals::etypLong> base;
 	public:
-		inline CAttr_block_size(CFFTransform& parent, const char* name, const char* descr, long deflt)
+		inline CAttr_block_size(CFFTransformBase& parent, const char* name, const char* descr, long deflt)
 			:base(name, descr, deflt), m_parent(parent)
 		{
 			m_parent.setBlockSize(deflt);
 		}
 
 	protected:
-		CFFTransform& m_parent;
+		CFFTransformBase& m_parent;
 
 	protected:
 		virtual void onSetValue(const store_type& newVal)
@@ -104,6 +102,49 @@ public:
 		}
 	};
 
+private:
+	static const char* NAME;
+	enum
+	{
+		DEFAULT_BLOCK_SIZE = 1024
+	};
+
+	volatile long m_requestSize;
+	AsyncDelegate<> m_refreshPlanEvent;
+
+	void clearPlan();
+	void setBlockSize(long blockSize);
+	void refreshPlan();
+
+protected:
+	typedef std::complex<double> TComplexDbl;
+	Lock m_planLock;
+	fftss_plan m_currPlan;
+	TComplexDbl* m_inBuffer;
+	TComplexDbl* m_outBuffer;
+	unsigned m_bufSize;
+
+	void buildAttrs();
+	bool startPlan(bool bLockHeld);
+};
+
+#pragma warning(disable: 4355)
+template<signals::EType ETin, signals::EType ETout>
+class CFFTransform : public CFFTransformBase
+{
+public:
+	CFFTransform();
+	virtual ~CFFTransform();
+
+private:
+	CFFTransform(const CFFTransform& other);
+	CFFTransform& operator=(const CFFTransform& other);
+
+public: // IBlock implementation
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
+	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
+
+public:
 	class COutgoing : public COutEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
@@ -165,36 +206,21 @@ public:
 	};
 
 private:
-	static const char* NAME;
 	enum
 	{
 		IN_BUFFER_SIZE = 100,
-		IN_BUFFER_TIMEOUT = 1000,
-		DEFAULT_BLOCK_SIZE = 1024
+		IN_BUFFER_TIMEOUT = 1000
 	};
 
-	CIncoming m_incoming;
-	COutgoing m_outgoing;
 	Thread<> m_dataThread;
 	bool m_bDataThreadEnabled;
 
-	typedef std::complex<double> TComplexDbl;
-	Lock m_planLock;
-	fftss_plan m_currPlan;
-	TComplexDbl* m_inBuffer;
-	TComplexDbl* m_outBuffer;
-	unsigned m_bufSize;
+	CIncoming m_incoming;
+	COutgoing m_outgoing;
 	std::vector<typename COutgoing::store_type> m_outStage;
 
-	volatile long m_requestSize;
-	AsyncDelegate<> m_refreshPlanEvent;
-
 	void buildAttrs();
-	void clearPlan();
 	void thread_data();
-	void setBlockSize(long blockSize);
-	bool startPlan(bool bLockHeld);
-	void refreshPlan();
 	void onBufferFilled(const TComplexDbl* inBuffer);
 };
 
@@ -202,10 +228,8 @@ private:
 
 template<signals::EType ETin, signals::EType ETout>
 CFFTransform<ETin,ETout>::CFFTransform()
-	:m_currPlan(NULL),m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),m_requestSize(0),
-	 m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
-	 m_dataThread(Thread<>::delegate_type(this, &CFFTransform::thread_data)),
-	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform<ETin,ETout>::refreshPlan))
+	:m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
+	 m_dataThread(Thread<>::delegate_type(this, &CFFTransform::thread_data))
 {
 	buildAttrs();
 	m_dataThread.launch(THREAD_PRIORITY_NORMAL);
@@ -216,12 +240,7 @@ CFFTransform<ETin,ETout>::~CFFTransform()
 {
 	m_bDataThreadEnabled = false;
 	m_dataThread.close();
-
-	clearPlan();
 }
-
-template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransform<ETin,ETout>::NAME = "FFT Transform using fftss";
 
 template<signals::EType ETin, signals::EType ETout>
 const char* CFFTransform<ETin,ETout>::CIncoming::EP_NAME = "in";
@@ -234,28 +253,6 @@ const char* CFFTransform<ETin,ETout>::COutgoing::EP_NAME = "out";
 
 template<signals::EType ETin, signals::EType ETout>
 const char* CFFTransform<ETin,ETout>::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
-
-template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::clearPlan()
-{
-	if(m_currPlan)
-	{
-		::fftss_destroy_plan(m_currPlan);
-		m_currPlan = NULL;
-	}
-	if(m_inBuffer)
-	{
-		::fftss_free(m_inBuffer);
-		m_inBuffer = NULL;
-	}
-	if(m_outBuffer)
-	{
-		::fftss_free(m_outBuffer);
-		m_outBuffer = NULL;
-	}
-	m_bufSize = 0;
-
-}
 
 template<signals::EType ETin, signals::EType ETout>
 unsigned CFFTransform<ETin,ETout>::Incoming(signals::IInEndpoint** ep, unsigned availEP)
@@ -376,8 +373,7 @@ void CFFTransform<ETin, signals::etypCmplDbl>::onBufferFilled(const TComplexDbl*
 template<signals::EType ETin, signals::EType ETout>
 void CFFTransform<ETin,ETout>::buildAttrs()
 {
-	attrs.blockSize = addLocalAttr(true, new CAttr_block_size(*this, "blockSize", "Number of samples to process in each block", DEFAULT_BLOCK_SIZE));
-
+	CFFTransformBase::buildAttrs();
 	m_outgoing.buildAttrs(*this);
 }
 
@@ -386,57 +382,6 @@ void CFFTransform<ETin,ETout>::COutgoing::buildAttrs(const CFFTransform<ETin,ETo
 {
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
 //	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
-}
-
-template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::setBlockSize(long blockSize)
-{
-	long prevValue = InterlockedExchange(&m_requestSize, blockSize);
-	if(blockSize != prevValue)
-	{
-		m_refreshPlanEvent.fire();
-	}
-}
-
-template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::refreshPlan()
-{
-	{
-		Locker lock(m_planLock);
-		if(m_requestSize == m_bufSize) return;
-	}
-	startPlan(false);
-}
-
-template<signals::EType ETin, signals::EType ETout>
-bool CFFTransform<ETin,ETout>::startPlan(bool bLockHeld)
-{
-	long reqSize = m_requestSize;
-	if(!reqSize) return false;
-
-	TComplexDbl* tempIn = (TComplexDbl*)::fftss_malloc(sizeof(TComplexDbl)*reqSize);
-	TComplexDbl* tempOut = (TComplexDbl*)::fftss_malloc(sizeof(TComplexDbl)*reqSize);
-
-//	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, FFTSS_FORWARD, FFTSS_MEASURE);
-	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, -1, 0);
-
-	Locker lock(m_planLock, !bLockHeld);
-	if(m_bufSize != reqSize && reqSize == m_requestSize)
-	{
-		clearPlan();
-		m_currPlan = newPlan;
-		m_inBuffer = tempIn;
-		m_outBuffer = tempOut;
-		m_bufSize = reqSize;
-		return true;
-	}
-	else
-	{
-		::fftss_destroy_plan(newPlan);
-		::fftss_free(tempIn);
-		::fftss_free(tempOut);
-		return m_bufSize == reqSize;
-	}
 }
 
 }
