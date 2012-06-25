@@ -124,7 +124,7 @@ private:
 	HANDLE m_sem;
 };
 
-template<class ThreadOper, class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>
+template<class ThreadOper, class StaticRetVal, class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>
 class ThreadDelegate
 {
 protected:
@@ -149,9 +149,9 @@ private:
 	ThreadOper m_oper;
 	volatile long m_pending;
 
-	static DWORD __stdcall staticCatch(void* parm)
+	static StaticRetVal __stdcall staticCatch(void* parm)
 	{
-		ThreadDelegate<ThreadOper,PARM1,PARM2>* caller = (ThreadDelegate<ThreadOper,PARM1,PARM2>*)parm;
+		ThreadDelegate<ThreadOper,StaticRetVal,PARM1,PARM2>* caller = (ThreadDelegate<ThreadOper,StaticRetVal,PARM1,PARM2>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
 		_InterlockedDecrement(&caller->m_pending);
@@ -170,8 +170,8 @@ private:
 	}
 };
 
-template<class ThreadOper, class PARM>
-class ThreadDelegate<ThreadOper, PARM>
+template<class ThreadOper, class StaticRetVal, class PARM>
+class ThreadDelegate<ThreadOper, StaticRetVal, PARM>
 {
 protected:
 	typedef fastdelegate::FastDelegate1<PARM> delegate_type;
@@ -193,9 +193,9 @@ private:
 	ThreadOper m_oper;
 	volatile long m_pending;
 
-	static DWORD __stdcall staticCatch(void* parm)
+	static StaticRetVal __stdcall staticCatch(void* parm)
 	{
-		ThreadDelegate<ThreadOper,PARM>* caller = (ThreadDelegate<ThreadOper,PARM>*)parm;
+		ThreadDelegate<ThreadOper,StaticRetVal,PARM>* caller = (ThreadDelegate<ThreadOper,StaticRetVal,PARM>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
 		_InterlockedDecrement(&caller->m_pending);
@@ -214,8 +214,8 @@ private:
 	}
 };
 
-template<class ThreadOper>
-class ThreadDelegate<ThreadOper>
+template<class ThreadOper, class StaticRetVal>
+class ThreadDelegate<ThreadOper, StaticRetVal>
 {
 public:
 	typedef fastdelegate::FastDelegate0<> delegate_type;
@@ -234,9 +234,9 @@ private:
 	ThreadOper m_oper;
 	volatile long m_pending;
 
-	static unsigned __stdcall staticCatch(void* parm)
+	static StaticRetVal __stdcall staticCatch(void* parm)
 	{
-		ThreadDelegate<ThreadOper>* caller = (ThreadDelegate<ThreadOper>*)parm;
+		ThreadDelegate<ThreadOper,StaticRetVal>* caller = (ThreadDelegate<ThreadOper,StaticRetVal>*)parm;
 		if(!caller) { ASSERT(FALSE); return 1; }
 		ASSERT(caller->m_pending && caller->m_func);
 		_InterlockedDecrement(&caller->m_pending);
@@ -264,10 +264,10 @@ struct AsyncDelegateOper
 };
 
 template<class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>
-class AsyncDelegate : public ThreadDelegate<AsyncDelegateOper, PARM1, PARM2>
+class AsyncDelegate : public ThreadDelegate<AsyncDelegateOper, DWORD, PARM1, PARM2>
 {
 private:
-	typedef ThreadDelegate<AsyncDelegateOper, PARM1, PARM2> base_type;
+	typedef ThreadDelegate<AsyncDelegateOper, DWORD, PARM1, PARM2> base_type;
 public:
 	inline AsyncDelegate(const delegate_type& func):base_type(func) {}
 };
@@ -313,10 +313,10 @@ protected:
 #pragma warning(disable: 4355)
 
 template<class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>
-class Thread : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper, PARM1, PARM2>
+class Thread : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned, PARM1, PARM2>
 {
 private:
-	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper, PARM1, PARM2> base_type;
+	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned, PARM1, PARM2> base_type;
 public:
 	typedef typename base_type::delegate_type delegate_type;
 	inline Thread(const delegate_type& func):base_type(func, ThreadLaunchOper(this)) {}
@@ -330,10 +330,10 @@ public:
 };
 
 template<class PARM>
-class Thread<PARM> : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper, PARM>
+class Thread<PARM> : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned, PARM>
 {
 private:
-	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper, PARM> base_type;
+	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned, PARM> base_type;
 public:
 	typedef typename base_type::delegate_type delegate_type;
 	inline Thread(const delegate_type& func):base_type(func, ThreadLaunchOper(this)) {}
@@ -347,10 +347,10 @@ public:
 };
 
 template<>
-class Thread<> : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper>
+class Thread<> : public ThreadBase, protected ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned>
 {
 private:
-	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper> base_type;
+	typedef ThreadDelegate<ThreadBase::ThreadLaunchOper, unsigned> base_type;
 public:
 	typedef base_type::delegate_type delegate_type;
 	inline Thread(const delegate_type& func):base_type(func, ThreadLaunchOper(this)) {}
