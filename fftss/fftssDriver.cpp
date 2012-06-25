@@ -20,25 +20,21 @@
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
+	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypCmplDbl> fft_dd;
+	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypComplex> fft_ds;
+	static fftss::CFFTransformDriver<signals::etypComplex,signals::etypCmplDbl> fft_sd;
+	static fftss::CFFTransformDriver<signals::etypComplex,signals::etypComplex> fft_ss;
 	if(drivers && availDrivers)
 	{
-		drivers[0] = &DRIVER_FFTransform;
+		if(availDrivers > 0) drivers[0] = &fft_dd;
+		if(availDrivers > 1) drivers[1] = &fft_ds;
+		if(availDrivers > 2) drivers[2] = &fft_sd;
+		if(availDrivers > 3) drivers[3] = &fft_ss;
 	}
 	return 1;
 }
 
-fftss::CFFTransformDriver DRIVER_FFTransform;
-
 namespace fftss {
-
-// ------------------------------------------------------------------ class CFFTransformDriver
-
-const char* CFFTransformDriver::NAME = "FFT Transform using fftss";
-
-signals::IBlock * CFFTransformDriver::Create()
-{
-	return new CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>();
-}
 
 // ------------------------------------------------------------------ class CFFTransform
 
@@ -64,8 +60,8 @@ protected:
 	}
 };
 
-CFFTransformBase::CFFTransformBase()
-	:m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
+CFFTransformBase::CFFTransformBase(signals::IBlockDriver* driver)
+	:m_driver(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
 	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan))
 {
 //	buildAttrs();

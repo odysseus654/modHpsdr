@@ -24,6 +24,7 @@
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
+	static hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 	if(drivers && availDrivers)
 	{
 		drivers[0] = &DRIVER_HpsdrEthernet;
@@ -31,7 +32,6 @@ extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned avail
 	return 1;
 }
 
-hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 namespace hpsdr {
 
 // ------------------------------------------------------------------ class CHpsdrEthernetDriver
@@ -69,7 +69,7 @@ unsigned CHpsdrEthernetDriver::Discover(signals::IBlock** blocks, unsigned avail
 		for(i=0, trans=discList.begin(); i < availBlocks && trans != discList.end(); i++, trans++)
 		{
 			const CDiscoveredBoard& disc = *trans;
-			CHpsdrEthernet* block = new CHpsdrEthernet(disc.ipaddr, disc.mac, disc.ver, (CHpsdrEthernet::EBoardId)disc.boardId);
+			CHpsdrEthernet* block = new CHpsdrEthernet(this, disc.ipaddr, disc.mac, disc.ver, (CHpsdrEthernet::EBoardId)disc.boardId);
 			block->AddRef();
 			blocks[i] = block;
 		}
@@ -183,12 +183,12 @@ const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
 #pragma warning(push)
 #pragma warning(disable: 4355)
 
-CHpsdrEthernet::CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
+CHpsdrEthernet::CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
 	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),
 	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
 	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
 	 m_sock(INVALID_SOCKET),m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false),
-	 m_nextSendSeq(0)
+	 m_nextSendSeq(0),m_driver(driver)
 {
 }
 

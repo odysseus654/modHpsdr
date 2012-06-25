@@ -19,15 +19,15 @@
 
 namespace fftss
 {
-	class CFFTransformDriver;
+	template<signals::EType ETin, signals::EType ETout> class CFFTransformDriver;
 }
-extern fftss::CFFTransformDriver DRIVER_FFTransform;
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers);
 
 typedef void *fftss_plan;
 
 namespace fftss {
 
+template<signals::EType ETin, signals::EType ETout>
 class CFFTransformDriver : public signals::IBlockDriver
 {
 public:
@@ -52,7 +52,7 @@ protected:
 class CFFTransformBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
 {
 public:
-	CFFTransformBase();
+	CFFTransformBase(signals::IBlockDriver* driver);
 	virtual ~CFFTransformBase();
 
 private:
@@ -63,7 +63,7 @@ public: // IBlock implementation
 	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
 	virtual unsigned Release()				{ return CRefcountObject::Release(); }
 	virtual const char* Name()				{ return NAME; }
-	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_FFTransform; }
+	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IBlock* Block()		{ return this; }
 	virtual signals::IAttributes* Attributes() { return this; }
@@ -90,6 +90,7 @@ private:
 
 	volatile long m_requestSize;
 	AsyncDelegate<> m_refreshPlanEvent;
+	signals::IBlockDriver* m_driver;
 
 	void clearPlan();
 	void refreshPlan();
@@ -111,7 +112,7 @@ template<signals::EType ETin, signals::EType ETout>
 class CFFTransform : public CFFTransformBase
 {
 public:
-	CFFTransform();
+	CFFTransform(signals::IBlockDriver* driver);
 	virtual ~CFFTransform();
 
 private:
@@ -204,14 +205,25 @@ private:
 	friend void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>* owner);
 };
 
+// ------------------------------------------------------------------ class CFFTransformDriver
+
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransformDriver<ETin,ETout>::NAME = "FFT Transform using fftss";
+
+template<signals::EType ETin, signals::EType ETout>
+signals::IBlock * CFFTransformDriver<ETin,ETout>::Create()
+{
+	return new CFFTransform<ETin,ETout>(this);
+}
+
 // ------------------------------------------------------------------------------------------------
 
 template<signals::EType ETin, signals::EType ETout>
 void fft_process_thread(CFFTransform<ETin,ETout>* owner);
 
 template<signals::EType ETin, signals::EType ETout>
-CFFTransform<ETin,ETout>::CFFTransform()
-	:m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
+CFFTransform<ETin,ETout>::CFFTransform(signals::IBlockDriver* driver)
+	:CFFTransformBase(driver),m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
 	 m_dataThread(Thread<CFFTransform<ETin,ETout>*>::delegate_type(&fft_process_thread))
 {
 	buildAttrs();

@@ -23,7 +23,6 @@ namespace hpsdr
 {
 	class CHpsdrEthernetDriver;
 }
-extern hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers);
 
 namespace hpsdr {
@@ -65,7 +64,7 @@ protected:
 class CHpsdrEthernet : public CHpsdrDevice, protected CRefcountObject
 {
 public:
-	CHpsdrEthernet(unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId);
+	CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId);
 	virtual ~CHpsdrEthernet() { Stop(); }
 
 	enum { METIS_PORT = 1024 };
@@ -74,7 +73,7 @@ public: // IBlock implementation
 	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
 	virtual unsigned Release()				{ return CRefcountObject::Release(); }
 	virtual const char* Name()				{ return NAME; }
-	virtual signals::IBlockDriver* Driver()	{ return &DRIVER_HpsdrEthernet; }
+	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IAttributes* Attributes() { return this; }
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
@@ -101,6 +100,7 @@ private:
 	const unsigned long	m_ipAddress;
 	const __int64		m_macAddress;
 	const byte			m_controllerVersion;
+	signals::IBlockDriver* m_driver;
 
 	Thread<> m_recvThread, m_sendThread;
 	SOCKET   m_sock;
