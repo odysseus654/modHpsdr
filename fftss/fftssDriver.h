@@ -106,68 +106,6 @@ protected:
 	bool startPlan(bool bLockHeld);
 };
 
-template<signals::EType ET>
-class CFftTransformOutgoing : public COutEndpointBase, public CAttributesBase
-{	// This class is assumed to be a static (non-dynamic) member of its parent
-public:
-	typedef typename StoreType<ET>::type store_type;
-	inline CFftTransformOutgoing(CFFTransformBase* parent):m_parent(parent) { }
-	virtual ~CFftTransformOutgoing() {}
-	void buildAttrs(const CFFTransformBase& parent);
-
-protected:
-	enum { DEFAULT_BUFSIZE = 4096 };
-	CFFTransformBase* m_parent;
-
-public:
-	struct
-	{
-		CEventAttribute* sync_fault;
-		CAttributeBase* rate;
-	} attrs;
-
-private:
-	const static char* EP_NAME[];
-	const static char* EP_DESCR;
-	CFftTransformOutgoing(const CFftTransformOutgoing& other);
-	CFftTransformOutgoing& operator=(const CFftTransformOutgoing& other);
-
-public: // COutEndpointBase interface
-	virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
-	virtual signals::EType Type()				{ return ET; }
-	virtual const char* EPName()				{ return EP_DESCR; }
-	virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ET>(DEFAULT_BUFSIZE); }
-	virtual signals::IAttributes* Attributes()	{ return this; }
-};
-
-template<signals::EType ET>
-class CFftTransformIncoming : public CInEndpointBase, public CAttributesBase
-{	// This class is assumed to be a static (non-dynamic) member of its parent
-public:
-	typedef typename StoreType<ET>::type store_type;
-	inline CFftTransformIncoming(signals::IBlock* parent):m_parent(parent) { }
-	virtual ~CFftTransformIncoming() {}
-
-protected:
-	enum { DEFAULT_BUFSIZE = 4096 };
-	signals::IBlock* m_parent;
-
-private:
-	const static char* EP_NAME;
-	const static char* EP_DESCR;
-	CFftTransformIncoming(const CFftTransformIncoming& other);
-	CFftTransformIncoming& operator=(const CFftTransformIncoming& other);
-
-public: // CInEndpointBase interface
-	virtual const char* EPName()				{ return EP_DESCR; }
-	virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-	virtual unsigned Release()					{ return m_parent->Release(); }
-	virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
-	virtual signals::EType Type()				{ return ET; }
-	virtual signals::IAttributes* Attributes()	{ return this; }
-	virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ET>(DEFAULT_BUFSIZE); }
-};
-
 #pragma warning(disable: 4355)
 template<signals::EType ETin, signals::EType ETout>
 class CFFTransform : public CFFTransformBase
@@ -184,6 +122,67 @@ public: // IBlock implementation
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 
+public:
+	class COutgoing : public COutEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		typedef typename StoreType<ETout>::type store_type;
+		inline COutgoing(CFFTransform* parent):m_parent(parent) { }
+		virtual ~COutgoing() {}
+		void buildAttrs(const CFFTransform& parent);
+
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		CFFTransform* m_parent;
+
+	public:
+		struct
+		{
+			CEventAttribute* sync_fault;
+			CAttributeBase* rate;
+		} attrs;
+
+	private:
+		const static char* EP_NAME[];
+		const static char* EP_DESCR;
+		COutgoing(const COutgoing& other);
+		COutgoing& operator=(const COutgoing& other);
+
+	public: // COutEndpointBase interface
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return ETout; }
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETout>(DEFAULT_BUFSIZE); }
+		virtual signals::IAttributes* Attributes()	{ return this; }
+	};
+
+	class CIncoming : public CInEndpointBase, public CAttributesBase
+	{	// This class is assumed to be a static (non-dynamic) member of its parent
+	public:
+		typedef typename StoreType<ETin>::type store_type;
+		inline CIncoming(signals::IBlock* parent):m_parent(parent) { }
+		virtual ~CIncoming() {}
+
+	protected:
+		enum { DEFAULT_BUFSIZE = 4096 };
+		signals::IBlock* m_parent;
+
+	private:
+		const static char* EP_NAME;
+		const static char* EP_DESCR;
+		CIncoming(const CIncoming& other);
+		CIncoming& operator=(const CIncoming& other);
+
+	public: // CInEndpointBase interface
+		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+		virtual unsigned Release()					{ return m_parent->Release(); }
+		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+		virtual signals::EType Type()				{ return ETin; }
+		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETin>(DEFAULT_BUFSIZE); }
+	};
+
 private:
 	enum
 	{
@@ -191,24 +190,28 @@ private:
 		IN_BUFFER_TIMEOUT = 1000
 	};
 
-	Thread<> m_dataThread;
+	Thread<CFFTransform<ETin,ETout>*> m_dataThread;
 	bool m_bDataThreadEnabled;
 
-	CFftTransformIncoming<ETin> m_incoming;
-	CFftTransformOutgoing<ETout> m_outgoing;
-	std::vector<typename CFftTransformOutgoing<ETout>::store_type> m_outStage;
+	CIncoming m_incoming;
+	COutgoing m_outgoing;
 
 	void buildAttrs();
-	void thread_data();
-	void onBufferFilled(const TComplexDbl* inBuffer);
+
+	template<signals::EType ETin, signals::EType ETout>
+	friend void fft_process_thread(CFFTransform<ETin,ETout>* owner);
+
 };
 
 // ------------------------------------------------------------------------------------------------
 
 template<signals::EType ETin, signals::EType ETout>
+void fft_process_thread(CFFTransform<ETin,ETout>* owner);
+
+template<signals::EType ETin, signals::EType ETout>
 CFFTransform<ETin,ETout>::CFFTransform()
 	:m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
-	 m_dataThread(Thread<>::delegate_type(this, &CFFTransform::thread_data))
+	 m_dataThread(Thread<CFFTransform<ETin,ETout>*>::delegate_type(&fft_process_thread))
 {
 	buildAttrs();
 	m_dataThread.launch(THREAD_PRIORITY_NORMAL);
@@ -221,17 +224,17 @@ CFFTransform<ETin,ETout>::~CFFTransform()
 	m_dataThread.close();
 }
 
-template<signals::EType ET>
-const char* CFftTransformIncoming<ET>::EP_NAME = "in";
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransform<ETin,ETout>::CIncoming::EP_NAME = "in";
 
-template<signals::EType ET>
-const char* CFftTransformIncoming<ET>::EP_DESCR = "FFT Transform incoming endpoint";
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransform<ETin,ETout>::CIncoming::EP_DESCR = "FFT Transform incoming endpoint";
 
-template<signals::EType ET>
-const char* CFftTransformOutgoing<ET>::EP_NAME = "out";
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransform<ETin,ETout>::COutgoing::EP_NAME = "out";
 
-template<signals::EType ET>
-const char* CFftTransformOutgoing<ET>::EP_DESCR = "FFT Transform outgoing endpoint";
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransform<ETin,ETout>::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
 
 template<signals::EType ETin, signals::EType ETout>
 unsigned CFFTransform<ETin,ETout>::Incoming(signals::IInEndpoint** ep, unsigned availEP)
@@ -254,37 +257,50 @@ unsigned CFFTransform<ETin,ETout>::Outgoing(signals::IOutEndpoint** ep, unsigned
 }
 
 template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::thread_data()
+void fft_process_thread(CFFTransform<ETin,ETout>* owner)
 {
 	ThreadBase::SetThreadName("FFTSS Transform Thread");
 
-	CFftTransformIncoming<ETin>::store_type buffer[IN_BUFFER_SIZE];
+	CFFTransform<ETin,ETout>::CIncoming::store_type buffer[CFFTransform<ETin,ETout>::IN_BUFFER_SIZE];
+	std::vector<CFFTransform<ETin,ETout>::COutgoing::store_type> outStage;
+
 	unsigned residue = 0;
-	while(m_bDataThreadEnabled)
+	while(owner->m_bDataThreadEnabled)
 	{
-		unsigned recvCount = m_incoming.Read(ETin, &buffer + residue, IN_BUFFER_SIZE - residue, IN_BUFFER_TIMEOUT);
+		unsigned recvCount = owner->m_incoming.Read(ETin, &buffer + residue,
+			CFFTransform<ETin,ETout>::IN_BUFFER_SIZE - residue, CFFTransform<ETin,ETout>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			residue += recvCount;
-			Locker lock(m_planLock);
-			if(!m_currPlan)
+			Locker lock(owner->m_planLock);
+			if(!owner->m_currPlan)
 			{
-				if(!startPlan(true))
+				if(!owner->startPlan(true))
 				{
 					residue = 0;		// no plan!
 					continue;
 				}
 			}
 
-			ASSERT(m_inBuffer && m_bufSize);
-			if(m_bufSize >= residue)
+			ASSERT(owner->m_inBuffer && owner->m_bufSize);
+			if(owner->m_bufSize >= residue)
 			{
-				for(unsigned idx=0; idx < m_bufSize; idx++)
+				for(unsigned idx=0; idx < owner->m_bufSize; idx++)
 				{
-					m_inBuffer[idx] = buffer[idx];
+					owner->m_inBuffer[idx] = buffer[idx];
 				}
-				onBufferFilled(m_inBuffer);
-				residue -= m_bufSize;
+				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
+				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
+
+				if(outStage.size() != owner->m_bufSize) outStage.resize(owner->m_bufSize);
+				for(unsigned idx=0; idx < owner->m_bufSize; idx++)
+				{
+					outStage[idx] = owner->m_outBuffer[idx];
+				}
+
+				unsigned outSent = owner->m_outgoing.Write(ETout, outStage.data(), owner->m_bufSize, 0);
+				if(outSent < owner->m_bufSize && owner->m_outgoing.isConnected()) owner->m_outgoing.attrs.sync_fault->fire();
+				residue -= owner->m_bufSize;
 			}
 		}
 	}
@@ -321,24 +337,7 @@ void CFFTransform<signals::etypCmplDbl, ETout>::thread_data()
 		}
 	}
 }
-*/
-// Assumed m_planLock is held and m_currPlan is valid
-template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::onBufferFilled(const TComplexDbl* inBuffer)
-{
-	ASSERT(m_inBuffer && m_outBuffer && m_bufSize && m_currPlan);
-	::fftss_execute_dft(m_currPlan, (double*)inBuffer, (double*)m_outBuffer);
 
-	if(m_outStage.size() != m_bufSize) m_outStage.resize(m_bufSize);
-	for(unsigned idx=0; idx < m_bufSize; idx++)
-	{
-		m_outStage[idx] = m_outBuffer[idx];
-	}
-
-	unsigned outSent = m_outgoing.Write(ETout, m_outStage.data(), m_bufSize, 0);
-	if(outSent < m_bufSize && m_outgoing.isConnected()) m_outgoing.attrs.sync_fault->fire();
-}
-/*
 template<signals::EType ETin>
 void CFFTransform<ETin, signals::etypCmplDbl>::onBufferFilled(const TComplexDbl* inBuffer)
 {
@@ -356,8 +355,8 @@ void CFFTransform<ETin,ETout>::buildAttrs()
 	m_outgoing.buildAttrs(*this);
 }
 
-template<signals::EType ET>
-void CFftTransformOutgoing<ET>::buildAttrs(const CFFTransformBase& parent)
+template<signals::EType ETin, signals::EType ETout>
+void CFFTransform<ETin,ETout>::COutgoing::buildAttrs(const CFFTransform<ETin,ETout>& parent)
 {
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
 //	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
