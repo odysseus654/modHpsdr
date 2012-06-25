@@ -79,28 +79,7 @@ public:
 		CAttributeBase* blockSize;
 	} attrs;
 
-public:
-	class CAttr_block_size : public CRWAttribute<signals::etypLong>
-	{
-	private:
-		typedef CRWAttribute<signals::etypLong> base;
-	public:
-		inline CAttr_block_size(CFFTransformBase& parent, const char* name, const char* descr, long deflt)
-			:base(name, descr, deflt), m_parent(parent)
-		{
-			m_parent.setBlockSize(deflt);
-		}
-
-	protected:
-		CFFTransformBase& m_parent;
-
-	protected:
-		virtual void onSetValue(const store_type& newVal)
-		{
-			m_parent.setBlockSize(newVal);
-			base::onSetValue(newVal);
-		}
-	};
+	void setBlockSize(long blockSize);
 
 private:
 	static const char* NAME;
@@ -113,7 +92,6 @@ private:
 	AsyncDelegate<> m_refreshPlanEvent;
 
 	void clearPlan();
-	void setBlockSize(long blockSize);
 	void refreshPlan();
 
 protected:
@@ -126,6 +104,68 @@ protected:
 
 	void buildAttrs();
 	bool startPlan(bool bLockHeld);
+};
+
+template<signals::EType ET>
+class CFftTransformOutgoing : public COutEndpointBase, public CAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+public:
+	typedef typename StoreType<ET>::type store_type;
+	inline CFftTransformOutgoing(CFFTransformBase* parent):m_parent(parent) { }
+	virtual ~CFftTransformOutgoing() {}
+	void buildAttrs(const CFFTransformBase& parent);
+
+protected:
+	enum { DEFAULT_BUFSIZE = 4096 };
+	CFFTransformBase* m_parent;
+
+public:
+	struct
+	{
+		CEventAttribute* sync_fault;
+		CAttributeBase* rate;
+	} attrs;
+
+private:
+	const static char* EP_NAME[];
+	const static char* EP_DESCR;
+	CFftTransformOutgoing(const CFftTransformOutgoing& other);
+	CFftTransformOutgoing& operator=(const CFftTransformOutgoing& other);
+
+public: // COutEndpointBase interface
+	virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+	virtual signals::EType Type()				{ return ET; }
+	virtual const char* EPName()				{ return EP_DESCR; }
+	virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ET>(DEFAULT_BUFSIZE); }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+};
+
+template<signals::EType ET>
+class CFftTransformIncoming : public CInEndpointBase, public CAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+public:
+	typedef typename StoreType<ET>::type store_type;
+	inline CFftTransformIncoming(signals::IBlock* parent):m_parent(parent) { }
+	virtual ~CFftTransformIncoming() {}
+
+protected:
+	enum { DEFAULT_BUFSIZE = 4096 };
+	signals::IBlock* m_parent;
+
+private:
+	const static char* EP_NAME;
+	const static char* EP_DESCR;
+	CFftTransformIncoming(const CFftTransformIncoming& other);
+	CFftTransformIncoming& operator=(const CFftTransformIncoming& other);
+
+public: // CInEndpointBase interface
+	virtual const char* EPName()				{ return EP_DESCR; }
+	virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+	virtual unsigned Release()					{ return m_parent->Release(); }
+	virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
+	virtual signals::EType Type()				{ return ET; }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+	virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ET>(DEFAULT_BUFSIZE); }
 };
 
 #pragma warning(disable: 4355)
@@ -144,67 +184,6 @@ public: // IBlock implementation
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 
-public:
-	class COutgoing : public COutEndpointBase, public CAttributesBase
-	{	// This class is assumed to be a static (non-dynamic) member of its parent
-	public:
-		typedef typename StoreType<ETout>::type store_type;
-		inline COutgoing(CFFTransform* parent):m_parent(parent) { }
-		virtual ~COutgoing() {}
-		void buildAttrs(const CFFTransform& parent);
-
-	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
-		CFFTransform* m_parent;
-
-	public:
-		struct
-		{
-			CEventAttribute* sync_fault;
-			CAttributeBase* rate;
-		} attrs;
-
-	private:
-		const static char* EP_NAME[];
-		const static char* EP_DESCR;
-		COutgoing(const COutgoing& other);
-		COutgoing& operator=(const COutgoing& other);
-
-	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
-		virtual signals::EType Type()				{ return ETout; }
-		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETout>(DEFAULT_BUFSIZE); }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-	};
-
-	class CIncoming : public CInEndpointBase, public CAttributesBase
-	{	// This class is assumed to be a static (non-dynamic) member of its parent
-	public:
-		typedef typename StoreType<ETin>::type store_type;
-		inline CIncoming(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~CIncoming() {}
-
-	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
-		signals::IBlock* m_parent;
-
-	private:
-		const static char* EP_NAME;
-		const static char* EP_DESCR;
-		CIncoming(const CIncoming& other);
-		CIncoming& operator=(const CIncoming& other);
-
-	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
-		virtual signals::EType Type()				{ return ETin; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETin>(DEFAULT_BUFSIZE); }
-	};
-
 private:
 	enum
 	{
@@ -215,9 +194,9 @@ private:
 	Thread<> m_dataThread;
 	bool m_bDataThreadEnabled;
 
-	CIncoming m_incoming;
-	COutgoing m_outgoing;
-	std::vector<typename COutgoing::store_type> m_outStage;
+	CFftTransformIncoming<ETin> m_incoming;
+	CFftTransformOutgoing<ETout> m_outgoing;
+	std::vector<typename CFftTransformOutgoing<ETout>::store_type> m_outStage;
 
 	void buildAttrs();
 	void thread_data();
@@ -242,17 +221,17 @@ CFFTransform<ETin,ETout>::~CFFTransform()
 	m_dataThread.close();
 }
 
-template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransform<ETin,ETout>::CIncoming::EP_NAME = "in";
+template<signals::EType ET>
+const char* CFftTransformIncoming<ET>::EP_NAME = "in";
 
-template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransform<ETin,ETout>::CIncoming::EP_DESCR = "FFT Transform incoming endpoint";
+template<signals::EType ET>
+const char* CFftTransformIncoming<ET>::EP_DESCR = "FFT Transform incoming endpoint";
 
-template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransform<ETin,ETout>::COutgoing::EP_NAME = "out";
+template<signals::EType ET>
+const char* CFftTransformOutgoing<ET>::EP_NAME = "out";
 
-template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransform<ETin,ETout>::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
+template<signals::EType ET>
+const char* CFftTransformOutgoing<ET>::EP_DESCR = "FFT Transform outgoing endpoint";
 
 template<signals::EType ETin, signals::EType ETout>
 unsigned CFFTransform<ETin,ETout>::Incoming(signals::IInEndpoint** ep, unsigned availEP)
@@ -279,7 +258,7 @@ void CFFTransform<ETin,ETout>::thread_data()
 {
 	ThreadBase::SetThreadName("FFTSS Transform Thread");
 
-	CIncoming::store_type buffer[IN_BUFFER_SIZE];
+	CFftTransformIncoming<ETin>::store_type buffer[IN_BUFFER_SIZE];
 	unsigned residue = 0;
 	while(m_bDataThreadEnabled)
 	{
@@ -377,8 +356,8 @@ void CFFTransform<ETin,ETout>::buildAttrs()
 	m_outgoing.buildAttrs(*this);
 }
 
-template<signals::EType ETin, signals::EType ETout>
-void CFFTransform<ETin,ETout>::COutgoing::buildAttrs(const CFFTransform<ETin,ETout>& parent)
+template<signals::EType ET>
+void CFftTransformOutgoing<ET>::buildAttrs(const CFFTransformBase& parent)
 {
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
 //	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);

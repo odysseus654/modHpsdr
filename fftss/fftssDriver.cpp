@@ -42,6 +42,28 @@ signals::IBlock * CFFTransformDriver::Create()
 
 // ------------------------------------------------------------------ class CFFTransform
 
+class CAttr_block_size : public CRWAttribute<signals::etypLong>
+{
+private:
+	typedef CRWAttribute<signals::etypLong> base;
+public:
+	inline CAttr_block_size(CFFTransformBase& parent, const char* name, const char* descr, long deflt)
+		:base(name, descr, deflt), m_parent(parent)
+	{
+		m_parent.setBlockSize(deflt);
+	}
+
+protected:
+	CFFTransformBase& m_parent;
+
+protected:
+	virtual void onSetValue(const store_type& newVal)
+	{
+		m_parent.setBlockSize(newVal);
+		base::onSetValue(newVal);
+	}
+};
+
 CFFTransformBase::CFFTransformBase()
 	:m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
 	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan))
