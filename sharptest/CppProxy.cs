@@ -8,7 +8,7 @@ namespace cppProxy
     {
         private static unsafe int getStringLength(IntPtr strz)
         {
-            if(strz == IntPtr.Zero) return 0;
+            if(strz == IntPtr.Zero) throw new ArgumentNullException("strz");
             int strlen = 0;
             for (byte* native = (byte*)strz.ToPointer(); *native != 0; native++, strlen++) ;
             return strlen;
@@ -16,7 +16,7 @@ namespace cppProxy
 
         public static string getString(IntPtr strz)
         {
-            if(strz == IntPtr.Zero) return null;
+            if (strz == IntPtr.Zero) throw new ArgumentNullException("strz");
             int strlen = getStringLength(strz);
             byte[] strArray = new byte[strlen+1];
             Marshal.Copy(strz, strArray, 0, strlen+1);
@@ -30,6 +30,7 @@ namespace cppProxy
 
         public static object retrieveObject(IntPtr key)
         {
+            if (key == IntPtr.Zero) throw new ArgumentNullException("key");
             object value;
             if (m_universe.TryGetValue(key, out value))
             {
@@ -43,7 +44,15 @@ namespace cppProxy
 
         public static void storeObject(IntPtr key, object value)
         {
+            if (key == IntPtr.Zero) throw new ArgumentNullException("key");
+            if (value == null) throw new ArgumentNullException("value");
             m_universe.Add(key, value);
+        }
+
+        public static void removeObject(IntPtr key)
+        {
+            if (key == IntPtr.Zero) throw new ArgumentNullException("key");
+            m_universe.Remove(key);
         }
     }
 
@@ -60,19 +69,18 @@ namespace cppProxy
         };
 
         private ICppBlockDriverInterface m_native;
+        private IntPtr m_nativeRef;
         private bool m_canCreate;
         private bool m_canDiscover;
         private string m_name;
 
         public CppProxyBlockDriver(IntPtr native)
         {
-            if (native == IntPtr.Zero)
-            {
-                m_native = null;
-            } else { 
-                m_native = (ICppBlockDriverInterface)Marshal.PtrToStructure(native, typeof(ICppBlockDriverInterface));
-                interrogate();
-            }
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            Registration.storeObject(native, this);
+            m_native = (ICppBlockDriverInterface)Marshal.PtrToStructure(native, typeof(ICppBlockDriverInterface));
+            interrogate();
         }
 
         private void interrogate()
@@ -82,26 +90,33 @@ namespace cppProxy
             m_canDiscover = m_native.canDiscover();
         }
 
+        ~CppProxyBlockDriver()
+        {
+            if (m_nativeRef != IntPtr.Zero)
+            {
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
+            }
+        }
+
         public string Name { get { return m_name; } }
         public bool canCreate { get { return m_canCreate; } }
         public bool canDiscover { get { return m_canDiscover; } }
 
         public signals.IBlock Create()
         {
+            if (!m_canCreate) throw new NotSupportedException("Driver cannot create objects.");
             IntPtr newObjRef = m_native.Create();
             if (newObjRef == IntPtr.Zero) return null;
             signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(newObjRef);
-            if (newObj == null)
-            {
-                newObj = new CppProxyBlock(this, null, newObjRef);
-                Registration.storeObject(newObjRef, newObj);
-            }
+            if (newObj == null) newObj = new CppProxyBlock(this, null, newObjRef);
             return newObj;
         }
 
         public signals.IBlock[] Discover()
         {   // discovery can be expensive, so we just use a large buffer rather than call things multiple times
             const int BUF_SIZE = 100;
+            if (!m_canDiscover) throw new NotSupportedException("Driver cannot discover objects.");
             IntPtr discoverBuff = Marshal.AllocHGlobal(IntPtr.Size * BUF_SIZE);
             try
             {
@@ -114,11 +129,7 @@ namespace cppProxy
                     if (ptrArr[idx] != IntPtr.Zero)
                     {
                         signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null)
-                        {
-                            newObj = new CppProxyBlock(this, null, ptrArr[idx]);
-                            Registration.storeObject(ptrArr[idx], newObj);
-                        }
+                        if (newObj == null) newObj = new CppProxyBlock(this, null, ptrArr[idx]);
                         objArr[idx] = newObj;
                     }
                 }
@@ -150,6 +161,7 @@ namespace cppProxy
         };
 
         private ICppBlockInterface m_native;
+        private IntPtr m_nativeRef;
         private readonly signals.IBlockDriver m_driver;
         private readonly signals.IBlock m_parent;
         private string m_name;
@@ -158,15 +170,14 @@ namespace cppProxy
 
         public CppProxyBlock(signals.IBlockDriver driver, signals.IBlock parent, IntPtr native)
         {
+            if (driver == null) throw new ArgumentNullException("driver");
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
             m_driver = driver;
             m_parent = parent;
-            if (native == IntPtr.Zero)
-            {
-                m_native = null;
-            } else { 
-                m_native = (ICppBlockInterface)Marshal.PtrToStructure(native, typeof(ICppBlockInterface));
-                interrogate();
-            }
+            Registration.storeObject(native, this);
+            m_native = (ICppBlockInterface)Marshal.PtrToStructure(native, typeof(ICppBlockInterface));
+            interrogate();
         }
 
         ~CppProxyBlock()
@@ -193,6 +204,11 @@ namespace cppProxy
                 m_native = null;
                 localNative.Release();
             }
+            if (m_nativeRef != IntPtr.Zero)
+            {
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
+            }
         }
 
         public string Name { get { return m_name; } }
@@ -210,11 +226,7 @@ namespace cppProxy
                     IntPtr attrs = m_native.Attributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
-                    if (m_attrs == null)
-                    {
-                        m_attrs = new CppProxyAttributes(this, attrs);
-                        Registration.storeObject(attrs, m_attrs);
-                    }
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(this, attrs);
                 }
                 return m_attrs;
             }
@@ -240,11 +252,7 @@ namespace cppProxy
                             if (ptrArr[idx] != IntPtr.Zero)
                             {
                                 signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null)
-                                {
-                                    newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
-                                    Registration.storeObject(ptrArr[idx], newObj);
-                                }
+                                if (newObj == null) newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
                                 m_children[idx] = newObj;
                             }
                         }
@@ -274,18 +282,24 @@ namespace cppProxy
         };
 
         private ICppAttributesInterface m_native;
+        private IntPtr m_nativeRef;
         private readonly signals.IBlock m_block;
 
         public CppProxyAttributes(signals.IBlock block, IntPtr native)
         {
             m_block = block;
-            if (native == IntPtr.Zero)
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            Registration.storeObject(native, this);
+            m_native = (ICppAttributesInterface)Marshal.PtrToStructure(native, typeof(ICppAttributesInterface));
+        }
+
+        ~CppProxyAttributes()
+        {
+            if (m_nativeRef != IntPtr.Zero)
             {
-                m_native = null;
-            }
-            else
-            {
-                m_native = (ICppAttributesInterface)Marshal.PtrToStructure(native, typeof(ICppAttributesInterface));
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
             }
         }
 
@@ -293,19 +307,16 @@ namespace cppProxy
 
         public signals.IAttribute GetByName(string name)
         {
+            if (name == null) throw new ArgumentNullException("name");
             byte[] strName = System.Text.Encoding.UTF8.GetBytes(name);
             IntPtr nameBuff = Marshal.AllocHGlobal(strName.Length);
             try
             {
                 Marshal.Copy(strName, 0, nameBuff, strName.Length);
-                IntPtr attrRef = m_native.GetByName(strName);
+                IntPtr attrRef = m_native.GetByName(nameBuff);
                 if (attrRef == IntPtr.Zero) return null;
                 signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(attrRef);
-                if (newObj == null)
-                {
-                    newObj = new CppProxyAttribute(attrRef);
-                    Registration.storeObject(attrRef, newObj);
-                }
+                if (newObj == null) newObj = new CppProxyAttribute(attrRef);
                 return newObj;
             }
             finally
@@ -329,11 +340,7 @@ namespace cppProxy
                     if (ptrArr[idx] != IntPtr.Zero)
                     {
                         signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null)
-                        {
-                            newObj = new CppProxyAttribute(ptrArr[idx]);
-                            Registration.storeObject(ptrArr[idx], newObj);
-                        }
+                        if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
                         attrArray[idx] = newObj;
                     }
                 }
@@ -362,23 +369,185 @@ namespace cppProxy
 		    uint options(IntPtr values, IntPtr opts, uint availElem);
 	    };
 
+        [StructLayout(LayoutKind.Sequential)]
+        private interface IAttributeObserver
+	    {
+            void OnChanged(IntPtr name, signals.EType type, IntPtr value);
+        };
+
+        private interface ITypeMarshaller
+        {
+            int size();
+            object fromNative(IntPtr val);
+            void toNative(object src, IntPtr dest);
+        };
+
+        private class BooleanType : ITypeMarshaller
+        {
+            public int size() { return sizeof(byte); }
+            public object fromNative(IntPtr val) { return Marshal.ReadByte(val) != 0; }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)((bool)src ? 1 : 0)); }
+        };
+
+        private class ByteType : ITypeMarshaller
+        {
+            public int size() { return sizeof(byte); }
+            public object fromNative(IntPtr val) { return Marshal.ReadByte(val); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)src); }
+        };
+
+        private class ShortType : ITypeMarshaller
+        {
+            public int size() { return sizeof(short); }
+            public object fromNative(IntPtr val) { return Marshal.ReadInt16(val); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteInt16(dest, (short)src); }
+        };
+
+        private class LongType : ITypeMarshaller
+        {
+            public int size() { return sizeof(int); }
+            public object fromNative(IntPtr val) { return Marshal.ReadInt32(val); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteInt32(dest, (int)src); }
+        };
+
+        private class SingleType : ITypeMarshaller
+        {
+            public int size() { return sizeof(float); }
+            public object fromNative(IntPtr val)
+            {
+                float[] buff = new float[1];
+                Marshal.Copy(val, buff, 0, 1);
+                return buff[0];
+            }
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy(new float[] { (float)src }, 0, dest, 1);
+            }
+        };
+
+        private class DoubleType : ITypeMarshaller
+        {
+            public int size() { return sizeof(double); }
+            public object fromNative(IntPtr val)
+            {
+                double[] buff = new double[1];
+                Marshal.Copy(val, buff, 0, 1);
+                return buff[0];
+            }
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy(new double[] { (double)src }, 0, dest, 1);
+            }
+        };
+
+        private class ComplexType : ITypeMarshaller
+        {
+            public int size() { return sizeof(float); }
+            public object fromNative(IntPtr val)
+            {
+                float[] buff = new float[2];
+                Marshal.Copy(val, buff, 0, 2);
+                return buff;
+            }
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy((float[])src, 0, dest, 2);
+            }
+        };
+
+        private class ComplexDoubleType : ITypeMarshaller
+        {
+            public int size() { return sizeof(double); }
+            public object fromNative(IntPtr val)
+            {
+                double[] buff = new double[2];
+                Marshal.Copy(val, buff, 0, 2);
+                return buff;
+            }
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy((double[])src, 0, dest, 2);
+            }
+        };
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate void ChangedCatcherDelegate(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value);
+
+        private class ChangedCatcher : IAttributeObserver
+        {
+            private readonly CppProxyAttribute parent;
+            public ChangedCatcherDelegate myDelegate;
+
+            public ChangedCatcher(CppProxyAttribute parent)
+            {
+                this.parent = parent;
+                this.myDelegate = new ChangedCatcherDelegate(OnChanged);
+            }
+
+            public void OnChanged(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value)
+            {
+                string strName = Utilities.getString(name);
+                object newVal = null;
+                if (value != IntPtr.Zero)
+                {
+                    if (parent.m_typeInfo != null)
+                    {
+                        newVal = parent.m_typeInfo.fromNative(value);
+                    }
+                    else if (type == signals.EType.etypString)
+                    {
+                        newVal = Utilities.getString(value);
+                    }
+                }
+                parent.changed(strName, type, newVal);
+            }
+        }
+
+        public event signals.OnChanged changed;
         private ICppAttributeInterface m_native;
+        private IntPtr m_nativeRef;
         private string m_name;
         private string m_descr;
         private signals.EType m_type;
+        private ITypeMarshaller m_typeInfo;
         private bool m_readOnly;
+        private ChangedCatcher m_catcher;
+        private IntPtr m_catcherIface;
 
         public CppProxyAttribute(IntPtr native)
         {
-            if (native == IntPtr.Zero)
-            {
-                m_native = null;
-            }
-            else
-            {
-                m_native = (ICppAttributeInterface)Marshal.PtrToStructure(native, typeof(ICppAttributeInterface));
-            }
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            Registration.storeObject(native, this);
+            m_native = (ICppAttributeInterface)Marshal.PtrToStructure(native, typeof(ICppAttributeInterface));
+            m_catcher = new ChangedCatcher(this);
             interrogate();
+        }
+
+        ~CppProxyAttribute()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (m_catcherIface != IntPtr.Zero)
+            {
+                m_native.Unobserve(m_catcherIface);
+                Marshal.FreeHGlobal(m_catcherIface);
+                m_catcherIface = IntPtr.Zero;
+            }
+            if (m_nativeRef != IntPtr.Zero)
+            {
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
+            }
         }
 
         private void interrogate()
@@ -386,7 +555,45 @@ namespace cppProxy
             m_name = Utilities.getString(m_native.Name());
             m_descr = Utilities.getString(m_native.Description());
             m_type = m_native.Type();
+            m_typeInfo = getTypeInfo(m_type);
             m_readOnly = m_native.isReadOnly();
+            m_catcherIface = buildCatcherIface();
+            m_native.Observe(m_catcherIface);
+        }
+
+        private IntPtr buildCatcherIface()
+        { // technique from http://code4k.blogspot.com/2010/10/implementing-unmanaged-c-interface.html
+            IntPtr iface = Marshal.AllocHGlobal(IntPtr.Size * 2);
+            IntPtr vtblPtr = new IntPtr(iface.ToInt64() + IntPtr.Size);   // Write pointer to vtbl
+            Marshal.WriteIntPtr(iface, vtblPtr);
+            Marshal.WriteIntPtr(vtblPtr, Marshal.GetFunctionPointerForDelegate(m_catcher.myDelegate));
+            return iface;
+        }
+
+        private static ITypeMarshaller getTypeInfo(signals.EType typ)
+        {
+            switch (typ)
+            {
+                case signals.EType.etypBoolean:
+                    return new BooleanType();
+                case signals.EType.etypByte:
+                    return new ByteType();
+                case signals.EType.etypShort:
+                    return new ShortType();
+                case signals.EType.etypLong:
+                    return new LongType();
+                case signals.EType.etypSingle:
+                    return new SingleType();
+                case signals.EType.etypDouble:
+                    return new DoubleType();
+                case signals.EType.etypComplex:
+                case signals.EType.etypLRSingle:
+                    return new ComplexType();
+                case signals.EType.etypCmplDbl:
+                    return new ComplexDoubleType();
+                default:
+                    return null;
+            }
         }
 
         public string Name { get { return m_name; } }
@@ -400,56 +607,101 @@ namespace cppProxy
             {
                 IntPtr rawVal = m_native.getValue();
                 if (rawVal == IntPtr.Zero) return null;
-                switch (m_type)
+                if (m_typeInfo != null)
                 {
-                    case signals.EType.etypBoolean:
-                        return Marshal.ReadByte(rawVal) != 0;
-                    case signals.EType.etypByte:
-                        return Marshal.ReadByte(rawVal);
-                    case signals.EType.etypShort:
-                        return Marshal.ReadInt16(rawVal);
-                    case signals.EType.etypLong:
-                        return Marshal.ReadInt32(rawVal);
-                    case signals.EType.etypSingle:
-                        {
-                            float[] buff = new float[1];
-                            Marshal.Copy(rawVal, buff, 0, 1);
-                            return buff[0];
-                        }
-                    case signals.EType.etypDouble:
-                        {
-                            double[] buff = new double[1];
-                            Marshal.Copy(rawVal, buff, 0, 1);
-                            return buff[0];
-                        }
-                    case signals.EType.etypComplex:
-                        {
-                            float[] buff = new float[2];
-                            Marshal.Copy(rawVal, buff, 0, 2);
-                            return new Complex(buff[0], buff[1]);
-                        }
-                    case signals.EType.etypCmplDbl:
-                        {
-                            double[] buff = new double[2];
-                            Marshal.Copy(rawVal, buff, 0, 2);
-                            return new Complex(buff[0], buff[1]);
-                        }
-                    case signals.EType.etypLRSingle:
-                        {
-                            float[] buff = new float[2];
-                            Marshal.Copy(rawVal, buff, 0, 2);
-                            return buff;
-                        }
-                    case signals.EType.etypString:
-                        return Utilities.getString(rawVal);
+                    return m_typeInfo.fromNative(rawVal);
                 }
-                return null;
+                else if (m_type == signals.EType.etypString)
+                {
+                    return Utilities.getString(rawVal);
+                }
+                else
+                {
+                    throw new NotSupportedException("Cannot retrieve value for this type.");
+                }
             }
-//            set;
+            set
+            {
+                if (value == null) throw new ArgumentNullException("value");
+                IntPtr buff = IntPtr.Zero;
+                try
+                {
+                    if (m_typeInfo != null)
+                    {
+                        buff = Marshal.AllocHGlobal(m_typeInfo.size());
+                        m_typeInfo.toNative(value, buff);
+                    }
+                    else if (m_type == signals.EType.etypString)
+                    {
+                        byte[] strBytes = System.Text.Encoding.UTF8.GetBytes((string)value);
+                        buff = Marshal.AllocHGlobal(sizeof(byte) * (strBytes.Length + 1));
+                        Marshal.Copy(strBytes, 0, buff, strBytes.Length);
+                    }
+                    else
+                    {
+                        throw new NotSupportedException("Cannot store value for this type.");
+                    }
+                    m_native.setValue(buff);
+                }
+                finally
+                {
+                    if (buff != IntPtr.Zero)
+                    {
+                        Marshal.FreeHGlobal(buff);
+                    }
+                }
+            }
         }
 
-//        void options(out object[] values, out string[] opts);
-//        event OnChanged changed;
+        public void options(out object[] values, out string[] opts)
+        {
+            uint numOpt = m_native.options(IntPtr.Zero, IntPtr.Zero, 0);
+            if (numOpt == 0)
+            {
+                values = null;
+                opts = null;
+                return;
+            }
+            IntPtr valList = Marshal.AllocHGlobal(IntPtr.Size * (int)numOpt);
+            IntPtr optList = Marshal.AllocHGlobal(IntPtr.Size * (int)numOpt);
+            try
+            {
+                m_native.options(valList, optList, numOpt);
+                IntPtr[] valArr = new IntPtr[numOpt];
+                Marshal.Copy(valList, valArr, 0, (int)numOpt);
+                IntPtr[] optArr = new IntPtr[numOpt];
+                Marshal.Copy(optList, optArr, 0, (int)numOpt);
+                values = new object[numOpt];
+                opts = new string[numOpt];
+                for (uint idx = 0; idx < numOpt; idx++)
+                {
+                    if (valArr[idx] != null)
+                    {
+                        if (m_typeInfo != null)
+                        {
+                            values[idx] = m_typeInfo.fromNative(valArr[idx]);
+                        }
+                        else if (m_type == signals.EType.etypString)
+                        {
+                            values[idx] = Utilities.getString(valArr[idx]);
+                        }
+                        else
+                        {
+                            throw new NotSupportedException("Cannot retrieve value for this type.");
+                        }
+                    }
+                    if (optArr[idx] != null)
+                    {
+                        opts[idx] = Utilities.getString(optArr[idx]);
+                    }
+                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(valList);
+                Marshal.FreeHGlobal(optList);
+            }
+        }
     }
 /*
 	__interface IEPSender
@@ -497,11 +749,6 @@ namespace cppProxy
 		bool isConnected();
 		bool Disconnect();
 		IEPBuffer* CreateBuffer();
-	};
-
-	__interface IAttributeObserver
-	{
-		void OnChanged(const char* name, EType type, const void* value);
 	};
 */
 }

@@ -88,7 +88,7 @@ namespace signals
         IBlock Block { get; }
     };
 
-	interface IAttribute
+	interface IAttribute : IDisposable
 	{
         string Name { get; }
         string Description { get; }
