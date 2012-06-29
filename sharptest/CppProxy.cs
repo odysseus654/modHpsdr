@@ -58,7 +58,6 @@ namespace cppProxy
 
     class CppProxyBlockDriver : signals.IBlockDriver
     {
-        [StructLayout(LayoutKind.Sequential)]
         private interface ICppBlockDriverInterface
         {
             IntPtr Name();
@@ -144,7 +143,6 @@ namespace cppProxy
 
     class CppProxyBlock : signals.IBlock
     {
-        [StructLayout(LayoutKind.Sequential)]
         private interface ICppBlockInterface
         {
             uint AddRef();
@@ -167,6 +165,8 @@ namespace cppProxy
         private string m_name;
         private signals.IAttributes m_attrs = null;
         private signals.IBlock[] m_children = null;
+        private signals.IInEndpoint[] m_incoming = null;
+        private signals.IOutEndpoint[] m_outgoing = null;
 
         public CppProxyBlock(signals.IBlockDriver driver, signals.IBlock parent, IntPtr native)
         {
@@ -242,11 +242,11 @@ namespace cppProxy
                     IntPtr childBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numChildren);
                     try
                     {
-                        uint numObj = m_native.Children(childBuff, numChildren);
-                        IntPtr[] ptrArr = new IntPtr[numObj];
-                        Marshal.Copy(childBuff, ptrArr, 0, (int)numObj);
-                        m_children = new CppProxyBlock[numObj];
-                        for (int idx = 0; idx < numObj; idx++)
+                        m_native.Children(childBuff, numChildren);
+                        IntPtr[] ptrArr = new IntPtr[numChildren];
+                        Marshal.Copy(childBuff, ptrArr, 0, (int)numChildren);
+                        m_children = new CppProxyBlock[numChildren];
+                        for (int idx = 0; idx < numChildren; idx++)
                         {
 
                             if (ptrArr[idx] != IntPtr.Zero)
@@ -265,13 +265,86 @@ namespace cppProxy
                 return m_children;
             }
         }
-//        signals.IInEndpoint[] Incoming { get; }
-//        signals.IOutEndpoint[] Outgoing { get; }
+
+        public signals.IInEndpoint[] Incoming
+        {
+            get
+            {
+                if (m_incoming == null)
+                {
+                    uint numEP = m_native.Incoming(IntPtr.Zero, 0);
+                    IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                    try
+                    {
+                        m_native.Incoming(epBuff, numEP);
+                        IntPtr[] ptrArr = new IntPtr[numEP];
+                        Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
+                        m_incoming = new CppProxyInEndpoint[numEP];
+                        for (int idx = 0; idx < numEP; idx++)
+                        {
+
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyInEndpoint(this, ptrArr[idx]);
+                                m_incoming[idx] = newObj;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(epBuff);
+                    }
+                }
+                return m_incoming;
+            }
+        }
+
+        public signals.IOutEndpoint[] Outgoing
+        {
+            get
+            {
+                if (m_outgoing == null)
+                {
+                    uint numEP = m_native.Outgoing(IntPtr.Zero, 0);
+                    IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                    try
+                    {
+                        m_native.Outgoing(epBuff, numEP);
+                        IntPtr[] ptrArr = new IntPtr[numEP];
+                        Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
+                        m_outgoing = new CppProxyOutEndpoint[numEP];
+                        for (int idx = 0; idx < numEP; idx++)
+                        {
+
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IOutEndpoint newObj = (signals.IOutEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyOutEndpoint(this, ptrArr[idx]);
+                                m_incoming[idx] = newObj;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(epBuff);
+                    }
+                }
+                return m_outgoing;
+            }
+        }
+        /*
+                public signals.IOutEndpoint[] Outgoing
+                {
+                    get
+                    {
+                    }
+                }
+                */
     }
 
     class CppProxyAttributes : signals.IAttributes
     {
-        [StructLayout(LayoutKind.Sequential)]
         private interface ICppAttributesInterface
         {
             uint Itemize(IntPtr attrs, uint availElem);
@@ -355,7 +428,6 @@ namespace cppProxy
 
     class CppProxyAttribute : signals.IAttribute
     {
-        [StructLayout(LayoutKind.Sequential)]
         private interface ICppAttributeInterface
 	    {
 		    IntPtr Name();
@@ -368,12 +440,6 @@ namespace cppProxy
 		    bool setValue(IntPtr newVal);
 		    uint options(IntPtr values, IntPtr opts, uint availElem);
 	    };
-
-        [StructLayout(LayoutKind.Sequential)]
-        private interface IAttributeObserver
-	    {
-            void OnChanged(IntPtr name, signals.EType type, IntPtr value);
-        };
 
         private interface ITypeMarshaller
         {
@@ -473,7 +539,7 @@ namespace cppProxy
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate void ChangedCatcherDelegate(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value);
 
-        private class ChangedCatcher : IAttributeObserver
+        private class ChangedCatcher
         {
             private readonly CppProxyAttribute parent;
             public ChangedCatcherDelegate myDelegate;
@@ -703,52 +769,218 @@ namespace cppProxy
             }
         }
     }
+
+    class CppProxyInEndpoint : signals.IInEndpoint
+    {
+        private interface IInEndpoint
+	    {
+		    uint AddRef();
+		    uint Release();
+		    IntPtr Block();
+		    IntPtr EPName();
+		    signals.EType Type();
+		    IntPtr Attributes();
+		    bool Connect(IntPtr recv);
+		    bool isConnected();
+		    bool Disconnect();
+		    IntPtr CreateBuffer();
+	    }
+
+        private IInEndpoint m_native;
+        private signals.IBlock m_block;
+        private IntPtr m_nativeRef;
+        private string m_name;
+        private signals.EType m_type;
+        private signals.IAttributes m_attrs = null;
+
+        public CppProxyInEndpoint(signals.IBlock block, IntPtr native)
+        {
+            if (block == null) throw new ArgumentNullException("block");
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            m_block = block;
+            Registration.storeObject(native, this);
+            m_native = (IInEndpoint)Marshal.PtrToStructure(native, typeof(IInEndpoint));
+            interrogate();
+        }
+
+        private void interrogate()
+        {
+            m_name = Utilities.getString(m_native.EPName());
+            m_type = m_native.Type();
+        }
+
+        ~CppProxyInEndpoint()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (m_native != null)
+            {
+                m_native.Release();
+                m_native = null;
+            }
+            if (m_nativeRef != IntPtr.Zero)
+            {
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
+            }
+        }
+
+        public signals.IAttributes Attributes
+        {
+            get
+            {
+                if (m_attrs == null)
+                {
+                    IntPtr attrs = m_native.Attributes();
+                    if (attrs == IntPtr.Zero) return null;
+                    m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_block, attrs);
+                }
+                return m_attrs;
+            }
+        }
+
+        public signals.IBlock Block { get { return m_block; } }
+        public string EPName { get { return m_name; } }
+        public signals.EType Type { get { return m_type; } }
+        public bool isConnected { get { return m_native.isConnected(); } }
+        public bool Disconnect() { return m_native.Disconnect(); }
+//        bool Connect(IEPReceiver recv);
+//		  IEPBuffer CreateBuffer();
+    }
+
+    class CppProxyOutEndpoint : signals.IOutEndpoint
+    {
+	    private interface IOutEndpoint
+	    {
+		    IntPtr Block();
+		    IntPtr EPName();
+		    signals.EType Type();
+		    IntPtr Attributes();
+		    bool Connect(IntPtr send);
+		    bool isConnected();
+		    bool Disconnect();
+		    IntPtr CreateBuffer();
+	    };
+
+        private IOutEndpoint m_native;
+        private signals.IBlock m_block;
+        private IntPtr m_nativeRef;
+        private string m_name;
+        private signals.EType m_type;
+        private signals.IAttributes m_attrs = null;
+
+        public CppProxyOutEndpoint(signals.IBlock block, IntPtr native)
+        {
+            if (block == null) throw new ArgumentNullException("block");
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            m_block = block;
+            Registration.storeObject(native, this);
+            m_native = (IOutEndpoint)Marshal.PtrToStructure(native, typeof(IOutEndpoint));
+            interrogate();
+        }
+
+        private void interrogate()
+        {
+            m_name = Utilities.getString(m_native.EPName());
+            m_type = m_native.Type();
+        }
+
+        public signals.IAttributes Attributes
+        {
+            get
+            {
+                if (m_attrs == null)
+                {
+                    IntPtr attrs = m_native.Attributes();
+                    if (attrs == IntPtr.Zero) return null;
+                    m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_block, attrs);
+                }
+                return m_attrs;
+            }
+        }
+
+        public signals.IBlock Block { get { return m_block; } }
+        public string EPName { get { return m_name; } }
+        public signals.EType Type { get { return m_type; } }
+        public bool isConnected { get { return m_native.isConnected(); } }
+        public bool Disconnect() { return m_native.Disconnect(); }
+//        bool Connect(IEPSender send);
+//        IEPBuffer CreateBuffer();
+    }
+
+    class CppProxyEPSender : signals.IEPSender
+    {
+        private interface IEPSender
+        {
+            uint Write(signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
+            uint AddRef();
+            uint Release();
+        };
+
+        private IEPSender m_native;
+        private IntPtr m_nativeRef;
+
+        public CppProxyEPSender(IntPtr native)
+        {
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_nativeRef = native;
+            Registration.storeObject(native, this);
+            m_native = (IEPSender)Marshal.PtrToStructure(native, typeof(IEPSender));
+        }
+
+        ~CppProxyEPSender()
+        {
+            Dispose(false);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (m_native != null)
+            {
+                m_native.Release();
+                m_native = null;
+            }
+            if (m_nativeRef != IntPtr.Zero)
+            {
+                Registration.removeObject(m_nativeRef);
+                m_nativeRef = IntPtr.Zero;
+            }
+        }
+
+//        int Write(EType type, object[] buffer, int msTimeout);
+    }
 /*
-	__interface IEPSender
-	{
-		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
-		unsigned AddRef();
-		unsigned Release();
-	};
+        __interface IEPReceiver
+        {       
+            unsigned Read(EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
+            void onSinkConnected(IInEndpoint* src);
+            void onSinkDisconnected(IInEndpoint* src);
+        };
 
-	__interface IEPReceiver
-	{
-		unsigned Read(EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
-		void onSinkConnected(IInEndpoint* src);
-		void onSinkDisconnected(IInEndpoint* src);
-	};
-
-	__interface IEPBuffer : public IEPSender, public IEPReceiver
-	{
-		EType Type();
-		unsigned Capacity();
-		unsigned Used();
-	};
-
-	__interface IInEndpoint
-	{
-		unsigned AddRef();
-		unsigned Release();
-		IBlock* Block();
-		const char* EPName();
-		EType Type();
-		IAttributes* Attributes();
-		bool Connect(IEPReceiver* recv);
-		bool isConnected();
-		bool Disconnect();
-		IEPBuffer* CreateBuffer();
-	};
-
-	__interface IOutEndpoint
-	{
-		IBlock* Block();
-		const char* EPName();
-		EType Type();
-		IAttributes* Attributes();
-		bool Connect(IEPSender* send);
-		bool isConnected();
-		bool Disconnect();
-		IEPBuffer* CreateBuffer();
-	};
-*/
+        __interface IEPBuffer : public IEPSender, public IEPReceiver
+        {
+            EType Type();
+            unsigned Capacity();
+            unsigned Used();
+        };
+    */
 }
