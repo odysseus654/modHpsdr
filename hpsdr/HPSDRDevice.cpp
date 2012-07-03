@@ -324,7 +324,7 @@ void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
 	attrs.version = addLocalAttr(true, new CAttr_inProxy("version", "Software version", *parent.attrs.recvX_version[0]));
 }
 
-bool CHpsdrDevice::Receiver::Connect(signals::IEPSender* send)
+BOOL CHpsdrDevice::Receiver::Connect(signals::IEPSender* send)
 {
 	if(!COutEndpointBase::Connect(send)) return false;
 	{
@@ -338,7 +338,7 @@ bool CHpsdrDevice::Receiver::Connect(signals::IEPSender* send)
 	return true;
 }
 
-bool CHpsdrDevice::Receiver::Disconnect()
+BOOL CHpsdrDevice::Receiver::Disconnect()
 {
 	{
 		Lock lock(m_parent->m_recvListLock);

@@ -33,8 +33,18 @@ namespace cppProxy
             IMethodCallMessage call = (IMethodCallMessage)msg;
             Delegate del = null;
             if(!methods.TryGetValue(call.MethodName, out del)) throw new NotImplementedException("method not defined");
-            object ret = del.DynamicInvoke(call.Args);
-            return new ReturnMessage(ret, null, 0, call.LogicalCallContext, call); 
+            object[] args = new object[call.ArgCount + 1];
+            args[0] = thisPtr;
+            call.Args.CopyTo(args, 1);
+            try
+            {
+                object ret = del.DynamicInvoke(args);
+                return new ReturnMessage(ret, null, 0, call.LogicalCallContext, call);
+            }
+            catch (TargetInvocationException e)
+            {
+                throw e.InnerException;
+            }
         }
 
         private void BuildDynamicInterface(Type ifaceType, IntPtr vtblBase)
@@ -49,13 +59,13 @@ namespace cppProxy
             }
         }
 
-        private delegate TResult Func<TResult>();
-        private delegate TResult Func<T, TResult>(T arg);
-        private delegate TResult Func<T1, T2, TResult>(T1 arg1, T2 arg2);
-        private delegate TResult Func<T1, T2, T3, TResult>(T1 arg1, T2 arg2, T3 arg3);
-        private delegate TResult Func<T1, T2, T3, T4, TResult>(T1 arg1, T2 arg2, T3 arg3, T4 arg4);
-        private delegate TResult Func<T1, T2, T3, T4, T5, TResult>(T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5);
-        private delegate TResult Func<T1, T2, T3, T4, T5, T6, TResult>(T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6);
+        private delegate TResult Func<TResult>(IntPtr here);
+        private delegate TResult Func<T, TResult>(IntPtr here, T arg);
+        private delegate TResult Func<T1, T2, TResult>(IntPtr here, T1 arg1, T2 arg2);
+        private delegate TResult Func<T1, T2, T3, TResult>(IntPtr here, T1 arg1, T2 arg2, T3 arg3);
+        private delegate TResult Func<T1, T2, T3, T4, TResult>(IntPtr here, T1 arg1, T2 arg2, T3 arg3, T4 arg4);
+        private delegate TResult Func<T1, T2, T3, T4, T5, TResult>(IntPtr here, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5);
+        private delegate TResult Func<T1, T2, T3, T4, T5, T6, TResult>(IntPtr here, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6);
 
         public Delegate BuildDynamicDelegate(MethodInfo invokeInfo, IntPtr methodAddress)
         {
@@ -74,45 +84,45 @@ namespace cppProxy
             // Gets the parameter types for the dynamic method 
             // and calli.
             ParameterInfo[] invokeParameters = invokeInfo.GetParameters();
-            Type[] invokeParameterTypes = new Type[invokeParameters.Length];
+            Type[] invokeParameterTypes = new Type[invokeParameters.Length+1];
             Type[] calliParameterTypes = new Type[invokeParameters.Length+1];
-            calliParameterTypes[0] = typeof(IntPtr);
+            calliParameterTypes[0] = invokeParameterTypes[0] = typeof(IntPtr);
             for (int i = 0; i < invokeParameters.Length; i++)
             {
-                invokeParameterTypes[i] = invokeParameters[i].ParameterType;
+                invokeParameterTypes[i+1] = invokeParameters[i].ParameterType;
                 calliParameterTypes[i+1] = GetPointerTypeIfReference(invokeParameters[i].ParameterType);
             }
 
             // Defines the delegate type
             Type dType = null;
-            switch(invokeParameterTypes.Length)
+            switch(invokeParameterTypes.Length-1)
             {
                 case 0:
                     dType = typeof(Func<>).MakeGenericType(invokeReturnType);
                     break;
                 case 1:
-                    dType = typeof(Func<,>).MakeGenericType(invokeParameterTypes[0], invokeReturnType);
+                    dType = typeof(Func<,>).MakeGenericType(invokeParameterTypes[1], invokeReturnType);
                     break;
                 case 2:
-                    dType = typeof(Func<,,>).MakeGenericType(invokeParameterTypes[0], invokeParameterTypes[1],
+                    dType = typeof(Func<,,>).MakeGenericType(invokeParameterTypes[1], invokeParameterTypes[2],
                         invokeReturnType);
                     break;
                 case 3:
-                    dType = typeof(Func<,,,>).MakeGenericType(invokeParameterTypes[0], invokeParameterTypes[1],
-                        invokeParameterTypes[2], invokeReturnType);
+                    dType = typeof(Func<,,,>).MakeGenericType(invokeParameterTypes[1], invokeParameterTypes[2],
+                        invokeParameterTypes[3], invokeReturnType);
                     break;
                 case 4:
-                    dType = typeof(Func<,,,,>).MakeGenericType(invokeParameterTypes[0], invokeParameterTypes[1],
-                        invokeParameterTypes[2], invokeParameterTypes[3], invokeReturnType);
+                    dType = typeof(Func<,,,,>).MakeGenericType(invokeParameterTypes[1], invokeParameterTypes[2],
+                        invokeParameterTypes[3], invokeParameterTypes[4], invokeReturnType);
                     break;
                 case 5:
-                    dType = typeof(Func<,,,,,>).MakeGenericType(invokeParameterTypes[0], invokeParameterTypes[1],
-                        invokeParameterTypes[2], invokeParameterTypes[3], invokeParameterTypes[4], invokeReturnType);
+                    dType = typeof(Func<,,,,,>).MakeGenericType(invokeParameterTypes[1], invokeParameterTypes[2],
+                        invokeParameterTypes[3], invokeParameterTypes[4], invokeParameterTypes[5], invokeReturnType);
                     break;
                 case 6:
-                    dType = typeof(Func<,,,,,,>).MakeGenericType(invokeParameterTypes[0], invokeParameterTypes[1],
-                        invokeParameterTypes[2], invokeParameterTypes[3], invokeParameterTypes[4],
-                        invokeParameterTypes[5], invokeReturnType);
+                    dType = typeof(Func<,,,,,,>).MakeGenericType(invokeParameterTypes[1], invokeParameterTypes[2],
+                        invokeParameterTypes[3], invokeParameterTypes[4], invokeParameterTypes[5],
+                        invokeParameterTypes[6], invokeReturnType);
                     break;
                 default:
                     throw new NotImplementedException("too many arguments");
@@ -126,17 +136,13 @@ namespace cppProxy
             ILGenerator generator = calliMethod.GetILGenerator();
 
             // push "this"
-            FieldInfo thisInfo = typeof(CppNativeProxy).GetField("thisPtr", BindingFlags.NonPublic | BindingFlags.Instance);
-            generator.Emit(OpCodes.Ldfld, thisInfo);
+            generator.Emit(OpCodes.Ldarg_0);
 
             // Emits instructions for loading the parameters into the stack.
             for (int i = 1; i < calliParameterTypes.Length; i++)
             {
-                switch(i-1)
+                switch(i)
                 {
-                case 0:
-                    generator.Emit(OpCodes.Ldarg_0);
-                    break;
                 case 1:
                     generator.Emit(OpCodes.Ldarg_1);
                     break;

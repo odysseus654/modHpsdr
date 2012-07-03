@@ -45,9 +45,9 @@ public:
 	inline CInEndpointBase():m_connRecv(NULL) {}
 	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
 
-	virtual bool Connect(signals::IEPReceiver* recv);
-	virtual bool isConnected() { return !!m_connRecv; }
-	virtual bool Disconnect()  { return Connect(NULL); }
+	virtual BOOL Connect(signals::IEPReceiver* recv);
+	virtual BOOL isConnected() { return !!m_connRecv; }
+	virtual BOOL Disconnect()  { return Connect(NULL); }
 //	virtual const char* EPName();
 //	virtual unsigned AddRef() = 0;
 //	virtual unsigned Release() = 0;
@@ -68,9 +68,9 @@ public:
 	inline COutEndpointBase():m_connSend(NULL) {}
 	unsigned Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout);
 
-	virtual bool Connect(signals::IEPSender* send);
-	virtual bool isConnected() { return !!m_connSend; }
-	virtual bool Disconnect()  { return Connect(NULL); }
+	virtual BOOL Connect(signals::IEPSender* send);
+	virtual BOOL isConnected() { return !!m_connSend; }
+	virtual BOOL Disconnect()  { return Connect(NULL); }
 //	virtual const char* EPName();
 //	virtual signals::IBlock* Block() = 0;
 //	virtual signals::EType Type() = 0;
@@ -94,9 +94,9 @@ public:
 	virtual void Unobserve(signals::IAttributeObserver* obs);
 	virtual unsigned options(const void* /* vals */, const char** /* opts */, unsigned /* availElem */) { return 0; }
 //	virtual signals::EType Type() = 0;
-//	virtual bool isReadOnly();
+//	virtual BOOL isReadOnly();
 //	virtual const void* getValue() = 0;
-//	virtual bool setValue(const void* newVal) = 0;
+//	virtual BOOL setValue(const void* newVal) = 0;
 private:
 	CAttributeBase(const CAttributeBase& other);
 	CAttributeBase& operator=(const CAttributeBase& other);
@@ -175,8 +175,8 @@ public:
 	virtual signals::EType Type()		{ return ET; }
 	virtual const void* getValue()		{ return &m_value; }
 	const store_type& nativeGetValue()	{ return m_value; }
-//	virtual bool isReadOnly();
-//	virtual bool setValue(const void* newVal) = 0;
+//	virtual BOOL isReadOnly();
+//	virtual BOOL setValue(const void* newVal) = 0;
 
 protected:
 	void privateSetValue(const store_type& newVal)
@@ -241,8 +241,8 @@ public:
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
-//	virtual bool isReadOnly();
-//	virtual bool setValue(const void* newVal) = 0;
+//	virtual BOOL isReadOnly();
+//	virtual BOOL setValue(const void* newVal) = 0;
 
 protected:
 	virtual void onSetValue(const store_type& value);
@@ -293,9 +293,9 @@ protected:
 		:base_type(pName, pDescr, deflt) { }
 public:
 	virtual ~CRWAttribute()				{ }
-	virtual bool isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly()			{ return false; }
 
-	virtual bool setValue(const void* newVal)
+	virtual BOOL setValue(const void* newVal)
 	{
 		if(!newVal) { ASSERT(FALSE); return false; }
 		return nativeSetValue(*(store_type*)newVal);
@@ -328,9 +328,9 @@ protected:
 		:base_type(pName, pDescr, deflt) { }
 public:
 	virtual ~CRWAttribute()				{ }
-	virtual bool isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly()			{ return false; }
 
-	virtual bool setValue(const void* newVal)
+	virtual BOOL setValue(const void* newVal)
 	{
 		if(!newVal) { ASSERT(false); return false; }
 		return nativeSetValue((const char*)newVal);
@@ -357,9 +357,9 @@ public:
 		:CAttributeBase(pName, pDescr), m_func(this, &CEventAttribute::catcher) { }
 	virtual ~CEventAttribute()			{ }
 	virtual signals::EType Type()		{ return signals::etypNone; }
-	virtual bool isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly()			{ return false; }
 	virtual const void* getValue()		{ return NULL; }
-	virtual bool setValue(const void* newVal) { UNUSED_ALWAYS(newVal); fire(); return true; }
+	virtual BOOL setValue(const void* newVal) { UNUSED_ALWAYS(newVal); fire(); return true; }
 	void fire();
 
 private:
@@ -395,8 +395,8 @@ private:
 public:
 	inline CROAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:parent_type(pName, pDescr, deflt) { }
-	virtual bool isReadOnly()					{ return true; }
-	virtual bool setValue(const void* /* newVal */) { return false; }
+	virtual BOOL isReadOnly()					{ return true; }
+	virtual BOOL setValue(const void* /* newVal */) { return false; }
 };
 
 template<signals::EType ET>

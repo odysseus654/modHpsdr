@@ -69,7 +69,7 @@ namespace cppProxy
                                     }
                                 }
                             }
-                            catch (Exception e) { }
+                            catch (Exception) { }
                             finally
                             {
                                 Marshal.FreeHGlobal(discoverBuff);
@@ -104,8 +104,8 @@ namespace cppProxy
         {
             if (strz == IntPtr.Zero) throw new ArgumentNullException("strz");
             int strlen = getStringLength(strz);
-            byte[] strArray = new byte[strlen+1];
-            Marshal.Copy(strz, strArray, 0, strlen+1);
+            byte[] strArray = new byte[strlen];
+            Marshal.Copy(strz, strArray, 0, strlen);
             return System.Text.Encoding.UTF8.GetString(strArray);
         }
     }
@@ -290,8 +290,8 @@ namespace cppProxy
         public interface IBlockDriver
         {
             IntPtr Name();
-            bool canCreate();
-            bool canDiscover();
+            [return:MarshalAs(UnmanagedType.Bool)]bool canCreate();
+            [return:MarshalAs(UnmanagedType.Bool)]bool canDiscover();
             uint Discover(IntPtr blocks, uint availBlocks);
             IntPtr Create();
         };
@@ -327,9 +327,9 @@ namespace cppProxy
             signals.EType Type();
             void Observe(IntPtr obs);
             void Unobserve(IntPtr obs);
-            bool isReadOnly();
+            [return: MarshalAs(UnmanagedType.Bool)] bool isReadOnly();
             IntPtr getValue();
-            bool setValue(IntPtr newVal);
+            [return: MarshalAs(UnmanagedType.Bool)] bool setValue(IntPtr newVal);
             uint options(IntPtr values, IntPtr opts, uint availElem);
         };
 
@@ -341,9 +341,9 @@ namespace cppProxy
             IntPtr EPName();
             signals.EType Type();
             IntPtr Attributes();
-            bool Connect(IntPtr recv);
-            bool isConnected();
-            bool Disconnect();
+            [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr recv);
+            [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
+            [return: MarshalAs(UnmanagedType.Bool)] bool Disconnect();
             IntPtr CreateBuffer();
         }
 
@@ -353,9 +353,9 @@ namespace cppProxy
             IntPtr EPName();
             signals.EType Type();
             IntPtr Attributes();
-            bool Connect(IntPtr send);
-            bool isConnected();
-            bool Disconnect();
+            [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr send);
+            [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
+            [return: MarshalAs(UnmanagedType.Bool)] bool Disconnect();
             IntPtr CreateBuffer();
         };
 

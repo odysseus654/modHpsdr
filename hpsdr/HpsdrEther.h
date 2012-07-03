@@ -40,8 +40,8 @@ private:
 
 public:
 	virtual const char* Name()		{ return NAME; }
-	virtual bool canCreate()		{ return false; }
-	virtual bool canDiscover()		{ return true; }
+	virtual BOOL canCreate()		{ return false; }
+	virtual BOOL canDiscover()		{ return true; }
 	virtual unsigned Discover(signals::IBlock** blocks, unsigned availBlocks);
 	virtual signals::IBlock* Create()	{ return NULL; }
 

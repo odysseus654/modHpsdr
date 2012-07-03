@@ -46,8 +46,8 @@ namespace signals
 	__interface IBlockDriver
 	{
 		const char* Name();
-		bool canCreate();
-		bool canDiscover();
+		BOOL canCreate();
+		BOOL canDiscover();
 		unsigned Discover(IBlock** blocks, unsigned availBlocks);
 		IBlock* Create();
 	};
@@ -96,9 +96,9 @@ namespace signals
 		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
-		bool Connect(IEPReceiver* recv);
-		bool isConnected();
-		bool Disconnect();
+		BOOL Connect(IEPReceiver* recv);
+		BOOL isConnected();
+		BOOL Disconnect();
 		IEPBuffer* CreateBuffer();
 	};
 
@@ -108,9 +108,9 @@ namespace signals
 		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
-		bool Connect(IEPSender* send);
-		bool isConnected();
-		bool Disconnect();
+		BOOL Connect(IEPSender* send);
+		BOOL isConnected();
+		BOOL Disconnect();
 		IEPBuffer* CreateBuffer();
 	};
 
@@ -130,9 +130,9 @@ namespace signals
 		EType Type();
 		void Observe(IAttributeObserver* obs);
 		void Unobserve(IAttributeObserver* obs);
-		bool isReadOnly();
+		BOOL isReadOnly();
 		const void* getValue();
-		bool setValue(const void* newVal);
+		BOOL setValue(const void* newVal);
 		unsigned options(const void* values, const char** opts, unsigned availElem);
 	};
 

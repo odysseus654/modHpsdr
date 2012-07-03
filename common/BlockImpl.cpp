@@ -18,7 +18,7 @@
 
 // ------------------------------------------------------------------ class CInEndpointBase
 
-bool CInEndpointBase::Connect(signals::IEPReceiver* recv)
+BOOL CInEndpointBase::Connect(signals::IEPReceiver* recv)
 {
 	if(recv != m_connRecv)
 	{
@@ -36,7 +36,7 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 
 // ------------------------------------------------------------------ class COutEndpointBase
 
-bool COutEndpointBase::Connect(signals::IEPSender* send)
+BOOL COutEndpointBase::Connect(signals::IEPSender* send)
 {
 	if(send != m_connSend)
 	{

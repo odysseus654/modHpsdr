@@ -173,8 +173,8 @@ public:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
 		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual bool Connect(signals::IEPSender* send);
-		virtual bool Disconnect();
+		virtual BOOL Connect(signals::IEPSender* send);
+		virtual BOOL Disconnect();
 	};
 
 	class Microphone : public COutEndpointBase, public CAttributesBase
