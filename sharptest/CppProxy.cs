@@ -5,91 +5,6 @@ using System.IO;
 
 namespace cppProxy
 {
-    static class Discover
-    {
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr LoadLibrary(string dllToLoad);
-
-        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
-        private static extern IntPtr GetProcAddress(IntPtr hModule, string procedureName);
-
-        [DllImport("kernel32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool FreeLibrary(IntPtr hModule);
-
-        private class CppModule : CppProxyBlockDriver
-        {
-            private IntPtr m_hModule;
-
-            public CppModule(IntPtr hModule, IntPtr native)
-                :base(native)
-            {
-                m_hModule = hModule;
-            }
-
-            ~CppModule()
-            {
-                if (m_hModule != IntPtr.Zero)
-                {
-                    FreeLibrary(m_hModule);
-                    m_hModule = IntPtr.Zero;
-                }
-            }
-        };
-
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private delegate uint QueryDriverDelegate(IntPtr drivers, uint availDrivers);
-
-        public static signals.IBlockDriver[] DoDiscovery(string path)
-        {
-            string[] dllList = Directory.GetFiles(path, "*.dll", SearchOption.TopDirectoryOnly);
-            List<signals.IBlockDriver> found = new List<signals.IBlockDriver>();
-            for (int idx = 0; idx < dllList.Length; idx++)
-            {
-                IntPtr hModule = LoadLibrary(dllList[idx]);
-                if (hModule != IntPtr.Zero)
-                {
-                    try
-                    {
-                        IntPtr driverAddr = GetProcAddress(hModule, "QueryDrivers");
-                        if (driverAddr != IntPtr.Zero)
-                        {
-                            Delegate queryDriver = Marshal.GetDelegateForFunctionPointer(driverAddr, typeof(QueryDriverDelegate));
-                            uint numDrivers = (uint)queryDriver.DynamicInvoke(new object[] { null, 0u });
-                            IntPtr discoverBuff = Marshal.AllocHGlobal((int)(IntPtr.Size * numDrivers));
-                            try
-                            {
-                                queryDriver.DynamicInvoke(new object[] { discoverBuff, numDrivers });
-                                IntPtr[] ptrArr = new IntPtr[numDrivers];
-                                Marshal.Copy(discoverBuff, ptrArr, 0, (int)numDrivers);
-                                for (uint didx = 0; didx < numDrivers; didx++)
-                                {
-                                    if (ptrArr[didx] != IntPtr.Zero)
-                                    {
-                                        found.Add(new CppModule(hModule, ptrArr[didx]));
-                                    }
-                                }
-                            }
-                            catch (Exception) { }
-                            finally
-                            {
-                                Marshal.FreeHGlobal(discoverBuff);
-                            }
-
-                            hModule = IntPtr.Zero;
-                        }
-                    }
-                    finally
-                    {
-                        if (hModule != IntPtr.Zero) FreeLibrary(hModule);
-                    }
-                }
-            }
-            signals.IBlockDriver[] outList = new signals.IBlockDriver[found.Count];
-            found.CopyTo(outList);
-            return outList;
-        }
-    }
-
     static class Utilities
     {
         private static unsafe int getStringLength(IntPtr strz)
@@ -253,6 +168,7 @@ namespace cppProxy
             {
                 byte[] strBytes = System.Text.Encoding.UTF8.GetBytes((string)src);
                 Marshal.Copy(strBytes, 0, dest, strBytes.Length);
+                Marshal.WriteByte(dest, strBytes.Length, 0);
             }
         };
 
@@ -260,24 +176,24 @@ namespace cppProxy
         {
             switch (typ)
             {
-                case signals.EType.etypString:
+                case signals.EType.String:
                     return new String();
-                case signals.EType.etypBoolean:
+                case signals.EType.Boolean:
                     return new Boolean();
-                case signals.EType.etypByte:
+                case signals.EType.Byte:
                     return new Byte();
-                case signals.EType.etypShort:
+                case signals.EType.Short:
                     return new Short();
-                case signals.EType.etypLong:
+                case signals.EType.Long:
                     return new Long();
-                case signals.EType.etypSingle:
+                case signals.EType.Single:
                     return new Single();
-                case signals.EType.etypDouble:
+                case signals.EType.Double:
                     return new Double();
-                case signals.EType.etypComplex:
-                case signals.EType.etypLRSingle:
+                case signals.EType.Complex:
+                case signals.EType.LRSingle:
                     return new Complex();
-                case signals.EType.etypCmplDbl:
+                case signals.EType.CmplDbl:
                     return new ComplexDouble();
                 default:
                     return null;
@@ -381,8 +297,113 @@ namespace cppProxy
         };
     }
 
+    class CppProxyModuleDriver : signals.IModule
+    {
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr LoadLibrary(string dllToLoad);
+
+        [DllImport("kernel32.dll", CharSet = CharSet.Ansi, ExactSpelling = true, SetLastError = true)]
+        private static extern IntPtr GetProcAddress(IntPtr hModule, string procedureName);
+
+        [DllImport("kernel32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool FreeLibrary(IntPtr hModule);
+
+        private string m_file;
+        private IntPtr m_hModule;
+        private signals.IBlockDriver[] m_drivers = null;
+        private IntPtr m_queryDriver;
+
+        public CppProxyModuleDriver(string file, IntPtr hModule)
+        {
+            if (file == null) throw new ArgumentNullException("file");
+            if (hModule == IntPtr.Zero) throw new ArgumentNullException("hModule");
+            m_file = file;
+            m_hModule = hModule;
+            m_queryDriver = GetProcAddress(hModule, "QueryDrivers");
+            if (m_queryDriver == IntPtr.Zero) throw new NotImplementedException("module does not contain QueryDriver entrypoint");
+        }
+
+        ~CppProxyModuleDriver()
+        {
+            if (m_hModule != IntPtr.Zero)
+            {
+                FreeLibrary(m_hModule);
+                m_hModule = IntPtr.Zero;
+            }
+        }
+
+        public signals.IBlockDriver[] Drivers
+        {
+            get
+            {
+                if (m_drivers == null)
+                {
+                    Delegate queryDriver = Marshal.GetDelegateForFunctionPointer(m_queryDriver, typeof(QueryDriverDelegate));
+                    uint numDrivers = (uint)queryDriver.DynamicInvoke(new object[] { null, 0u });
+                    IntPtr driverBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numDrivers);
+                    try
+                    {
+                        queryDriver.DynamicInvoke(new object[] { driverBuff, numDrivers });
+                        IntPtr[] ptrArr = new IntPtr[numDrivers];
+                        Marshal.Copy(driverBuff, ptrArr, 0, (int)numDrivers);
+                        m_drivers = new CppProxyBlockDriver[numDrivers];
+                        for (int idx = 0; idx < numDrivers; idx++)
+                        {
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IBlockDriver newObj = (signals.IBlockDriver)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyBlockDriver(this, ptrArr[idx]);
+                                m_drivers[idx] = newObj;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(driverBuff);
+                    }
+                }
+                return m_drivers;
+            }
+        }
+
+        public signals.EModType Type { get { return signals.EModType.CPlusPlus; } }
+        public string File { get { return m_file; } }
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate uint QueryDriverDelegate(IntPtr drivers, uint availDrivers);
+
+        public static signals.IBlockDriver[] DoDiscovery(string path)
+        {
+            string[] dllList = Directory.GetFiles(path, "*.dll", SearchOption.TopDirectoryOnly);
+            List<signals.IBlockDriver> found = new List<signals.IBlockDriver>();
+            for (int idx = 0; idx < dllList.Length; idx++)
+            {
+                IntPtr hModule = LoadLibrary(dllList[idx]);
+                if (hModule != IntPtr.Zero)
+                {
+                    CppProxyModuleDriver module = null;
+                    try
+                    {
+                        module = new CppProxyModuleDriver(dllList[idx], hModule);
+                    }
+                    catch (Exception) { }
+
+                    signals.IBlockDriver[] drivers = module.Drivers;
+                    for (int didx = 0; didx < drivers.Length; didx++)
+                    {
+                        found.Add(drivers[didx]);
+                    }
+                }
+            }
+            signals.IBlockDriver[] outList = new signals.IBlockDriver[found.Count];
+            found.CopyTo(outList);
+            return outList;
+        }
+    }
+
     class CppProxyBlockDriver : signals.IBlockDriver
     {
+        private CppProxyModuleDriver m_parent;
         private Native.IBlockDriver m_native;
         private IntPtr m_nativeRef;
         private bool m_canCreate;
@@ -391,9 +412,11 @@ namespace cppProxy
         public const int DEFAULT_BUFFER = 100;
         public int BufferSize = DEFAULT_BUFFER;
 
-        public CppProxyBlockDriver(IntPtr native)
+        public CppProxyBlockDriver(CppProxyModuleDriver parent, IntPtr native)
         {
+            if (parent == null) throw new ArgumentNullException("parent");
             if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_parent = parent;
             m_nativeRef = native;
             Registration.storeObject(native, this);
             m_native = (Native.IBlockDriver)CppNativeProxy.Create(native, typeof(Native.IBlockDriver));
@@ -416,6 +439,7 @@ namespace cppProxy
             }
         }
 
+        public signals.IModule Module { get { return m_parent; } }
         public string Name { get { return m_name; } }
         public bool canCreate { get { return m_canCreate; } }
         public bool canDiscover { get { return m_canDiscover; } }
@@ -670,10 +694,11 @@ namespace cppProxy
         {
             if (name == null) throw new ArgumentNullException("name");
             byte[] strName = System.Text.Encoding.UTF8.GetBytes(name);
-            IntPtr nameBuff = Marshal.AllocHGlobal(strName.Length);
+            IntPtr nameBuff = Marshal.AllocHGlobal(strName.Length+1);
             try
             {
                 Marshal.Copy(strName, 0, nameBuff, strName.Length);
+                Marshal.WriteByte(nameBuff, strName.Length, 0);
                 IntPtr attrRef = m_native.GetByName(nameBuff);
                 if (attrRef == IntPtr.Zero) return null;
                 signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(attrRef);
@@ -740,7 +765,7 @@ namespace cppProxy
                     {
                         newVal = parent.m_typeInfo.fromNative(value);
                     }
-                    else if (type == signals.EType.etypString)
+                    else if (type == signals.EType.String)
                     {
                         newVal = Utilities.getString(value);
                     }
@@ -1093,7 +1118,7 @@ namespace cppProxy
         private readonly signals.IBlockDriver m_driver;
         private Native.IEPSender m_native;
         private IntPtr m_nativeRef;
-        private signals.EType m_type = signals.EType.etypNone;
+        private signals.EType m_type = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_typeInfo = null;
 
         public CppProxyEPSender(signals.IBlockDriver driver, IntPtr native)
@@ -1165,7 +1190,7 @@ namespace cppProxy
         private readonly signals.IBlockDriver m_driver;
         private Native.IEPReceiver m_native;
         private IntPtr m_nativeRef;
-        private signals.EType m_type = signals.EType.etypNone;
+        private signals.EType m_type = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_typeInfo = null;
         public const int DEFAULT_BUFFER = 100;
         public int BufferSize = DEFAULT_BUFFER;

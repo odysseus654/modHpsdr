@@ -6,7 +6,7 @@ namespace sharptest
     {
         static void Main(string[] args)
         {
-            signals.IBlockDriver[] drivers = cppProxy.Discover.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
+            signals.IBlockDriver[] drivers = cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
             int _i = 1;
         }
     }

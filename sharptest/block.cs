@@ -2,24 +2,40 @@
 
 namespace signals
 {
+    enum EModType
+    {
+        Unknown,
+        CSharp,
+        CPlusPlus,
+        OpenCL
+    };
+
 	enum EType : int
 	{
-		etypNone	= 0x00,
-		etypEvent	= 0x01,
-		etypBoolean	= 0x08,
-		etypByte	= 0x0B,
-		etypShort	= 0x0C,
-		etypLong	= 0x0D,
-		etypSingle	= 0x15,
-		etypDouble	= 0x16,
-		etypComplex	= 0x1D,
-        etypCmplDbl = 0x1E,
-        etypString  = 0x23,
-		etypLRSingle = 0x2D
+		None	= 0x00,
+		Event	= 0x01,
+		Boolean	= 0x08,
+		Byte	= 0x0B,
+		Short	= 0x0C,
+		Long	= 0x0D,
+		Single	= 0x15,
+		Double	= 0x16,
+		Complex	= 0x1D,
+        CmplDbl = 0x1E,
+        String  = 0x23,
+		LRSingle = 0x2D
 	};
+
+    interface IModule
+    {
+        string File { get; }
+        EModType Type { get; }
+        IBlockDriver[] Drivers { get; }
+    };
 
 	interface IBlockDriver
 	{
+        IModule Module { get; }
 		string Name { get; }
 		bool canCreate { get; }
 		bool canDiscover { get; }
