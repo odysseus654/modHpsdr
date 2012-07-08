@@ -2,7 +2,7 @@
 
 namespace signals
 {
-    enum EModType
+    public enum EModType
     {
         Unknown,
         CSharp,
@@ -10,7 +10,7 @@ namespace signals
         OpenCL
     };
 
-	enum EType : int
+	public enum EType : int
 	{
 		None	= 0x00,
 		Event	= 0x01,
@@ -26,14 +26,14 @@ namespace signals
 		LRSingle = 0x2D
 	};
 
-    interface IModule
+    public interface IModule
     {
         string File { get; }
         EModType Type { get; }
         IBlockDriver[] Drivers { get; }
     };
 
-	interface IBlockDriver
+    public interface IBlockDriver
 	{
         IModule Module { get; }
 		string Name { get; }
@@ -43,7 +43,7 @@ namespace signals
 		IBlock Create();
 	};
 
-	interface IBlock : IDisposable
+    public interface IBlock : IDisposable
 	{
         string Name { get; }
         IBlockDriver Driver { get; }
@@ -56,24 +56,24 @@ namespace signals
 		void Stop();
 	};
 
-	interface IEPSender : IDisposable
+    public interface IEPSender : IDisposable
 	{
 		int Write(EType type, object[] buffer, int msTimeout);
 	};
 
-	interface IEPReceiver : IDisposable
+    public interface IEPReceiver : IDisposable
 	{
 		void Read(EType type, out object[] buffer, int msTimeout);
 	};
 
-	interface IEPBuffer : IEPSender, IEPReceiver
+    public interface IEPBuffer : IEPSender, IEPReceiver
 	{
         EType Type { get; }
         int Capacity { get; }
         int Used { get; }
 	};
 
-	interface IInEndpoint : IDisposable
+    public interface IInEndpoint : IDisposable
 	{
         IBlock Block { get; }
         string EPName { get; }
@@ -85,7 +85,7 @@ namespace signals
 		IEPBuffer CreateBuffer();
 	};
 
-	interface IOutEndpoint : IDisposable
+    public interface IOutEndpoint : IDisposable
 	{
         IBlock Block { get; }
         string EPName { get; }
@@ -97,14 +97,14 @@ namespace signals
 		IEPBuffer CreateBuffer();
 	};
 
-	interface IAttributes
+    public interface IAttributes
 	{
 		IAttribute[] Itemize();
 		IAttribute GetByName(string name);
         IBlock Block { get; }
     };
 
-	interface IAttribute : IDisposable
+	public interface IAttribute : IDisposable
 	{
         string Name { get; }
         string Description { get; }
@@ -115,5 +115,5 @@ namespace signals
         event OnChanged changed;
 	};
 
-	delegate void OnChanged(string name, EType type, object value);
+    public delegate void OnChanged(string name, EType type, object value);
 }

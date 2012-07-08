@@ -201,7 +201,7 @@ namespace cppProxy
         }
     }
 
-    static class Native
+    public static class Native
     {
         public interface IBlockDriver
         {
