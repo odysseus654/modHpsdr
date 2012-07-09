@@ -10,8 +10,8 @@ namespace sharptest
         {
             signals.IBlockDriver[] drivers = cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
 
-            signals.IBlockDriver hpsdrDrver = drivers[1];
-            signals.IBlock[] devices = hpsdrDrver.Discover();
+            signals.IBlockDriver hpsdrDriver = drivers[1];
+            signals.IBlock[] devices = hpsdrDriver.Discover();
             Console.Out.WriteLine(String.Format("{0} devices found", devices.Length));
 
             signals.IBlock hpsdr = devices[0];

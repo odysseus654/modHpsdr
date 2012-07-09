@@ -17,7 +17,7 @@ namespace cppProxy
 
         public static string getString(IntPtr strz)
         {
-            if (strz == IntPtr.Zero) throw new ArgumentNullException("strz");
+            if (strz == IntPtr.Zero) return null;
             int strlen = getStringLength(strz);
             byte[] strArray = new byte[strlen];
             Marshal.Copy(strz, strArray, 0, strlen);
@@ -537,6 +537,8 @@ namespace cppProxy
             }
         }
 
+        public bool isValid { get { return m_native != null; } }
+
         public string Name { get { return m_name; } }
         public signals.IBlockDriver Driver { get { return m_driver; } }
         public signals.IBlock Parent { get { return m_parent; } }
@@ -552,7 +554,7 @@ namespace cppProxy
                     IntPtr attrs = m_native.Attributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
-                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_driver, this, attrs);
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(this, attrs);
                 }
                 return m_attrs;
             }
@@ -665,14 +667,12 @@ namespace cppProxy
     {
         private Native.IAttributes m_native;
         private IntPtr m_nativeRef;
-        private readonly signals.IBlock m_block;
-        private readonly signals.IBlockDriver m_driver;
+        private readonly CppProxyBlock m_block;
 
-        public CppProxyAttributes(signals.IBlockDriver driver, signals.IBlock block, IntPtr native)
+        public CppProxyAttributes(CppProxyBlock block, IntPtr native)
         {
-            if (driver == null) throw new ArgumentNullException("driver");
+            if (block == null) throw new ArgumentNullException("block");
             if (native == IntPtr.Zero) throw new ArgumentNullException("native");
-            m_driver = driver;
             m_block = block;
             m_nativeRef = native;
             Registration.storeObject(native, this);
@@ -702,7 +702,7 @@ namespace cppProxy
                 IntPtr attrRef = m_native.GetByName(nameBuff);
                 if (attrRef == IntPtr.Zero) return null;
                 signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(attrRef);
-                if (newObj == null) newObj = new CppProxyAttribute(m_driver, attrRef);
+                if (newObj == null) newObj = new CppProxyAttribute(m_block, attrRef);
                 return newObj;
             }
             finally
@@ -726,7 +726,7 @@ namespace cppProxy
                     if (ptrArr[idx] != IntPtr.Zero)
                     {
                         signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null) newObj = new CppProxyAttribute(m_driver, ptrArr[idx]);
+                        if (newObj == null) newObj = new CppProxyAttribute(m_block, ptrArr[idx]);
                         attrArray[idx] = newObj;
                     }
                 }
@@ -741,7 +741,7 @@ namespace cppProxy
 
     class CppProxyAttribute : signals.IAttribute
     {
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate void ChangedCatcherDelegate(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value);
 
         private class ChangedCatcher
@@ -759,23 +759,16 @@ namespace cppProxy
             {
                 string strName = Utilities.getString(name);
                 object newVal = null;
-                if (value != IntPtr.Zero)
+                if (value != IntPtr.Zero && parent.m_typeInfo != null)
                 {
-                    if (parent.m_typeInfo != null)
-                    {
-                        newVal = parent.m_typeInfo.fromNative(value);
-                    }
-                    else if (type == signals.EType.String)
-                    {
-                        newVal = Utilities.getString(value);
-                    }
+                    newVal = parent.m_typeInfo.fromNative(value);
                 }
                 parent.changed(strName, type, newVal);
             }
         }
 
         public event signals.OnChanged changed;
-        private readonly signals.IBlockDriver m_driver;
+        private readonly CppProxyBlock m_block;
         private Native.IAttribute m_native;
         private IntPtr m_nativeRef;
         private string m_name;
@@ -786,11 +779,11 @@ namespace cppProxy
         private ChangedCatcher m_catcher;
         private IntPtr m_catcherIface;
 
-        public CppProxyAttribute(signals.IBlockDriver driver, IntPtr native)
+        public CppProxyAttribute(CppProxyBlock block, IntPtr native)
         {
-            if (driver == null) throw new ArgumentNullException("driver");
+            if (block == null) throw new ArgumentNullException("driver");
             if (native == IntPtr.Zero) throw new ArgumentNullException("native");
-            m_driver = driver;
+            m_block = block;
             m_nativeRef = native;
             Registration.storeObject(native, this);
             m_native = (Native.IAttribute)CppNativeProxy.Create(native, typeof(Native.IAttribute));
@@ -811,7 +804,7 @@ namespace cppProxy
 
         protected virtual void Dispose(bool disposing)
         {
-            if (m_catcherIface != IntPtr.Zero)
+            if (m_catcherIface != IntPtr.Zero && m_block.isValid)
             {
                 m_native.Unobserve(m_catcherIface);
                 Marshal.FreeHGlobal(m_catcherIface);
@@ -853,6 +846,7 @@ namespace cppProxy
         {
             get
             {
+                if (m_type == signals.EType.None) return null;
                 if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
                 IntPtr rawVal = m_native.getValue();
                 if (rawVal == IntPtr.Zero) return null;
@@ -924,13 +918,13 @@ namespace cppProxy
     {
         private Native.IInEndpoint m_native;
         private readonly signals.IBlockDriver m_driver;
-        private readonly signals.IBlock m_block;
+        private readonly CppProxyBlock m_block;
         private IntPtr m_nativeRef;
         private string m_name;
         private signals.EType m_type;
         private signals.IAttributes m_attrs = null;
 
-        public CppProxyInEndpoint(signals.IBlockDriver driver, signals.IBlock block, IntPtr native)
+        public CppProxyInEndpoint(signals.IBlockDriver driver, CppProxyBlock block, IntPtr native)
         {
             if (driver == null) throw new ArgumentNullException("driver");
             if (block == null) throw new ArgumentNullException("block");
@@ -983,7 +977,7 @@ namespace cppProxy
                     IntPtr attrs = m_native.Attributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
-                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_driver, m_block, attrs);
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_block, attrs);
                 }
                 return m_attrs;
             }
@@ -1028,13 +1022,13 @@ namespace cppProxy
     {
         private Native.IOutEndpoint m_native;
         private readonly signals.IBlockDriver m_driver;
-        private readonly signals.IBlock m_block;
+        private readonly CppProxyBlock m_block;
         private IntPtr m_nativeRef;
         private string m_name;
         private signals.EType m_type;
         private signals.IAttributes m_attrs = null;
 
-        public CppProxyOutEndpoint(signals.IBlockDriver driver, signals.IBlock block, IntPtr native)
+        public CppProxyOutEndpoint(signals.IBlockDriver driver, CppProxyBlock block, IntPtr native)
         {
             if (driver == null) throw new ArgumentNullException("driver");
             if (block == null) throw new ArgumentNullException("block");
@@ -1071,7 +1065,7 @@ namespace cppProxy
                     IntPtr attrs = m_native.Attributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
-                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_driver, m_block, attrs);
+                    if (m_attrs == null) m_attrs = new CppProxyAttributes(m_block, attrs);
                 }
                 return m_attrs;
             }

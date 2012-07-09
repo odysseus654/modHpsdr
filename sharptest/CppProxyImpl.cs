@@ -8,7 +8,7 @@ namespace cppProxy
 {
     public abstract class CppNativeProxy
     {
-        protected IntPtr thisPtr;
+        protected readonly IntPtr thisPtr;
         private static AssemblyBuilder asmBuilder = null;
         private static ModuleBuilder modBuilder = null;
         private static Dictionary<Type, Type> proxyMap = new Dictionary<Type, Type>();
@@ -35,7 +35,7 @@ namespace cppProxy
         private static Type BuildDynamicType(Type ifaceType)
         {   // from http://www.codeproject.com/Articles/13337/Introduction-to-Creating-Dynamic-Types-with-Reflec
             if (ifaceType == null) throw new ArgumentNullException("ifaceType");
-            if (!ifaceType.IsInterface || !ifaceType.IsPublic) throw new ArgumentException("Must represent a public interface", "ifaceType");
+            if (!ifaceType.IsInterface || (!ifaceType.IsNestedPublic && !ifaceType.IsPublic)) throw new ArgumentException("Must represent a public interface", "ifaceType");
 
             if (asmBuilder == null)
             {
