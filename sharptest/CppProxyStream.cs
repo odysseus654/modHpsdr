@@ -16,6 +16,7 @@ namespace cppProxy
             m_type = type;
             m_recv = recv;
             m_thread = new Thread(new ThreadStart(start));
+            m_thread.IsBackground = true;
             m_thread.Start();
         }
 
@@ -32,7 +33,7 @@ namespace cppProxy
 
         protected virtual void Dispose(bool disposing)
         {
-            if (m_thread != null && m_thread.ThreadState == ThreadState.Running)
+            if (m_thread != null && m_thread.IsAlive)
             {
                 m_thread.Abort();
                 m_thread.Join();
@@ -45,7 +46,7 @@ namespace cppProxy
             {
                 object[] buffer;
                 m_recv.Read(m_type, out buffer, -1);
-                data(buffer);
+                if(data != null) data(buffer);
             }
         }
     }

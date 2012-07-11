@@ -27,6 +27,13 @@ namespace sharptest
             signals.IAttribute recvSpeed = attrs.GetByName("recvRate");
             recvSpeed.Value = 48000;
 
+            signals.IOutEndpoint[] outEPs = hpsdr.Outgoing;
+            signals.IOutEndpoint recv1 = outEPs[2];
+            signals.IEPBuffer buff = recv1.CreateBuffer();
+            recv1.Connect(buff);
+            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(recv1.Type, buff);
+            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
+
             hpsdr.Start();
             Thread.Sleep(30000);
             hpsdr.Stop();
@@ -37,7 +44,22 @@ namespace sharptest
         {
             lock(st_screenLock)
             {
-                Console.Out.WriteLine(String.Format("{0}: ({1}){2}", name, value.GetType().Name, value));
+                if (value == null)
+                {
+                    Console.Out.WriteLine(String.Format("{0}: null", name));
+                }
+                else
+                {
+                    Console.Out.WriteLine(String.Format("{0}: ({1}){2}", name, value.GetType().Name, value));
+                }
+            }
+        }
+
+        static private void OnStream(object[] data)
+        {
+            lock (st_screenLock)
+            {
+                Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
             }
         }
     }

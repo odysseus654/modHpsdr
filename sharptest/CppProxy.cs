@@ -126,7 +126,7 @@ namespace cppProxy
 
         private class Complex : ITypeMarshaller
         {
-            public int size(object val) { return sizeof(float); }
+            public int size(object val) { return 2*sizeof(float); }
             public object fromNative(IntPtr val)
             {
                 float[] buff = new float[2];
@@ -141,7 +141,7 @@ namespace cppProxy
 
         private class ComplexDouble : ITypeMarshaller
         {
-            public int size(object val) { return sizeof(double); }
+            public int size(object val) { return 2*sizeof(double); }
             public object fromNative(IntPtr val)
             {
                 double[] buff = new double[2];
@@ -763,7 +763,7 @@ namespace cppProxy
                 {
                     newVal = parent.m_typeInfo.fromNative(value);
                 }
-                parent.changed(strName, type, newVal);
+                if(parent.changed != null) parent.changed(strName, type, newVal);
             }
         }
 
