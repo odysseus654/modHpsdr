@@ -295,6 +295,11 @@ namespace cppProxy
             uint Capacity();
             uint Used();
         };
+
+        public interface IAttributeObserver
+        {
+            void OnChanged(IntPtr name, signals.EType type, IntPtr value);
+        };
     }
 
     class CppProxyModuleDriver : signals.IModule
@@ -419,7 +424,7 @@ namespace cppProxy
             m_parent = parent;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IBlockDriver)CppNativeProxy.Create(native, typeof(Native.IBlockDriver));
+            m_native = (Native.IBlockDriver)CppNativeProxy.CreateCallout(native, typeof(Native.IBlockDriver));
             interrogate();
         }
 
@@ -502,7 +507,7 @@ namespace cppProxy
             m_driver = driver;
             m_parent = parent;
             Registration.storeObject(native, this);
-            m_native = (Native.IBlock)CppNativeProxy.Create(native, typeof(Native.IBlock));
+            m_native = (Native.IBlock)CppNativeProxy.CreateCallout(native, typeof(Native.IBlock));
             interrogate();
         }
 
@@ -676,7 +681,7 @@ namespace cppProxy
             m_block = block;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IAttributes)CppNativeProxy.Create(native, typeof(Native.IAttributes));
+            m_native = (Native.IAttributes)CppNativeProxy.CreateCallout(native, typeof(Native.IAttributes));
         }
 
         ~CppProxyAttributes()
@@ -741,21 +746,16 @@ namespace cppProxy
 
     class CppProxyAttribute : signals.IAttribute
     {
-        [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
-        private delegate void ChangedCatcherDelegate(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value);
-
-        private class ChangedCatcher
+        private class ChangedCatcher : Native.IAttributeObserver
         {
             private readonly CppProxyAttribute parent;
-            public ChangedCatcherDelegate myDelegate;
 
             public ChangedCatcher(CppProxyAttribute parent)
             {
                 this.parent = parent;
-                this.myDelegate = new ChangedCatcherDelegate(OnChanged);
             }
 
-            public void OnChanged(IntPtr nativeThis, IntPtr name, signals.EType type, IntPtr value)
+            public void OnChanged(IntPtr name, signals.EType type, IntPtr value)
             {
                 string strName = Utilities.getString(name);
                 object newVal = null;
@@ -777,7 +777,7 @@ namespace cppProxy
         private ProxyTypes.ITypeMarshaller m_typeInfo;
         private bool m_readOnly;
         private ChangedCatcher m_catcher;
-        private IntPtr m_catcherIface;
+        private CppNativeProxy.Callback m_callback;
 
         public CppProxyAttribute(CppProxyBlock block, IntPtr native)
         {
@@ -786,7 +786,7 @@ namespace cppProxy
             m_block = block;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IAttribute)CppNativeProxy.Create(native, typeof(Native.IAttribute));
+            m_native = (Native.IAttribute)CppNativeProxy.CreateCallout(native, typeof(Native.IAttribute));
             m_catcher = new ChangedCatcher(this);
             interrogate();
         }
@@ -804,11 +804,10 @@ namespace cppProxy
 
         protected virtual void Dispose(bool disposing)
         {
-            if (m_catcherIface != IntPtr.Zero && m_block.isValid)
+            if (m_callback != null && m_block.isValid)
             {
-                m_native.Unobserve(m_catcherIface);
-                Marshal.FreeHGlobal(m_catcherIface);
-                m_catcherIface = IntPtr.Zero;
+                m_native.Unobserve(m_callback.Pointer);
+                m_callback = null;
             }
             if (m_nativeRef != IntPtr.Zero)
             {
@@ -824,17 +823,8 @@ namespace cppProxy
             m_type = m_native.Type();
             m_typeInfo = ProxyTypes.getTypeInfo(m_type);
             m_readOnly = m_native.isReadOnly();
-            m_catcherIface = buildCatcherIface();
-            m_native.Observe(m_catcherIface);
-        }
-
-        private IntPtr buildCatcherIface()
-        { // technique from http://code4k.blogspot.com/2010/10/implementing-unmanaged-c-interface.html
-            IntPtr iface = Marshal.AllocHGlobal(IntPtr.Size * 2);
-            IntPtr vtblPtr = new IntPtr(iface.ToInt64() + IntPtr.Size);   // Write pointer to vtbl
-            Marshal.WriteIntPtr(iface, vtblPtr);
-            Marshal.WriteIntPtr(vtblPtr, Marshal.GetFunctionPointerForDelegate(m_catcher.myDelegate));
-            return iface;
+            m_callback = CppNativeProxy.CreateCallin(m_catcher, typeof(Native.IAttributeObserver));
+            m_native.Observe(m_callback.Pointer);
         }
 
         public string Name { get { return m_name; } }
@@ -933,7 +923,7 @@ namespace cppProxy
             m_nativeRef = native;
             m_block = block;
             Registration.storeObject(native, this);
-            m_native = (Native.IInEndpoint)CppNativeProxy.Create(native, typeof(Native.IInEndpoint));
+            m_native = (Native.IInEndpoint)CppNativeProxy.CreateCallout(native, typeof(Native.IInEndpoint));
             interrogate();
         }
 
@@ -1037,7 +1027,7 @@ namespace cppProxy
             m_nativeRef = native;
             m_block = block;
             Registration.storeObject(native, this);
-            m_native = (Native.IOutEndpoint)CppNativeProxy.Create(native, typeof(Native.IOutEndpoint));
+            m_native = (Native.IOutEndpoint)CppNativeProxy.CreateCallout(native, typeof(Native.IOutEndpoint));
             interrogate();
         }
 
@@ -1122,7 +1112,7 @@ namespace cppProxy
             m_driver = driver;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IEPSender)CppNativeProxy.Create(native, typeof(Native.IEPSender));
+            m_native = (Native.IEPSender)CppNativeProxy.CreateCallout(native, typeof(Native.IEPSender));
         }
 
         ~CppProxyEPSender()
@@ -1196,7 +1186,7 @@ namespace cppProxy
             m_driver = driver;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IEPReceiver)CppNativeProxy.Create(native, typeof(Native.IEPReceiver));
+            m_native = (Native.IEPReceiver)CppNativeProxy.CreateCallout(native, typeof(Native.IEPReceiver));
         }
 
         ~CppProxyEPReceiver()
@@ -1255,7 +1245,7 @@ namespace cppProxy
             m_driver = driver;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IEPBuffer)CppNativeProxy.Create(native, typeof(Native.IEPBuffer));
+            m_native = (Native.IEPBuffer)CppNativeProxy.CreateCallout(native, typeof(Native.IEPBuffer));
             interrogate();
         }
 
