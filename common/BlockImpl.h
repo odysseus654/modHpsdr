@@ -461,9 +461,11 @@ public: // IEPReceiver
 		{
 			store_type* pBuf = (store_type*)pBuffer;
 			unsigned idx = 0;
-			for(; idx < numAvail; idx++)
+			while(idx < numAvail)
 			{
-				if(!buffer.pop_front(pBuf[idx], msTimeout)) break;
+				unsigned numRead = buffer.pop_front_vector(&pBuf[idx], numAvail-idx, msTimeout);
+				if(!numRead) break;
+				idx += numRead;
 			}
 			return idx;
 		}

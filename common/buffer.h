@@ -69,6 +69,20 @@ public:
 		return true;
 	}
 
+	unsigned pop_front_vector(pointer val, unsigned numAvail, DWORD milli = INFINITE)
+	{
+		Locker lock(m_lock);
+		while(m_back == m_front)
+		{
+			if(!m_notEmpty.sleep(lock, milli)) return 0;
+		}
+		unsigned numRead = min((m_back > m_front ? m_back : m_buffer.size()) - m_front, numAvail);
+		memcpy(val, &m_buffer[m_front], sizeof(Elem) * numRead);
+		m_front = (m_front + numRead) % m_buffer.size();
+		m_notFull.wake();
+		return numRead;
+	}
+
 	bool pop_front_noblock(reference val)
 	{
 		Locker lock(m_lock);

@@ -146,7 +146,7 @@ public:
 		};
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
+		enum { DEFAULT_BUFSIZE = 192000 };
 		CHpsdrDevice* m_parent;
 		const short m_recvNum;
 		short m_attachedRecv;
@@ -185,7 +185,7 @@ public:
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
+		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct
@@ -217,7 +217,7 @@ public:
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
+		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct
@@ -248,7 +248,7 @@ public:
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
+		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct
@@ -281,7 +281,7 @@ public:
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
+		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct

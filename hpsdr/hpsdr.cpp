@@ -5,6 +5,8 @@
 #include "HpsdrEther.h"
 #include <iostream>
 
+static Lock st_screenLock;
+
 class CAttrObserver : public signals::IAttributeObserver
 {
 public:
@@ -35,8 +37,6 @@ public:
 	signals::IAttribute* m_attr;
 
 protected:
-	static Lock st_screenLock;
-
 	inline void reportValue(signals::EType type, const void* value) const
 	{
 		Locker lock(st_screenLock);
@@ -89,10 +89,50 @@ protected:
 		return buffer;
 	}
 };
-Lock CAttrObserver::st_screenLock;
+
+template<signals::EType ET>
+class CStreamObserver
+{
+private:
+	typedef typename StoreType<ET>::type store_type;
+	Thread<> m_thread;
+	bool m_bThreadOkay;
+	signals::IEPReceiver* m_recv;
+	enum { BUFFER_SIZE = 10000 };
+
+public:
+	CStreamObserver(signals::IEPReceiver* recv)
+		:m_recv(recv),m_bThreadOkay(true),m_thread(Thread<>::delegate_type(this, &CStreamObserver::start))
+	{
+		m_thread.launch();
+	}
+
+	~CStreamObserver()
+	{
+		m_bThreadOkay = false;
+		m_thread.close();
+	}
+
+private:
+	void start()
+	{
+		while(m_bThreadOkay)
+		{
+			store_type buffer[BUFFER_SIZE];
+			unsigned numRead = m_recv->Read(ET, buffer, BUFFER_SIZE, 0);
+			if(numRead)
+			{
+				Locker lock(st_screenLock);
+				std::cout << "got " << numRead << " entries" << std::endl;
+			}
+		}
+	}
+};
 
 // IBlock
 // IOutEndpoint
+
+static hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
 int _tmain(int argc, _TCHAR* argv[])
 {
@@ -124,14 +164,27 @@ int _tmain(int argc, _TCHAR* argv[])
 	long newSpeed = 48000;
 	recvSpeed->setValue(&newSpeed);
 
-	hpsdr->Start();
-	Sleep(30000);
-	hpsdr->Stop();
+	unsigned numOut = hpsdr->Outgoing(NULL, 0);
+	signals::IOutEndpoint** outEPs = new signals::IOutEndpoint*[numOut];
+	VERIFY(hpsdr->Outgoing(outEPs, numOut) == numOut);
+	signals::IOutEndpoint* recv1 = outEPs[2];
+	signals::IEPBuffer* buff = recv1->CreateBuffer();
+	recv1->Connect(buff);
+
+	{
+		CStreamObserver<signals::etypComplex> strm(buff);
+
+		hpsdr->Start();
+		Sleep(30000);
+		hpsdr->Stop();
+	}
 
 	for(TObservList::iterator trans = obsList.begin(); trans != obsList.end(); trans++)
 	{
 		delete *trans;
 	}
+	buff->Release();
+	delete [] outEPs;
 	VERIFY(!hpsdr->Release());
 	return 0;
 }
