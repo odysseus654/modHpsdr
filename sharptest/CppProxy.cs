@@ -284,7 +284,7 @@ namespace cppProxy
 
         public interface IEPReceiver
         {
-            uint Read(signals.EType type, IntPtr buffer, uint numAvail, uint msTimeout);
+            uint Read(signals.EType type, IntPtr buffer, uint numAvail, [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
         };
@@ -1201,7 +1201,7 @@ namespace cppProxy
         public void Dispose() { }
         public IntPtr Native { get { return m_nativeRef; } }
 
-        public void Read(signals.EType type, out object[] values, int msTimeout)
+        public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
         {
             if (type != m_type || m_typeInfo == null)
             {
@@ -1213,7 +1213,7 @@ namespace cppProxy
             IntPtr buff = Marshal.AllocHGlobal(elemSize * BufferSize);
             try
             {
-                uint read = m_native.Read(type, buff, (uint)BufferSize, (uint)msTimeout);
+                uint read = m_native.Read(type, buff, (uint)BufferSize, bReadAll, (uint)msTimeout);
                 values = new object[read];
                 for (uint idx = 0; idx < read; idx++)
                 {
@@ -1235,7 +1235,7 @@ namespace cppProxy
         private IntPtr m_nativeRef;
         private signals.EType m_type;
         private ProxyTypes.ITypeMarshaller m_typeInfo = null;
-        public const int DEFAULT_BUFFER = 100;
+        public const int DEFAULT_BUFFER = 5000;
         public int BufferSize = DEFAULT_BUFFER;
 
         public CppProxyBuffer(signals.IBlockDriver driver, IntPtr native)
@@ -1285,14 +1285,14 @@ namespace cppProxy
         public int Used { get { return (int)m_native.Used(); } }
         public IntPtr Native { get { return m_nativeRef; } }
 
-        public void Read(signals.EType type, out object[] values, int msTimeout)
+        public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
         {
             if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             int elemSize = m_typeInfo.size(null);
             IntPtr buff = Marshal.AllocHGlobal(elemSize * BufferSize);
             try
             {
-                uint read = m_native.Read(m_type, buff, (uint)BufferSize, (uint)msTimeout);
+                uint read = m_native.Read(m_type, buff, (uint)BufferSize, bReadAll, (uint)msTimeout);
                 values = new object[read];
                 for (uint idx = 0; idx < read; idx++)
                 {

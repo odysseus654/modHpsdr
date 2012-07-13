@@ -76,7 +76,7 @@ namespace signals
 
 	__interface IEPReceiver
 	{
-		unsigned Read(EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
+		unsigned Read(EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 		void onSinkConnected(IInEndpoint* src);
 		void onSinkDisconnected(IInEndpoint* src);
 	};

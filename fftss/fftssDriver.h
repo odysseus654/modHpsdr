@@ -281,7 +281,8 @@ void fft_process_thread(CFFTransform<ETin,ETout>* owner)
 	while(owner->m_bDataThreadEnabled)
 	{
 		unsigned recvCount = owner->m_incoming.Read(ETin, &buffer + residue,
-			CFFTransform<ETin,ETout>::IN_BUFFER_SIZE - residue, CFFTransform<ETin,ETout>::IN_BUFFER_TIMEOUT);
+			CFFTransform<ETin,ETout>::IN_BUFFER_SIZE - residue, TRUE,
+			CFFTransform<ETin,ETout>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			residue += recvCount;
@@ -331,7 +332,7 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,ETout>* owner)
 	while(owner->m_bDataThreadEnabled)
 	{
 		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer + residue,
-			CFFTransform<signals::etypCmplDbl,ETout>::IN_BUFFER_SIZE - residue,
+			CFFTransform<signals::etypCmplDbl,ETout>::IN_BUFFER_SIZE - residue, TRUE,
 			CFFTransform<signals::etypCmplDbl,ETout>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
@@ -378,7 +379,7 @@ void fft_process_thread(CFFTransform<ETin,signals::etypCmplDbl>* owner)
 	while(owner->m_bDataThreadEnabled)
 	{
 		unsigned recvCount = owner->m_incoming.Read(ETin, &buffer + residue,
-			CFFTransform<ETin,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue,
+			CFFTransform<ETin,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue, TRUE,
 			CFFTransform<ETin,signals::etypCmplDbl>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{

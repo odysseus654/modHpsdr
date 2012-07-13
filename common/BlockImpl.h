@@ -43,7 +43,7 @@ class CInEndpointBase : public signals::IInEndpoint
 {
 public:
 	inline CInEndpointBase():m_connRecv(NULL) {}
-	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, unsigned msTimeout);
+	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPReceiver* recv);
 	virtual BOOL isConnected() { return !!m_connRecv; }
@@ -426,9 +426,11 @@ public: // IEPSender
 		{
 			store_type* pBuf = (store_type*)pBuffer;
 			unsigned idx = 0;
-			for(; idx < numElem; idx++)
+			while(idx < numElem)
 			{
-				if(!buffer.push_back(pBuf[idx], msTimeout)) break;
+				unsigned numWritten = buffer.push_back_vector(&pBuf[idx], numElem-idx, msTimeout);
+				if(!numWritten) break;
+				idx += numWritten;
 			}
 			return idx;
 		}
@@ -455,7 +457,7 @@ public: // IEPSender
 	}
 
 public: // IEPReceiver
-	virtual unsigned Read(signals::EType type, void* pBuffer, unsigned numAvail, unsigned msTimeout)
+	virtual unsigned Read(signals::EType type, void* pBuffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 	{
 		if(type == ET)
 		{
@@ -464,7 +466,7 @@ public: // IEPReceiver
 			while(idx < numAvail)
 			{
 				unsigned numRead = buffer.pop_front_vector(&pBuf[idx], numAvail-idx, msTimeout);
-				if(!numRead) break;
+				if(!numRead || !bFillAll) break;
 				idx += numRead;
 			}
 			return idx;

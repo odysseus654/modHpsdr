@@ -63,7 +63,7 @@ namespace signals
 
     public interface IEPReceiver : IDisposable
 	{
-		void Read(EType type, out object[] buffer, int msTimeout);
+		void Read(EType type, out object[] buffer, bool bReadAll, int msTimeout);
 	};
 
     public interface IEPBuffer : IEPSender, IEPReceiver

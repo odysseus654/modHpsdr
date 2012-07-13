@@ -31,7 +31,7 @@ extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned avail
 		if(availDrivers > 2) drivers[2] = &fft_sd;
 		if(availDrivers > 3) drivers[3] = &fft_ss;
 	}
-	return 1;
+	return 4;
 }
 
 namespace fftss {
@@ -160,7 +160,7 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>*
 	while(owner->m_bDataThreadEnabled)
 	{
 		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer + residue,
-			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue,
+			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue, TRUE,
 			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{

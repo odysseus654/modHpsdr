@@ -283,7 +283,7 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 		for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
 		{
 			std::complex<float> audSample;
-			m_speaker.Read(signals::etypLRSingle, &audSample, 1, 0);
+			m_speaker.Read(signals::etypLRSingle, &audSample, 1, TRUE, 0);
 
 			// send left & right data to the speakers on the receiver
 			int IntValue = int(SCALE_16 * audSample.real());
@@ -295,7 +295,7 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 			*frame++ = (byte)(IntValue & 0xff);  // right lo
 
 			std::complex<float> iqSample;
-			m_transmit.Read(signals::etypComplex, &audSample, 1, 0);
+			m_transmit.Read(signals::etypComplex, &audSample, 1, TRUE, 0);
 
 			// send I & Q data to the exciter
 			IntValue = int(SCALE_16 * iqSample.real());

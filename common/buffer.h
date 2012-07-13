@@ -106,6 +106,20 @@ public:
 		return true;
 	}
 
+	unsigned push_back_vector(pointer val, unsigned numAvail, DWORD milli = INFINITE)
+	{
+		Locker lock(m_lock);
+		while((m_back+1)%m_buffer.size() == m_front)
+		{
+			if(!m_notFull.sleep(lock, milli)) return false;
+		}
+		unsigned numWrite = min((m_front > m_back ? m_front-1 : m_buffer.size()) - m_back, numAvail);
+		memcpy(&m_buffer[m_back], val, sizeof(Elem) * numWrite);
+		m_back = (m_back + numWrite) % m_buffer.size();
+		m_notEmpty.wake();
+		return true;
+	}
+
 	bool push_back_noblock(const_reference val)
 	{
 		Locker lock(m_lock);

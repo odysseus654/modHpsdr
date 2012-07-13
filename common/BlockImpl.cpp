@@ -29,9 +29,9 @@ BOOL CInEndpointBase::Connect(signals::IEPReceiver* recv)
 	return true;
 }
 
-unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAvail, unsigned msTimeout)
+unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 {
-	return m_connRecv ? m_connRecv->Read(type, buffer, numAvail, msTimeout) : 0;
+	return m_connRecv ? m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout) : 0;
 }
 
 // ------------------------------------------------------------------ class COutEndpointBase
