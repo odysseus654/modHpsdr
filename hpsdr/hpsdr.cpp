@@ -6,6 +6,7 @@
 #include <iostream>
 
 static Lock st_screenLock;
+unsigned numPackets = 0;
 
 class CAttrObserver : public signals::IAttributeObserver
 {
@@ -119,11 +120,12 @@ private:
 		while(m_bThreadOkay)
 		{
 			store_type buffer[BUFFER_SIZE];
-			unsigned numRead = m_recv->Read(ET, buffer, BUFFER_SIZE, 0);
+			unsigned numRead = m_recv->Read(ET, buffer, BUFFER_SIZE, FALSE, 1000);
 			if(numRead)
 			{
 				Locker lock(st_screenLock);
 				std::cout << "got " << numRead << " entries" << std::endl;
+				numPackets += numRead;
 			}
 		}
 	}
@@ -186,5 +188,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	buff->Release();
 	delete [] outEPs;
 	VERIFY(!hpsdr->Release());
+
+	std::cout << numPackets << " entries received" << std::endl;
+	Sleep(30000);
 	return 0;
 }

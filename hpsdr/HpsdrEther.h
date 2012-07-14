@@ -109,6 +109,7 @@ private:
 	volatile byte m_lastRunStatus;
 	Semaphore m_sendThreadLock;
 	unsigned m_recvSamples;		// private to thread_recv
+	bool m_wideSyncFault;
 };
 
 }

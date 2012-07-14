@@ -32,7 +32,10 @@ public:
 private:
 	CRITICAL_SECTION m_cs;
 
-friend class Condition;
+	Lock(const Lock& other);
+	Lock& operator=(const Lock& other);
+
+	friend class Condition;
 };
 
 class Locker
@@ -89,7 +92,10 @@ private:
 	Lock* m_lock;
 	bool  m_bLocked;
 
-friend class Condition;
+	Locker(const Locker& other);
+	Locker& operator=(const Locker& other);
+
+	friend class Condition;
 };
 
 class Condition
@@ -104,6 +110,9 @@ public:
 
 private:
 	CONDITION_VARIABLE m_cond;
+
+	Condition(const Condition& other);
+	Condition& operator=(const Condition& other);
 };
 
 class Semaphore
@@ -122,6 +131,9 @@ public:
 
 private:
 	HANDLE m_sem;
+
+	Semaphore(const Semaphore& other);
+	Semaphore& operator=(const Semaphore& other);
 };
 
 template<class ThreadOper, class StaticRetVal, class PARM1=fastdelegate::detail::DefaultVoid, class PARM2=fastdelegate::detail::DefaultVoid>

@@ -184,11 +184,11 @@ const char* CHpsdrEthernet::NAME = "Metis (OpenHPSDR Controller)";
 #pragma warning(disable: 4355)
 
 CHpsdrEthernet::CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipaddr, __int64 mac, byte ver, EBoardId boardId)
-	:CHpsdrDevice(boardId),m_ipAddress(ipaddr),m_macAddress(mac),m_controllerVersion(ver),
+	:CHpsdrDevice(boardId), m_ipAddress(ipaddr), m_macAddress(mac), m_controllerVersion(ver),
 	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
 	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
-	 m_sock(INVALID_SOCKET),m_lastRunStatus(0),m_iqStarting(false),m_wideStarting(false),
-	 m_nextSendSeq(0),m_driver(driver)
+	 m_sock(INVALID_SOCKET), m_lastRunStatus(0), m_iqStarting(false), m_wideStarting(false),
+	 m_nextSendSeq(0), m_driver(driver), m_wideSyncFault(false)
 {
 }
 
@@ -339,7 +339,15 @@ void CHpsdrEthernet::thread_recv()
 							*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 							wideSrc += 2;
 						}
-						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0) && m_wideRecv.isConnected()) attrs.wide_sync_fault->fire();
+						if(m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0))
+						{
+							m_wideSyncFault = false;
+						}
+						else if(!m_wideSyncFault && m_wideRecv.isConnected())
+						{
+							m_wideSyncFault = true;
+							attrs.wide_sync_fault->fire();
+						}
 					}
 					break;
 				case 6: // endpoint 4: IQ + mic data
@@ -351,7 +359,11 @@ void CHpsdrEthernet::thread_recv()
 							numSamples += receive_frame(message+520);
 							if(!m_iqStarting && m_lastIQSeq+1 != seq)
 							{
-								attrs.sync_fault->fire();
+								if(!m_iqSyncFault)
+								{
+									m_iqSyncFault = true;
+									attrs.sync_fault->fire();
+								}
 							}
 							else
 							{

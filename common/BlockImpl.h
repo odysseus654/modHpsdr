@@ -429,8 +429,8 @@ public: // IEPSender
 			while(idx < numElem)
 			{
 				unsigned numWritten = buffer.push_back_vector(&pBuf[idx], numElem-idx, msTimeout);
-				if(!numWritten) break;
 				idx += numWritten;
+				if(!numWritten) break;
 			}
 			return idx;
 		}
@@ -466,8 +466,8 @@ public: // IEPReceiver
 			while(idx < numAvail)
 			{
 				unsigned numRead = buffer.pop_front_vector(&pBuf[idx], numAvail-idx, msTimeout);
-				if(!numRead || !bFillAll) break;
 				idx += numRead;
+				if(!numRead || !bFillAll) break;
 			}
 			return idx;
 		}

@@ -65,7 +65,7 @@ public:
 		}
 		val = m_buffer[m_front];
 		m_front = (m_front + 1) % m_buffer.size();
-		m_notFull.wake();
+		m_notFull.wakeAll();
 		return true;
 	}
 
@@ -79,7 +79,7 @@ public:
 		unsigned numRead = min((m_back > m_front ? m_back : m_buffer.size()) - m_front, numAvail);
 		memcpy(val, &m_buffer[m_front], sizeof(Elem) * numRead);
 		m_front = (m_front + numRead) % m_buffer.size();
-		m_notFull.wake();
+		m_notFull.wakeAll();
 		return numRead;
 	}
 
@@ -89,7 +89,7 @@ public:
 		if(m_back == m_front) return false;
 		val = m_buffer[m_front];
 		m_front = (m_front + 1) % m_buffer.size();
-		m_notFull.wake();
+		m_notFull.wakeAll();
 		return true;
 	}
 
@@ -102,7 +102,7 @@ public:
 		}
 		m_buffer[m_back] = val;
 		m_back = (m_back + 1) % m_buffer.size();
-		m_notEmpty.wake();
+		m_notEmpty.wakeAll();
 		return true;
 	}
 
@@ -111,13 +111,13 @@ public:
 		Locker lock(m_lock);
 		while((m_back+1)%m_buffer.size() == m_front)
 		{
-			if(!m_notFull.sleep(lock, milli)) return false;
+			if(!m_notFull.sleep(lock, milli)) return 0;
 		}
 		unsigned numWrite = min((m_front > m_back ? m_front-1 : m_buffer.size()) - m_back, numAvail);
 		memcpy(&m_buffer[m_back], val, sizeof(Elem) * numWrite);
 		m_back = (m_back + numWrite) % m_buffer.size();
-		m_notEmpty.wake();
-		return true;
+		m_notEmpty.wakeAll();
+		return numWrite;
 	}
 
 	bool push_back_noblock(const_reference val)
@@ -126,7 +126,7 @@ public:
 		if((m_back+1)%m_buffer.size() == m_front) return false;
 		m_buffer[m_back] = val;
 		m_back = (m_back + 1) % m_buffer.size();
-		m_notEmpty.wake();
+		m_notEmpty.wakeAll();
 		return true;
 	}
 
@@ -134,7 +134,7 @@ protected:
 	vector_type	m_buffer;
 	size_type	m_back;
 	size_type	m_front;
-	mutable Lock		m_lock;
+	mutable Lock	m_lock;
 	Condition	m_notEmpty, m_notFull;
 
 private:

@@ -10,7 +10,7 @@ namespace sharptest
         {
             signals.IBlockDriver[] drivers = cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
 
-            signals.IBlockDriver hpsdrDriver = drivers[1];
+            signals.IBlockDriver hpsdrDriver = drivers[4];
             signals.IBlock[] devices = hpsdrDriver.Discover();
             Console.Out.WriteLine(String.Format("{0} devices found", devices.Length));
 
@@ -37,6 +37,9 @@ namespace sharptest
             hpsdr.Start();
             Thread.Sleep(30000);
             hpsdr.Stop();
+
+            Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
+            Thread.Sleep(20000);
         }
 
         protected static object st_screenLock = new object();
@@ -55,11 +58,16 @@ namespace sharptest
             }
         }
 
+        protected static int packetsReceived = 0;
         static private void OnStream(object[] data)
         {
-            lock (st_screenLock)
+            if (data.Length != 0)
             {
-                Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
+                lock (st_screenLock)
+                {
+                    Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
+                    packetsReceived += data.Length;
+                }
             }
         }
     }
