@@ -31,7 +31,14 @@ BOOL CInEndpointBase::Connect(signals::IEPReceiver* recv)
 
 unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 {
-	return m_connRecv ? m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout) : 0;
+	if(m_connRecv)
+	{
+		return m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout);
+	} else {
+		ASSERT(msTimeout != INFINITE);
+		Sleep(msTimeout == INFINITE ? 10000 : msTimeout);
+		return 0;
+	}
 }
 
 // ------------------------------------------------------------------ class COutEndpointBase
@@ -49,7 +56,14 @@ BOOL COutEndpointBase::Connect(signals::IEPSender* send)
 
 unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout)
 {
-	return m_connSend ? m_connSend->Write(type, buffer, numElem, msTimeout) : 0;
+	if(m_connSend)
+	{
+		return m_connSend->Write(type, buffer, numElem, msTimeout);
+	} else {
+		ASSERT(msTimeout != INFINITE);
+		Sleep(msTimeout == INFINITE ? 10000 : msTimeout);
+		return 0;
+	}
 }
 
 // ------------------------------------------------------------------ class CAttributeBase

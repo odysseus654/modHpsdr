@@ -200,6 +200,7 @@
     <ClCompile Include="fftssDriver.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
+    <ClCompile Include="testing.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="fftss32.def">

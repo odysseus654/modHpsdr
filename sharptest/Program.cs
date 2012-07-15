@@ -10,6 +10,8 @@ namespace sharptest
         {
             signals.IBlockDriver[] drivers = cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
 
+            signals.IBlock fft = drivers[2].Create();
+
             signals.IBlockDriver hpsdrDriver = drivers[4];
             signals.IBlock[] devices = hpsdrDriver.Discover();
             Console.Out.WriteLine(String.Format("{0} devices found", devices.Length));
@@ -27,11 +29,16 @@ namespace sharptest
             signals.IAttribute recvSpeed = attrs.GetByName("recvRate");
             recvSpeed.Value = 48000;
 
-            signals.IOutEndpoint[] outEPs = hpsdr.Outgoing;
-            signals.IOutEndpoint recv1 = outEPs[2];
+            signals.IOutEndpoint recv1 = hpsdr.Outgoing[2];
             signals.IEPBuffer buff = recv1.CreateBuffer();
+            signals.IInEndpoint fftIn = fft.Incoming[0];
             recv1.Connect(buff);
-            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(recv1.Type, buff);
+            fftIn.Connect(buff);
+
+            signals.IOutEndpoint fftOut = fft.Outgoing[0];
+            signals.IEPBuffer buff2 = fftOut.CreateBuffer();
+            fftOut.Connect(buff2);
+            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, buff2);
             stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
 
             hpsdr.Start();

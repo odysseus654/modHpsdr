@@ -16,8 +16,6 @@
 #include "stdafx.h"
 #include "fftssDriver.h"
 
-#include "fftss/include/fftss.h"
-
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
 	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypCmplDbl> fft_dd;
@@ -62,7 +60,7 @@ protected:
 
 CFFTransformBase::CFFTransformBase(signals::IBlockDriver* driver)
 	:m_driver(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
-	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan))
+	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan)),m_bFaulted(false)
 {
 //	buildAttrs();
 }
@@ -156,34 +154,56 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>*
 
 	CFFTransformBase::TComplexDbl buffer[CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE];
 
-	unsigned residue = 0;
+	unsigned inOffset = 0;
 	while(owner->m_bDataThreadEnabled)
 	{
-		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer + residue,
-			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE - residue, TRUE,
+		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer,
+			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE, TRUE,
 			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
-			residue += recvCount;
 			Locker lock(owner->m_planLock);
 			if(!owner->m_currPlan)
 			{
 				if(!owner->startPlan(true))
 				{
-					residue = 0;		// no plan!
+					inOffset = 0;		// no plan!
 					continue;
 				}
 			}
 
 			ASSERT(owner->m_inBuffer && owner->m_bufSize);
-			if(owner->m_bufSize >= residue)
+			unsigned numXfer = min(owner->m_bufSize - inOffset, recvCount);
+			if(numXfer)
 			{
-				memcpy(owner->m_inBuffer, buffer, sizeof(CFFTransformBase::TComplexDbl) * owner->m_bufSize);
+				memcpy(&owner->m_inBuffer[inOffset], buffer, sizeof(CFFTransformBase::TComplexDbl) * numXfer);
+			}
+			inOffset += recvCount;
+			unsigned outOffset = numXfer;
+			if(owner->m_bufSize <= inOffset)
+			{
 				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
 				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
-				unsigned outSent = owner->m_outgoing.Write(signals::etypCmplDbl, owner->m_outBuffer, owner->m_bufSize, 0);
-				if(outSent < owner->m_bufSize && owner->m_outgoing.isConnected()) owner->m_outgoing.attrs.sync_fault->fire();
-				residue -= owner->m_bufSize;
+
+				unsigned outSent = owner->m_outgoing.Write(signals::etypCmplDbl, owner->m_outBuffer, owner->m_bufSize, INFINITE);
+				if(outSent == owner->m_bufSize)
+				{
+					owner->m_bFaulted = false;
+				}
+				else if(!owner->m_bFaulted && owner->m_outgoing.isConnected())
+				{
+					owner->m_bFaulted = true;
+					owner->m_outgoing.attrs.sync_fault->fire();
+				}
+
+				recvCount = max(0, signed(recvCount) - (owner->m_bufSize-inOffset));
+				numXfer = min(recvCount, owner->m_bufSize);
+				for(unsigned idx=0; idx < numXfer; idx++)
+				{
+					memcpy(owner->m_inBuffer, &buffer[outOffset], sizeof(CFFTransformBase::TComplexDbl) * numXfer);
+				}
+				outOffset += numXfer;
+				inOffset = recvCount;
 			}
 		}
 	}

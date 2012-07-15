@@ -1001,7 +1001,7 @@ namespace cppProxy
                 CppProxyBuffer proxy = recv as CppProxyBuffer;
                 if (proxy != null)
                 {
-                    return m_native.Connect(proxy.Native);
+                    return m_native.Connect(proxy.NativeReceiver);
                 }
             }
             throw new NotSupportedException("Native connections not yet implemented.");
@@ -1090,7 +1090,7 @@ namespace cppProxy
                 CppProxyBuffer proxy = recv as CppProxyBuffer;
                 if (proxy != null)
                 {
-                    return m_native.Connect(proxy.Native);
+                    return m_native.Connect(proxy.NativeSender);
                 }
             }
             throw new NotSupportedException("Native connections not yet implemented.");
@@ -1283,7 +1283,8 @@ namespace cppProxy
         public signals.EType Type { get { return m_type; } }
         public int Capacity { get { return (int)m_native.Capacity(); } }
         public int Used { get { return (int)m_native.Used(); } }
-        public IntPtr Native { get { return m_nativeRef; } }
+        public IntPtr NativeSender { get { return m_nativeRef; } }
+        public IntPtr NativeReceiver { get { return new IntPtr(m_nativeRef.ToInt64() + IntPtr.Size); } }
 
         public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
         {

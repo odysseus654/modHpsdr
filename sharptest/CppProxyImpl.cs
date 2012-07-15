@@ -34,6 +34,12 @@ namespace cppProxy
             AppDomain thisDomain = System.Threading.Thread.GetDomain();
 
             asmBuilder = thisDomain.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+
+            Type caType = typeof(System.Runtime.CompilerServices.RuntimeCompatibilityAttribute);
+            CustomAttributeBuilder caBuilder = new CustomAttributeBuilder(
+                caType.GetConstructor(Type.EmptyTypes), new object[] { });
+            asmBuilder.SetCustomAttribute(caBuilder);
+
 #if DEBUG
             modBuilder = asmBuilder.DefineDynamicModule(asmBuilder.GetName().Name, true);
 #else

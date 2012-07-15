@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
-# Visual C# Express 2010
+# Visual C++ Express 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "hpsdr", "hpsdr\hpsdr.vcxproj", "{1AF5D4F2-6441-42FD-BC9B-490309C28DF4}"
 	ProjectSection(ProjectDependencies) = postProject
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22} = {1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}
@@ -38,8 +38,8 @@ Global
 		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Debug|Win32.Build.0 = Debug|Win32
 		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Release|Win32.ActiveCfg = Release|Win32
 		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Release|Win32.Build.0 = Release|Win32
-		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Smoketest|Win32.ActiveCfg = Debug|Win32
-		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Smoketest|Win32.Build.0 = Debug|Win32
+		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Smoketest|Win32.ActiveCfg = Smoketest|Win32
+		{7C72FF10-54DD-4F8B-8131-7266ADB4BC58}.Smoketest|Win32.Build.0 = Smoketest|Win32
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Debug|Win32.ActiveCfg = Debug|Win32
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Debug|Win32.Build.0 = Debug|Win32
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Release|Win32.ActiveCfg = Release|Win32
