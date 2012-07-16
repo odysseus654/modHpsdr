@@ -305,7 +305,8 @@ void fft_process_thread(CFFTransform<ETin,ETout>* owner)
 			{
 				owner->m_inBuffer[idx+inOffset] = buffer[idx];
 			}
-			inOffset += recvCount;
+			inOffset += numXfer;
+			recvCount -= numXfer;
 			unsigned outOffset = numXfer;
 			while(owner->m_bufSize <= inOffset)
 			{
@@ -329,7 +330,6 @@ void fft_process_thread(CFFTransform<ETin,ETout>* owner)
 					owner->m_outgoing.attrs.sync_fault->fire();
 				}
 
-				recvCount = max(0, signed(recvCount) - (owner->m_bufSize-inOffset));
 				numXfer = min(recvCount, owner->m_bufSize);
 				for(unsigned idx=0; idx < numXfer; idx++)
 				{
@@ -374,7 +374,8 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,ETout>* owner)
 			{
 				memcpy(&owner->m_inBuffer[inOffset], buffer, sizeof(CFFTransformBase::TComplexDbl) * numXfer);
 			}
-			inOffset += recvCount;
+			inOffset += numXfer;
+			recvCount -= numXfer;
 			unsigned outOffset = numXfer;
 			while(owner->m_bufSize <= inOffset)
 			{
@@ -398,7 +399,6 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,ETout>* owner)
 					owner->m_outgoing.attrs.sync_fault->fire();
 				}
 
-				recvCount = max(0, signed(recvCount) - (owner->m_bufSize-inOffset));
 				numXfer = min(recvCount, owner->m_bufSize);
 				for(unsigned idx=0; idx < numXfer; idx++)
 				{
@@ -442,9 +442,10 @@ void fft_process_thread(CFFTransform<ETin,signals::etypCmplDbl>* owner)
 			{
 				owner->m_inBuffer[idx+inOffset] = buffer[idx];
 			}
-			inOffset += recvCount;
+			inOffset += numXfer;
+			recvCount -= numXfer;
 			unsigned outOffset = numXfer;
-			if(owner->m_bufSize <= inOffset)
+			while(owner->m_bufSize <= inOffset)
 			{
 				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
 				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
@@ -460,14 +461,13 @@ void fft_process_thread(CFFTransform<ETin,signals::etypCmplDbl>* owner)
 					owner->m_outgoing.attrs.sync_fault->fire();
 				}
 
-				recvCount = max(0, signed(recvCount) - (owner->m_bufSize-inOffset));
 				numXfer = min(recvCount, owner->m_bufSize);
 				for(unsigned idx=0; idx < numXfer; idx++)
 				{
 					owner->m_inBuffer[idx] = buffer[idx+outOffset];
 				}
 				outOffset += numXfer;
-				inOffset = recvCount;
+				inOffset = numXfer;
 			}
 		}
 	}
