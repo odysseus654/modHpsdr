@@ -14,7 +14,9 @@ namespace signals
 	{
 		None	= 0x00,
 		Event	= 0x01,
-		Boolean	= 0x08,
+        String  = 0x03,
+        
+        Boolean = 0x08,
 		Byte	= 0x0B,
 		Short	= 0x0C,
 		Long	= 0x0D,
@@ -22,9 +24,18 @@ namespace signals
 		Double	= 0x16,
 		Complex	= 0x1D,
         CmplDbl = 0x1E,
-        String  = 0x23,
-		LRSingle = 0x2D
-	};
+		LRSingle = 0x25,
+
+        VecBoolean  = 0x88,
+        VecByte     = 0x8B,
+        VecShort    = 0x8C,
+        VecLong     = 0x8D,
+        VecSingle   = 0x95,
+        VecDouble   = 0x96,
+        VecComplex  = 0x9D,
+        VecCmplDbl  = 0x9E,
+        VecLRSingle = 0xA5
+    };
 
     public interface IModule
     {
@@ -75,7 +86,6 @@ namespace signals
 
     public interface IInEndpoint : IDisposable
 	{
-        IBlock Block { get; }
         string EPName { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
@@ -87,7 +97,6 @@ namespace signals
 
     public interface IOutEndpoint : IDisposable
 	{
-        IBlock Block { get; }
         string EPName { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
@@ -101,7 +110,6 @@ namespace signals
 	{
 		IAttribute[] Itemize();
 		IAttribute GetByName(string name);
-        IBlock Block { get; }
     };
 
 	public interface IAttribute : IDisposable

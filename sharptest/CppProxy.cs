@@ -179,21 +179,30 @@ namespace cppProxy
                 case signals.EType.String:
                     return new String();
                 case signals.EType.Boolean:
+                case signals.EType.VecBoolean:
                     return new Boolean();
                 case signals.EType.Byte:
+                case signals.EType.VecByte:
                     return new Byte();
                 case signals.EType.Short:
+                case signals.EType.VecShort:
                     return new Short();
                 case signals.EType.Long:
+                case signals.EType.VecLong:
                     return new Long();
                 case signals.EType.Single:
+                case signals.EType.VecSingle:
                     return new Single();
                 case signals.EType.Double:
+                case signals.EType.VecDouble:
                     return new Double();
                 case signals.EType.Complex:
+                case signals.EType.VecComplex:
                 case signals.EType.LRSingle:
+                case signals.EType.VecLRSingle:
                     return new Complex();
                 case signals.EType.CmplDbl:
+                case signals.EType.VecCmplDbl:
                     return new ComplexDouble();
                 default:
                     return null;
@@ -233,7 +242,6 @@ namespace cppProxy
             IntPtr GetByName(IntPtr name);
             void Observe(IntPtr obs);
             void Unobserve(IntPtr obs);
-            IntPtr Block();
         };
 
         public interface IAttribute
@@ -253,7 +261,6 @@ namespace cppProxy
         {
             uint AddRef();
             uint Release();
-            IntPtr Block();
             IntPtr EPName();
             signals.EType Type();
             IntPtr Attributes();
@@ -265,7 +272,6 @@ namespace cppProxy
 
         public interface IOutEndpoint
         {
-            IntPtr Block();
             IntPtr EPName();
             signals.EType Type();
             IntPtr Attributes();
@@ -278,8 +284,8 @@ namespace cppProxy
         public interface IEPSender
         {
             uint Write(signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
-            uint AddRef();
-            uint Release();
+            uint AddRef(IntPtr iep);
+            uint Release(IntPtr iep);
         };
 
         public interface IEPReceiver
@@ -391,7 +397,11 @@ namespace cppProxy
                     {
                         module = new CppProxyModuleDriver(dllList[idx], hModule);
                     }
-                    catch (Exception) { }
+                    catch (Exception)
+                    {
+                        FreeLibrary(hModule);
+                        continue;
+                    }
 
                     signals.IBlockDriver[] drivers = module.Drivers;
                     for (int didx = 0; didx < drivers.Length; didx++)
@@ -693,8 +703,6 @@ namespace cppProxy
             }
         }
 
-        public signals.IBlock Block { get { return m_block; } }
-
         public signals.IAttribute GetByName(string name)
         {
             if (name == null) throw new ArgumentNullException("name");
@@ -973,7 +981,6 @@ namespace cppProxy
             }
         }
 
-        public signals.IBlock Block { get { return m_block; } }
         public string EPName { get { return m_name; } }
         public signals.EType Type { get { return m_type; } }
         public bool isConnected { get { return m_native.isConnected(); } }
@@ -1062,7 +1069,6 @@ namespace cppProxy
         }
 
         public void Dispose() { }
-        public signals.IBlock Block { get { return m_block; } }
         public string EPName { get { return m_name; } }
         public signals.EType Type { get { return m_type; } }
         public bool isConnected { get { return m_native.isConnected(); } }
@@ -1130,7 +1136,7 @@ namespace cppProxy
         {
             if (m_native != null)
             {
-                m_native.Release();
+                m_native.Release(IntPtr.Zero);
                 m_native = null;
             }
             if (m_nativeRef != IntPtr.Zero)
@@ -1270,7 +1276,7 @@ namespace cppProxy
         {
             if (m_native != null)
             {
-                m_native.Release();
+                m_native.Release(IntPtr.Zero);
                 m_native = null;
             }
             if (m_nativeRef != IntPtr.Zero)

@@ -15,6 +15,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fftss", "fftss\fftss.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "common", "common\common.vcxproj", "{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cppconv", "cppconv\cppconv.vcxproj", "{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22} = {1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -46,6 +51,12 @@ Global
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Release|Win32.Build.0 = Release|Win32
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Smoketest|Win32.ActiveCfg = Debug|Win32
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}.Smoketest|Win32.Build.0 = Debug|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Debug|Win32.ActiveCfg = Debug|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Debug|Win32.Build.0 = Debug|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Release|Win32.ActiveCfg = Release|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Release|Win32.Build.0 = Release|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Smoketest|Win32.ActiveCfg = Debug|Win32
+		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Smoketest|Win32.Build.0 = Debug|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

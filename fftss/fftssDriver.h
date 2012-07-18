@@ -15,7 +15,7 @@
 */
 #pragma once
 
-#include "blockImpl.h"
+#include <blockImpl.h>
 #include "fftss/include/fftss.h"
 
 namespace fftss
@@ -66,7 +66,6 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
-	virtual signals::IBlock* Block()		{ return this; }
 	virtual signals::IAttributes* Attributes() { return this; }
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
 //	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
@@ -152,11 +151,16 @@ public:
 		COutgoing& operator=(const COutgoing& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return ETout; }
 		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETout>(DEFAULT_BUFSIZE); }
 		virtual signals::IAttributes* Attributes()	{ return this; }
+
+		virtual signals::IEPBuffer* CreateBuffer()
+		{
+			signals::IEPBuffer* buffer = new CEPBuffer<ETout>(DEFAULT_BUFSIZE);
+			buffer->AddRef(NULL);
+			return buffer;
+		}
 	};
 
 	class CIncoming : public CInEndpointBase, public CAttributesBase
@@ -180,16 +184,21 @@ public:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return ETin; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<ETin>(DEFAULT_BUFSIZE); }
+
+		virtual signals::IEPBuffer* CreateBuffer()
+		{
+			signals::IEPBuffer* buff = new CEPBuffer<ETin>(DEFAULT_BUFSIZE);
+			buff->AddRef(NULL);
+			return buff;
+		}
 	};
 
 private:
 	enum
 	{
-		IN_BUFFER_SIZE = 100,
+		IN_BUFFER_SIZE = 1000,
 		IN_BUFFER_TIMEOUT = 1000
 	};
 

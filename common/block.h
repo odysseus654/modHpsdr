@@ -30,17 +30,28 @@ namespace signals
 	enum EType
 	{
 		etypNone	= 0x00,
-		etypEvent	= 0x01,
-		etypBoolean	= 0x08,
-		etypByte	= 0x0B,
-		etypShort	= 0x0C,
-		etypLong	= 0x0D,
-		etypSingle	= 0x15,
-		etypDouble	= 0x16,
-		etypComplex	= 0x1D,
-		etypCmplDbl = 0x1E,
-		etypString	= 0x23,
-		etypLRSingle = 0x2D
+		etypEvent	= 0x01, // 0 0000 001
+		etypString	= 0x03, // 0 0000 011
+
+		etypBoolean	= 0x08, // 0 0001 000
+		etypByte	= 0x0B, // 0 0001 011
+		etypShort	= 0x0C, // 0 0001 100
+		etypLong	= 0x0D, // 0 0001 101
+		etypSingle	= 0x15, // 0 0010 101
+		etypDouble	= 0x16, // 0 0010 110
+		etypComplex	= 0x1D, // 0 0011 101
+		etypCmplDbl = 0x1E, // 0 0011 110
+		etypLRSingle = 0x25, // 0 0100 101
+
+		etypVecBoolean	= 0x88, // 1 0001 000
+		etypVecByte		= 0x8B, // 1 0001 011
+		etypVecShort	= 0x8C, // 1 0001 100
+		etypVecLong		= 0x8D, // 1 0001 101
+		etypVecSingle	= 0x95, // 1 0010 101
+		etypVecDouble	= 0x96, // 1 0010 110
+		etypVecComplex	= 0x9D, // 1 0011 101
+		etypVecCmplDbl	= 0x9E, // 1 0011 110
+		etypVecLRSingle	= 0xA5 // 1 0100 101
 	};
 
 	__interface IBlockDriver
@@ -70,8 +81,8 @@ namespace signals
 	__interface IEPSender
 	{
 		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
-		unsigned AddRef();
-		unsigned Release();
+		unsigned AddRef(IOutEndpoint* src);
+		unsigned Release(IOutEndpoint* src);
 	};
 
 	__interface IEPReceiver
@@ -92,7 +103,6 @@ namespace signals
 	{
 		unsigned AddRef();
 		unsigned Release();
-		IBlock* Block();
 		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
@@ -104,7 +114,6 @@ namespace signals
 
 	__interface IOutEndpoint
 	{
-		IBlock* Block();
 		const char* EPName();
 		EType Type();
 		IAttributes* Attributes();
@@ -120,7 +129,6 @@ namespace signals
 		IAttribute* GetByName(const char* name);
 		void Observe(IAttributeObserver* obs);
 		void Unobserve(IAttributeObserver* obs);
-		IBlock* Block();
 	};
 
 	__interface IAttribute

@@ -51,7 +51,6 @@ public:
 //	virtual const char* EPName();
 //	virtual unsigned AddRef() = 0;
 //	virtual unsigned Release() = 0;
-//	virtual signals::IBlock* Block() = 0;
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
@@ -72,7 +71,6 @@ public:
 	virtual BOOL isConnected() { return !!m_connSend; }
 	virtual BOOL Disconnect()  { return Connect(NULL); }
 //	virtual const char* EPName();
-//	virtual signals::IBlock* Block() = 0;
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
@@ -119,7 +117,6 @@ public:
 	virtual signals::IAttribute* GetByName(const char* name)			{ return GetByName2(name); }
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
-//	virtual signals::IBlock* Block() = 0;
 
 private:
 	CAttributesBase(const CAttributesBase& other);
@@ -142,17 +139,123 @@ private:
 };
 
 template<signals::EType ET> struct StoreType;
-template<> struct StoreType<signals::etypEvent>		{ typedef void type; };
-template<> struct StoreType<signals::etypBoolean>	{ typedef unsigned char type; };
-template<> struct StoreType<signals::etypByte>		{ typedef unsigned char type; };
-template<> struct StoreType<signals::etypShort>		{ typedef short type; };
-template<> struct StoreType<signals::etypLong>		{ typedef long type; };
-template<> struct StoreType<signals::etypSingle>	{ typedef float type; };
-template<> struct StoreType<signals::etypDouble>	{ typedef double type; };
-template<> struct StoreType<signals::etypComplex>	{ typedef std::complex<float> type; };
-template<> struct StoreType<signals::etypCmplDbl>	{ typedef std::complex<double> type; };
-template<> struct StoreType<signals::etypString>	{ typedef std::string type; };
-template<> struct StoreType<signals::etypLRSingle>	{ typedef std::complex<float> type; };
+template<> struct StoreType<signals::etypEvent>
+{
+	typedef void type;
+};
+
+template<> struct StoreType<signals::etypBoolean>
+{
+	typedef unsigned char type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypByte>
+{
+	typedef unsigned char type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypShort>
+{
+	typedef short type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypLong>
+{
+	typedef long type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypSingle>
+{
+	typedef float type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypDouble>
+{
+	typedef double type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypComplex>
+{
+	typedef std::complex<float> type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypCmplDbl>
+{
+	typedef std::complex<double> type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypString>
+{
+	typedef std::string type;
+};
+
+template<> struct StoreType<signals::etypLRSingle>
+{
+	typedef std::complex<float> type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecBoolean>
+{
+	typedef unsigned char type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecByte>
+{
+	typedef unsigned char type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecShort>
+{
+	typedef short type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecLong>
+{
+	typedef long type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecSingle>
+{
+	typedef float type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecDouble>
+{
+	typedef double type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecComplex>
+{
+	typedef std::complex<float> type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecCmplDbl>
+{
+	typedef std::complex<double> type;
+	typedef VectorBuffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypVecLRSingle>
+{
+	typedef std::complex<float> type;
+	typedef VectorBuffer<type> buffer_type;
+};
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
@@ -404,7 +507,7 @@ class CEPBuffer : public signals::IEPBuffer, protected CRefcountObject
 {
 protected:
 	typedef typename StoreType<ET>::type store_type;
-	typedef Buffer<store_type> buffer_type;
+	typedef typename StoreType<ET>::buffer_type buffer_type;
 
 	buffer_type buffer;
 	signals::IInEndpoint* m_iep;
@@ -476,6 +579,8 @@ public: // IEPReceiver
 
 	virtual unsigned AddRef()		{ return CRefcountObject::AddRef(); }
 	virtual unsigned Release()		{ return CRefcountObject::Release(); }
+	virtual unsigned AddRef(signals::IOutEndpoint*)		{ return CRefcountObject::AddRef(); }
+	virtual unsigned Release(signals::IOutEndpoint*)	{ return CRefcountObject::Release(); }
 };
 
 // ------------------------------------------------------------------------------------------------

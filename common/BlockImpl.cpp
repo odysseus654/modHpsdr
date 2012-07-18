@@ -47,8 +47,8 @@ BOOL COutEndpointBase::Connect(signals::IEPSender* send)
 {
 	if(send != m_connSend)
 	{
-		if(send) send->AddRef();
-		if(m_connSend) m_connSend->Release();
+		if(send) send->AddRef(this);
+		if(m_connSend) m_connSend->Release(this);
 		m_connSend = send;
 	}
 	return true;

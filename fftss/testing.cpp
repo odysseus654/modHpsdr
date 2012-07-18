@@ -4,10 +4,10 @@
 #include "stdafx.h"
 #include "fftssDriver.h"
 
-static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypCmplDbl> fft_dd;
-static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypComplex> fft_ds;
-static fftss::CFFTransformDriver<signals::etypComplex,signals::etypCmplDbl> fft_sd;
-static fftss::CFFTransformDriver<signals::etypComplex,signals::etypComplex> fft_ss;
+static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecCmplDbl> fft_dd;
+static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecComplex> fft_ds;
+static fftss::CFFTransformDriver<signals::etypComplex,signals::etypVecCmplDbl> fft_sd;
+static fftss::CFFTransformDriver<signals::etypComplex,signals::etypVecComplex> fft_ss;
 
 int _tmain(int argc, _TCHAR* argv[])
 {

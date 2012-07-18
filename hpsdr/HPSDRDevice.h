@@ -14,8 +14,8 @@
 	limitations under the License.
 */
 #pragma once
-#include "blockImpl.h"
-#include "mt.h"
+#include <blockImpl.h>
+#include <mt.h>
 #include <vector>
 typedef unsigned char byte;
 
@@ -37,9 +37,6 @@ public:
 private:
 	CHpsdrDevice(const CHpsdrDevice& other);
 	CHpsdrDevice& operator=(const CHpsdrDevice& other);
-
-public: // interface
-	virtual signals::IBlock* Block() { return this; }		// from CAttributesBase
 
 protected:
 	explicit CHpsdrDevice(EBoardId boardId);
@@ -168,11 +165,10 @@ public:
 		Receiver& operator=(const Receiver& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
 		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
 		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual signals::IEPBuffer* CreateBuffer();
 		virtual BOOL Connect(signals::IEPSender* send);
 		virtual BOOL Disconnect();
 	};
@@ -202,10 +198,9 @@ public:
 		Microphone& operator=(const Microphone& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypSingle; }
 		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
+		virtual signals::IEPBuffer* CreateBuffer();
 		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
@@ -233,10 +228,9 @@ public:
 		WideReceiver& operator=(const Receiver& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypSingle; }
 		virtual const char* EPName()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE); }
+		virtual signals::IEPBuffer* CreateBuffer();
 		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
@@ -267,10 +261,9 @@ public:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE); }
+		virtual signals::IEPBuffer* CreateBuffer();
 	};
 
 	class Speaker : public CInEndpointBase, public CAttributesBase
@@ -299,10 +292,9 @@ public:
 		virtual const char* EPName()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::IBlock* Block()			{ m_parent->AddRef(); return m_parent; }
 		virtual signals::EType Type()				{ return signals::etypLRSingle; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer()	{ return new CEPBuffer<signals::etypLRSingle>(DEFAULT_BUFSIZE); }
+		virtual signals::IEPBuffer* CreateBuffer();
 	};
 
 public:
