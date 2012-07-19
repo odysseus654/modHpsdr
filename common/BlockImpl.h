@@ -58,6 +58,8 @@ private:
 	CInEndpointBase(const CInEndpointBase& other);
 	CInEndpointBase& operator=(const CInEndpointBase& other);
 private:
+	Lock m_connRecvLock;
+	Condition m_connRecvConnected;
 	signals::IEPReceiver* m_connRecv;
 };
 
@@ -78,6 +80,8 @@ private:
 	COutEndpointBase(const COutEndpointBase& other);
 	COutEndpointBase& operator=(const COutEndpointBase& other);
 private:
+	Lock m_connSendLock;
+	Condition m_connSendConnected;
 	signals::IEPSender* m_connSend;
 };
 
@@ -534,6 +538,7 @@ public: // IEPSender
 				unsigned numWritten = buffer.push_back_vector(&pBuf[idx], numElem-idx, msTimeout);
 				idx += numWritten;
 				if(!numWritten) break;
+				ASSERT(!buffer_type::is_vector || numWritten == numElem);
 			}
 			return idx;
 		}
@@ -570,7 +575,7 @@ public: // IEPReceiver
 			{
 				unsigned numRead = buffer.pop_front_vector(&pBuf[idx], numAvail-idx, msTimeout);
 				idx += numRead;
-				if(!numRead || !bFillAll) break;
+				if(buffer_type::is_vector || !numRead || !bFillAll) break;
 			}
 			return idx;
 		}

@@ -20,50 +20,52 @@
 
 BOOL CInEndpointBase::Connect(signals::IEPReceiver* recv)
 {
+	Locker lock(m_connRecvLock);
 	if(recv != m_connRecv)
 	{
 		if(recv) recv->onSinkConnected(this);
 		if(m_connRecv) m_connRecv->onSinkDisconnected(this);
 		m_connRecv = recv;
+		if(m_connRecv) m_connRecvConnected.wakeAll();
 	}
 	return true;
 }
 
 unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 {
-	if(m_connRecv)
+	Locker lock(m_connRecvLock);
+	if(!m_connRecv)
 	{
-		return m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout);
-	} else {
-		ASSERT(msTimeout != INFINITE);
-		Sleep(msTimeout == INFINITE ? 10000 : msTimeout);
-		return 0;
+		if(!m_connRecvConnected.sleep(lock, msTimeout)) return 0;
 	}
+	ASSERT(m_connRecv);
+	return m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout);
 }
 
 // ------------------------------------------------------------------ class COutEndpointBase
 
 BOOL COutEndpointBase::Connect(signals::IEPSender* send)
 {
+	Locker lock(m_connSendLock);
 	if(send != m_connSend)
 	{
 		if(send) send->AddRef(this);
 		if(m_connSend) m_connSend->Release(this);
 		m_connSend = send;
+		if(m_connSend) m_connSendConnected.wakeAll();
 	}
 	return true;
 }
 
 unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout)
 {
-	if(m_connSend)
+	Locker lock(m_connSendLock);
+	if(!m_connSend)
 	{
-		return m_connSend->Write(type, buffer, numElem, msTimeout);
-	} else {
-		ASSERT(msTimeout != INFINITE);
-		Sleep(msTimeout == INFINITE ? 10000 : msTimeout);
-		return 0;
+		if(!m_connSendConnected.sleep(lock, msTimeout)) return 0;
 	}
+	ASSERT(m_connSend);
+	return m_connSend->Write(type, buffer, numElem, msTimeout);
 }
 
 // ------------------------------------------------------------------ class CAttributeBase

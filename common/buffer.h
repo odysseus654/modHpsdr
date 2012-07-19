@@ -33,6 +33,7 @@ public:
 	typedef typename vector_type::reference reference;
 	typedef typename vector_type::const_reference const_reference;
 	typedef typename vector_type::value_type value_type;
+	enum { is_vector = 0 };
 
 	explicit Buffer(size_type size)
 		:m_buffer(size+1),m_back(0),m_front(0)
@@ -165,6 +166,7 @@ private:
 	typedef Buffer<Elem> my_base;
 public:
 	typedef std::vector<unsigned> unsigned_vector_type;
+	enum { is_vector = 1 };
 
 	explicit VectorBuffer(size_type size)
 		:my_base(size),m_sizeBuffer(size+1)
