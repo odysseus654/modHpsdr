@@ -260,7 +260,6 @@ namespace cppProxy
         public class Callback : IDisposable
         {
             private IntPtr m_native = IntPtr.Zero;
-            private object m_iface;
             private List<Delegate> m_delegateList;
             private static int nextDelegate = 1;
             private static Dictionary<Signature, Type> delegateCache;

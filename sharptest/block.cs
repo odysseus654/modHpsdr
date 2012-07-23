@@ -14,27 +14,27 @@ namespace signals
 	{
 		None	= 0x00,
 		Event	= 0x01,
-        String  = 0x03,
+        String  = 0x02,
         
-        Boolean = 0x08,
-		Byte	= 0x0B,
-		Short	= 0x0C,
-		Long	= 0x0D,
-		Single	= 0x15,
-		Double	= 0x16,
-		Complex	= 0x1D,
-        CmplDbl = 0x1E,
-		LRSingle = 0x25,
+        Boolean = 0x10,
+		Byte	= 0x11,
+		Short	= 0x12,
+		Long	= 0x13,
+		Single	= 0x23,
+		Double	= 0x24,
+		Complex	= 0x34,
+        CmplDbl = 0x35,
+		LRSingle = 0x44,
 
-        VecBoolean  = 0x88,
-        VecByte     = 0x8B,
-        VecShort    = 0x8C,
-        VecLong     = 0x8D,
-        VecSingle   = 0x95,
-        VecDouble   = 0x96,
-        VecComplex  = 0x9D,
-        VecCmplDbl  = 0x9E,
-        VecLRSingle = 0xA5
+        VecBoolean  = 0x18,
+        VecByte     = 0x19,
+        VecShort    = 0x1A,
+        VecLong     = 0x1B,
+        VecSingle   = 0x2B,
+        VecDouble   = 0x2C,
+        VecComplex  = 0x3C,
+        VecCmplDbl  = 0x3D,
+        VecLRSingle = 0x4C
     };
 
     public interface IModule
@@ -42,6 +42,7 @@ namespace signals
         string File { get; }
         EModType Type { get; }
         IBlockDriver[] Drivers { get; }
+        IFunctionSpec[] Functions { get; }
     };
 
     public interface IBlockDriver
@@ -124,4 +125,27 @@ namespace signals
 	};
 
     public delegate void OnChanged(string name, EType type, object value);
+
+	public interface IFunctionSpec
+	{
+        IModule Module { get; }
+        string Name { get; }
+		string Description { get; }
+		IFunction Create();
+	};
+
+	public interface IFunction : IDisposable
+	{
+		IFunctionSpec Spec { get; }
+		IInputFunction Input { get; }
+		IOutputFunction Output { get; }
+	};
+
+	public interface IInputFunction : IInEndpoint, IEPReceiver
+	{
+	};
+
+	public interface IOutputFunction : IOutEndpoint, IEPSender
+	{
+	};
 }

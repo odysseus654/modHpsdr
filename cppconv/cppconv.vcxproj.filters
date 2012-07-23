@@ -35,5 +35,13 @@
     <ClCompile Include="cppconv.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
+    <ClCompile Include="functions.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cppconv32.def">
+      <Filter>Infrastructure</Filter>
+    </None>
   </ItemGroup>
 </Project>

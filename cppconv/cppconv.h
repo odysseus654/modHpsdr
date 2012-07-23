@@ -16,38 +16,6 @@
 #pragma once
 #include <blockImpl.h>
 
-namespace signals
-{
-	__interface IFunctionSpec;
-	__interface IFunction;
-	__interface IInputFunction;
-	__interface IOutputFunction;
-
-	__interface IFunctionSpec
-	{
-		const char* Name();
-		const char* Description();
-		IFunction* Create();
-	};
-
-	__interface IFunction
-	{
-		IFunctionSpec* Spec();
-		unsigned AddRef();
-		unsigned Release();
-		IInputFunction* Input();
-		IOutputFunction* Output();
-	};
-
-	__interface IInputFunction : public IInEndpoint, public IEPReceiver
-	{
-	};
-
-	__interface IOutputFunction : public IOutEndpoint, public IEPSender
-	{
-	};
-}
-
 class InputFunctionBase : public signals::IInputFunction
 {
 protected:
