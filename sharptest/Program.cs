@@ -8,11 +8,12 @@ namespace sharptest
     {
         static void Main(string[] args)
         {
-            signals.IBlockDriver[] drivers = cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug");
+            ModLibrary library = new ModLibrary();
+            cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug", library);
+            
+            signals.IBlock fft = library.block("fft")[0][0].Create();
 
-            signals.IBlock fft = drivers[2].Create();
-
-            signals.IBlockDriver hpsdrDriver = drivers[4];
+            signals.IBlockDriver hpsdrDriver = library.block("radio")[0][0];
             signals.IBlock[] devices = hpsdrDriver.Discover();
             Console.Out.WriteLine(String.Format("{0} devices found", devices.Length));
 
@@ -44,7 +45,7 @@ namespace sharptest
             hpsdr.Start();
             Thread.Sleep(30000);
             hpsdr.Stop();
-
+            
             Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
             Thread.Sleep(20000);
         }

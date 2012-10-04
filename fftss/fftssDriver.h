@@ -40,14 +40,18 @@ private:
 	CFFTransformDriver operator=(const CFFTransformDriver& other);
 
 public:
-	virtual const char* Name()		{ return NAME; }
-	virtual BOOL canCreate()		{ return true; }
-	virtual BOOL canDiscover()		{ return false; }
+	virtual const char* Name()			{ return NAME; }
+	virtual const char* Description()	{ return DESCR; }
+	virtual BOOL canCreate()			{ return true; }
+	virtual BOOL canDiscover()			{ return false; }
 	virtual unsigned Discover(signals::IBlock** blocks, unsigned availBlocks) { return 0; }
 	virtual signals::IBlock* Create();
+	const unsigned char* Fingerprint()	{ return FINGERPRINT; }
 
 protected:
 	static const char* NAME;
+	static const char* DESCR;
+	static const unsigned char FINGERPRINT[];
 };
 
 class CFFTransformBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
@@ -219,7 +223,13 @@ private:
 // ------------------------------------------------------------------ class CFFTransformDriver
 
 template<signals::EType ETin, signals::EType ETout>
-const char* CFFTransformDriver<ETin,ETout>::NAME = "FFT Transform using fftss";
+const unsigned char CFFTransformDriver<ETin,ETout>::FINGERPRINT[] = { 1, (unsigned char)ETin, 1, (unsigned char)ETout };
+
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransformDriver<ETin,ETout>::NAME = "fft";
+
+template<signals::EType ETin, signals::EType ETout>
+const char* CFFTransformDriver<ETin,ETout>::DESCR = "FFT Transform using fftss";
 
 template<signals::EType ETin, signals::EType ETout>
 signals::IBlock * CFFTransformDriver<ETin,ETout>::Create()

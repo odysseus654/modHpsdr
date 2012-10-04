@@ -91,6 +91,7 @@ public:
 
 	virtual const char* Name()			{ return m_name; }
 	virtual const char* Description()	{ return m_descr; }
+	virtual const unsigned char* Fingerprint() { return FINGERPRINT; }
 
 	virtual signals::IFunction* Create()
 	{
@@ -211,4 +212,8 @@ protected:
 	OPER m_oper;
 	const char* m_name;
 	const char* m_descr;
+	static const unsigned char FINGERPRINT[];
 };
+
+template<signals::EType INN, signals::EType OUTT, typename OPER>
+const unsigned char Function<INN,OUTT,OPER>::FINGERPRINT[] = { (unsigned char)INN, (unsigned char)OUTT };

@@ -61,10 +61,12 @@ namespace signals
 	__interface IBlockDriver
 	{
 		const char* Name();
+		const char* Description();
 		BOOL canCreate();
 		BOOL canDiscover();
 		unsigned Discover(IBlock** blocks, unsigned availBlocks);
 		IBlock* Create();
+		const unsigned char* Fingerprint();
 	};
 
 	__interface IBlock
@@ -158,6 +160,7 @@ namespace signals
 		const char* Name();
 		const char* Description();
 		IFunction* Create();
+		const unsigned char* Fingerprint();
 	};
 
 	__interface IFunction

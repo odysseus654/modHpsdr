@@ -215,10 +215,12 @@ namespace cppProxy
         public interface IBlockDriver
         {
             IntPtr Name();
+            IntPtr Description();
             [return:MarshalAs(UnmanagedType.Bool)]bool canCreate();
             [return:MarshalAs(UnmanagedType.Bool)]bool canDiscover();
             uint Discover(IntPtr blocks, uint availBlocks);
             IntPtr Create();
+            IntPtr Fingerprint();
         };
 
         public interface IBlock
@@ -312,7 +314,8 @@ namespace cppProxy
 		    IntPtr Name();
 		    IntPtr Description();
 		    IntPtr Create();
-	    };
+            IntPtr Fingerprint();
+        };
 
 	    public interface IFunction
 	    {
@@ -447,10 +450,9 @@ namespace cppProxy
         [UnmanagedFunctionPointer(CallingConvention.StdCall)]
         private delegate uint QueryObjectsDelegate(IntPtr objects, uint availObjects);
 
-        public static signals.IBlockDriver[] DoDiscovery(string path)
+        public static void DoDiscovery(string path, sharptest.ModLibrary library)
         {
             string[] dllList = Directory.GetFiles(path, "*.dll", SearchOption.TopDirectoryOnly);
-            List<signals.IBlockDriver> found = new List<signals.IBlockDriver>();
             for (int idx = 0; idx < dllList.Length; idx++)
             {
                 IntPtr hModule = LoadLibrary(dllList[idx]);
@@ -468,15 +470,24 @@ namespace cppProxy
                     }
 
                     signals.IBlockDriver[] drivers = module.Drivers;
-                    for (int didx = 0; didx < drivers.Length; didx++)
+                    if (drivers != null)
                     {
-                        found.Add(drivers[didx]);
+                        for (int didx = 0; didx < drivers.Length; didx++)
+                        {
+                            library.add(drivers[didx]);
+                        }
+                    }
+
+                    signals.IFunctionSpec[] funcs = module.Functions;
+                    if (funcs != null)
+                    {
+                        for (int fidx = 0; fidx < funcs.Length; fidx++)
+                        {
+                            library.add(funcs[fidx]);
+                        }
                     }
                 }
             }
-            signals.IBlockDriver[] outList = new signals.IBlockDriver[found.Count];
-            found.CopyTo(outList);
-            return outList;
         }
     }
 
@@ -488,6 +499,8 @@ namespace cppProxy
         private bool m_canCreate;
         private bool m_canDiscover;
         private string m_name;
+        private string m_descr;
+        private signals.Fingerprint m_fingerprint;
         public const int DEFAULT_BUFFER = 100;
         public int BufferSize = DEFAULT_BUFFER;
 
@@ -505,8 +518,24 @@ namespace cppProxy
         private void interrogate()
         {
             m_name = Utilities.getString(m_native.Name());
+            m_descr = Utilities.getString(m_native.Description());
             m_canCreate = m_native.canCreate();
             m_canDiscover = m_native.canDiscover();
+            m_fingerprint = decodeFingerprint(m_native.Fingerprint());
+        }
+
+        private static unsafe signals.Fingerprint decodeFingerprint(IntPtr fgr)
+        {
+            if (fgr == IntPtr.Zero) return null;
+            signals.Fingerprint val = new signals.Fingerprint();
+            byte* ptr = (byte*)fgr.ToPointer();
+            int len = *ptr++;
+            val.inputs = new signals.EType[len];
+            for (int idx = 0; idx < len; idx++) val.inputs[idx] = (signals.EType)(int) *ptr++;
+            len = *ptr++;
+            val.outputs = new signals.EType[len];
+            for (int idx = 0; idx < len; idx++) val.outputs[idx] = (signals.EType)(int) *ptr++;
+            return val;
         }
 
         ~CppProxyBlockDriver()
@@ -520,8 +549,10 @@ namespace cppProxy
 
         public signals.IModule Module { get { return m_parent; } }
         public string Name { get { return m_name; } }
+        public string Description { get { return m_descr; } }
         public bool canCreate { get { return m_canCreate; } }
         public bool canDiscover { get { return m_canDiscover; } }
+        public signals.Fingerprint Fingerprint { get { return m_fingerprint; } }
 
         public signals.IBlock Create()
         {
@@ -1424,6 +1455,7 @@ namespace cppProxy
         private IntPtr m_nativeRef;
         private string m_name;
         private string m_descr;
+        private signals.Fingerprint m_fingerprint;
 
         public CppProxyFunctionSpec(CppProxyModuleDriver parent, IntPtr native)
         {
@@ -1440,6 +1472,18 @@ namespace cppProxy
         {
             m_name = Utilities.getString(m_native.Name());
             m_descr = Utilities.getString(m_native.Description());
+            m_fingerprint = decodeFingerprint(m_native.Fingerprint());
+        }
+
+        private static signals.Fingerprint decodeFingerprint(IntPtr fgr)
+        {
+            if (fgr == IntPtr.Zero) return null;
+            signals.Fingerprint val = new signals.Fingerprint();
+            val.inputs = new signals.EType[1];
+            val.inputs[0] = (signals.EType)(int)Marshal.ReadByte(fgr, 0);
+            val.outputs = new signals.EType[1];
+            val.outputs[0] = (signals.EType)(int)Marshal.ReadByte(fgr, 1);
+            return val;
         }
 
         ~CppProxyFunctionSpec()
@@ -1454,6 +1498,7 @@ namespace cppProxy
         public signals.IModule Module { get { return m_parent; } }
         public string Name { get { return m_name; } }
         public string Description { get { return m_descr; } }
+        public signals.Fingerprint Fingerprint { get { return m_fingerprint; } }
 
         public signals.IFunction Create()
         {

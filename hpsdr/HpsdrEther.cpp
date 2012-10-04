@@ -36,7 +36,8 @@ namespace hpsdr {
 
 // ------------------------------------------------------------------ class CHpsdrEthernetDriver
 
-const char* CHpsdrEthernetDriver::NAME = "OpenHPSDR Ethernet Devices";
+const char* CHpsdrEthernetDriver::NAME = "radio";
+const char* CHpsdrEthernetDriver::DESCR = "OpenHPSDR Ethernet Devices";
 
 CHpsdrEthernetDriver::CHpsdrEthernetDriver()
 {

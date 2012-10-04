@@ -37,6 +37,12 @@ namespace signals
         VecLRSingle = 0x4C
     };
 
+    public class Fingerprint
+    {
+        public EType[] inputs;
+        public EType[] outputs;
+    };
+
     public interface IModule
     {
         string File { get; }
@@ -49,10 +55,12 @@ namespace signals
 	{
         IModule Module { get; }
 		string Name { get; }
-		bool canCreate { get; }
+        string Description { get; }
+        bool canCreate { get; }
 		bool canDiscover { get; }
 		IBlock[] Discover();
 		IBlock Create();
+        Fingerprint Fingerprint { get; }
 	};
 
     public interface IBlock : IDisposable
@@ -132,14 +140,15 @@ namespace signals
         string Name { get; }
 		string Description { get; }
 		IFunction Create();
-	};
+        Fingerprint Fingerprint { get; }
+    };
 
 	public interface IFunction : IDisposable
 	{
 		IFunctionSpec Spec { get; }
 		IInputFunction Input { get; }
 		IOutputFunction Output { get; }
-	};
+    };
 
 	public interface IInputFunction : IInEndpoint, IEPReceiver
 	{

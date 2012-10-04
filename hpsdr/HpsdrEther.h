@@ -39,14 +39,17 @@ private:
 	CHpsdrEthernetDriver operator=(const CHpsdrEthernetDriver& other);
 
 public:
-	virtual const char* Name()		{ return NAME; }
-	virtual BOOL canCreate()		{ return false; }
-	virtual BOOL canDiscover()		{ return true; }
+	virtual const char* Name()			{ return NAME; }
+	virtual const char* Description()	{ return DESCR; }
+	virtual BOOL canCreate()			{ return false; }
+	virtual BOOL canDiscover()			{ return true; }
 	virtual unsigned Discover(signals::IBlock** blocks, unsigned availBlocks);
 	virtual signals::IBlock* Create()	{ return NULL; }
+	virtual const unsigned char* Fingerprint() { return NULL; }
 
 protected:
 	static const char* NAME;
+	static const char* DESCR;
 	int m_wsaStartup;
 
 	struct CDiscoveredBoard
