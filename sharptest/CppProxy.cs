@@ -18,7 +18,12 @@ namespace cppProxy
         public static string getString(IntPtr strz)
         {
             if (strz == IntPtr.Zero) return null;
-            int strlen = getStringLength(strz);
+            return getString(strz, getStringLength(strz));
+        }
+
+        public static string getString(IntPtr strz, int strlen)
+        {
+            if (strz == IntPtr.Zero) return null;
             byte[] strArray = new byte[strlen];
             Marshal.Copy(strz, strArray, 0, strlen);
             return System.Text.Encoding.UTF8.GetString(strArray);
@@ -228,6 +233,7 @@ namespace cppProxy
             uint AddRef();
             uint Release();
             IntPtr Name();
+            uint NodeId(IntPtr buff, uint availChar);
             IntPtr Driver();
             IntPtr Parent();
             uint Children(IntPtr blocks, uint availBlocks);
@@ -604,10 +610,12 @@ namespace cppProxy
         private readonly signals.IBlockDriver m_driver;
         private readonly signals.IBlock m_parent;
         private string m_name;
+        private string m_nodeId;
         private signals.IAttributes m_attrs = null;
         private signals.IBlock[] m_children = null;
         private signals.IInEndpoint[] m_incoming = null;
         private signals.IOutEndpoint[] m_outgoing = null;
+        private signals.Fingerprint m_print = null;
 
         public CppProxyBlock(signals.IBlockDriver driver, signals.IBlock parent, IntPtr native)
         {
@@ -629,6 +637,22 @@ namespace cppProxy
         private void interrogate()
         {
             m_name = Utilities.getString(m_native.Name());
+
+            m_nodeId = null;
+            uint nodeIdSize = m_native.NodeId(IntPtr.Zero, 0u);
+            if (nodeIdSize > 0)
+            {
+                IntPtr nodeIdBuff = Marshal.AllocHGlobal((int)nodeIdSize + 1);
+                try
+                {
+                    m_native.NodeId(nodeIdBuff, nodeIdSize);
+                    m_nodeId = Utilities.getString(nodeIdBuff, (int)nodeIdSize);
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(nodeIdBuff);
+                }
+            }
         }
 
         public void Dispose()
@@ -655,6 +679,7 @@ namespace cppProxy
         public bool isValid { get { return m_native != null; } }
 
         public string Name { get { return m_name; } }
+        public string NodeId { get { return m_nodeId; } }
         public signals.IBlockDriver Driver { get { return m_driver; } }
         public signals.IBlock Parent { get { return m_parent; } }
         public void Start() { m_native.Start(); }
@@ -774,6 +799,34 @@ namespace cppProxy
                     }
                 }
                 return m_outgoing;
+            }
+        }
+
+        public signals.Fingerprint Fingerprint
+        {
+            get
+            {
+                if (m_print == null)
+                {
+                    signals.IInEndpoint[] incom = this.Incoming;
+                    signals.IOutEndpoint[] outgo = this.Outgoing;
+                    m_print = new signals.Fingerprint();
+                    m_print.inputs = new signals.EType[incom.Length];
+                    m_print.inputNames = new string[incom.Length];
+                    for (int idx = 0; idx < incom.Length; idx++)
+                    {
+                        m_print.inputs[idx] = incom[idx].Type;
+                        m_print.inputNames[idx] = incom[idx].EPName;
+                    }
+                    m_print.outputs = new signals.EType[outgo.Length];
+                    m_print.outputNames = new string[outgo.Length];
+                    for (int idx = 0; idx < outgo.Length; idx++)
+                    {
+                        m_print.outputs[idx] = outgo[idx].Type;
+                        m_print.outputNames[idx] = outgo[idx].EPName;
+                    }
+                }
+                return m_print;
             }
         }
     }

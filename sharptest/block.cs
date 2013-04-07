@@ -40,7 +40,14 @@ namespace signals
     public class Fingerprint
     {
         public EType[] inputs;
+        public string[] inputNames;
         public EType[] outputs;
+        public string[] outputNames;
+    };
+
+    public interface IConnectible
+    {
+        Fingerprint Fingerprint { get; }
     };
 
     public interface IModule
@@ -51,7 +58,7 @@ namespace signals
         IFunctionSpec[] Functions { get; }
     };
 
-    public interface IBlockDriver
+    public interface IBlockDriver : IConnectible
 	{
         IModule Module { get; }
 		string Name { get; }
@@ -60,19 +67,19 @@ namespace signals
 		bool canDiscover { get; }
 		IBlock[] Discover();
 		IBlock Create();
-        Fingerprint Fingerprint { get; }
 	};
 
-    public interface IBlock : IDisposable
+    public interface IBlock : IDisposable, IConnectible
 	{
         string Name { get; }
+        string NodeId { get; }
         IBlockDriver Driver { get; }
         IBlock Parent { get; }
         IBlock[] Children { get; }
         IInEndpoint[] Incoming { get; }
         IOutEndpoint[] Outgoing { get; }
         IAttributes Attributes { get; }
-		void Start();
+        void Start();
 		void Stop();
 	};
 
@@ -134,13 +141,12 @@ namespace signals
 
     public delegate void OnChanged(string name, EType type, object value);
 
-	public interface IFunctionSpec
+    public interface IFunctionSpec : IConnectible
 	{
         IModule Module { get; }
         string Name { get; }
 		string Description { get; }
 		IFunction Create();
-        Fingerprint Fingerprint { get; }
     };
 
 	public interface IFunction : IDisposable

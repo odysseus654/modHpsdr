@@ -195,6 +195,16 @@ CHpsdrEthernet::CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipad
 
 #pragma warning(pop)
 
+unsigned CHpsdrEthernet::NodeId(char* buff, unsigned availChar)
+{
+	if(availChar >= 17)
+	{
+		sprintf_s(buff, availChar+1, "%02X:%02X:%02X:%02X:%02X:%02X", (int)((m_macAddress>>40)&0xFF), (int)((m_macAddress>>32)&0xFF),
+			(int)((m_macAddress>>24)&0xFF),(int)((m_macAddress>>16)&0xFF),(int)(m_macAddress&0xFF));
+	}
+	return 17;
+}
+
 unsigned CHpsdrEthernet::Incoming(signals::IInEndpoint** ep, unsigned availEP)
 {
 	if(ep && availEP > 0) ep[0] = &m_speaker;

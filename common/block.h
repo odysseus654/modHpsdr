@@ -74,6 +74,7 @@ namespace signals
 		unsigned AddRef();
 		unsigned Release();
 		const char* Name();
+		unsigned NodeId(char* buff, unsigned availChar);
 		IBlockDriver* Driver();
 		IBlock* Parent();
 		unsigned Children(IBlock** blocks, unsigned availBlocks);

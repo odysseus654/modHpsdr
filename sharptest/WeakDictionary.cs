@@ -4,7 +4,7 @@ using System.Text;
 
 namespace sharptest
 {
-    class WeakValuedDictionary<TKey, TValue> : IDictionary<TKey, TValue>
+    public class WeakValuedDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {
         // adapted from http://stackoverflow.com/questions/2784291/good-implementation-of-weak-dictionary-in-net
         // and http://blogs.msdn.com/b/nicholg/archive/2006/06/04/616787.aspx

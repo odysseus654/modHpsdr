@@ -1,19 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
 
 namespace sharptest
 {
-    class ModLibrary
+    public class ModLibrary
     {
         private Dictionary<ModuleKey, List<signals.IBlockDriver> > blocks;
         private Dictionary<string, List<signals.IFunctionSpec> > funcs;
 
         private class ModuleKey : IEquatable<ModuleKey>
         {
-            public string name;
-            public int numIn;
-            public int numOut;
+            public readonly string name;
+            public readonly int numIn;
+            public readonly int numOut;
 
             public ModuleKey(signals.IBlockDriver blk)
             {

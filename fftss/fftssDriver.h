@@ -68,6 +68,7 @@ public: // IBlock implementation
 	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
 	virtual unsigned Release()				{ return CRefcountObject::Release(); }
 	virtual const char* Name()				{ return NAME; }
+	virtual unsigned NodeId(char* /* buff */ , unsigned /* availChar */) { return 0; }
 	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IAttributes* Attributes() { return this; }
