@@ -18,6 +18,7 @@
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
+/*
 	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecCmplDbl> fft_dd;
 	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecComplex> fft_ds;
 	static fftss::CFFTransformDriver<signals::etypComplex,signals::etypVecCmplDbl> fft_sd;
@@ -29,7 +30,13 @@ extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned avail
 		if(availDrivers > 2) drivers[2] = &fft_sd;
 		if(availDrivers > 3) drivers[3] = &fft_ss;
 	}
-	return 4;
+*/
+	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecCmplDbl> fft_dd;
+	if(drivers && availDrivers)
+	{
+		if(availDrivers > 0) drivers[0] = &fft_dd;
+	}
+	return 1;
 }
 
 namespace fftss {
