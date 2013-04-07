@@ -53,7 +53,7 @@ static Function<signals::etypComplex,signals::etypCmplDbl,assign<std::complex<fl
 
 // lossy assignments
 static Function<signals::etypShort,signals::etypByte,assign<short, unsigned char> > assignSB("~","short -> byte");
-static Function<signals::etypLong,signals::etypByte,assign<long, unsigned char> > assignLB("~","short -> byte");
+static Function<signals::etypLong,signals::etypByte,assign<long, unsigned char> > assignLB("~","long -> byte");
 static Function<signals::etypLong,signals::etypShort,assign<long, short> > assignLS("~","long -> short");
 static Function<signals::etypLong,signals::etypSingle,assign<long, float> > assignFL("~","long -> single");
 static Function<signals::etypLong,signals::etypComplex,assign<long, std::complex<float> > > assignCL("~","long -> complex-single");

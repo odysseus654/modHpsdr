@@ -10,6 +10,15 @@ namespace sharptest
         {
             ModLibrary library = new ModLibrary();
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug", library);
+
+            Schematic circuit = new Schematic();
+            Schematic.Element fftElem = new Schematic.Element(Schematic.ElementType.Module, "fft");
+            Schematic.Element radioElem = new Schematic.Element(Schematic.ElementType.Module, "radio");
+
+            circuit.addGeneric(fftElem);
+            circuit.addGeneric(radioElem);
+            circuit.connect(radioElem, 2, fftElem, 0);
+            List<Schematic> options = circuit.resolve(library);
             
             signals.IBlock fft = library.block("fft")[0][0].Create();
 

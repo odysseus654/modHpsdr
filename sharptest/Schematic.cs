@@ -92,7 +92,10 @@ namespace sharptest
                             {
                                 foreach (signals.IBlockDriver driver in variant)
                                 {
-                                    this.availObjects.Add(driver);
+                                    if (driver.canCreate)
+                                    {
+                                        this.availObjects.Add(driver);
+                                    }
                                 }
                             }
                         }
@@ -297,6 +300,21 @@ namespace sharptest
             this.genericID = 0;
         }
 
+        public void addGeneric(signals.IBlockDriver realDriver)
+        {
+            addGeneric(new Element(realDriver));
+        }
+
+        public void addGeneric(signals.IFunctionSpec realSpec)
+        {
+            addGeneric(new Element(realSpec));
+        }
+
+        public void addGeneric(signals.IFunction realFunc)
+        {
+            addGeneric(new Element(realFunc));
+        }
+
         public void addGeneric(Element elem)
         {
             if (elem == null) throw new ArgumentNullException("elem");
@@ -310,9 +328,9 @@ namespace sharptest
             if (elem == null) throw new ArgumentNullException("elem");
 
             UniqueElemKey key = new UniqueElemKey(elem);
-            Element storedElem = contents[key];
-            if (storedElem != null)
+            if(contents.ContainsKey(key))
             {
+                Element storedElem = contents[key];
                 if (storedElem != elem)
                 {
                     throw new ArgumentException("A different element with this same unique ID is already in the schema", "elem");
@@ -324,22 +342,22 @@ namespace sharptest
 
         public void connect(Element from, string ep1, Element to, string ep2)
         {
-            connect(new EndpointKey(from, ep1), new EndpointKey(from, ep1));
+            connect(new EndpointKey(from, ep1), new EndpointKey(to, ep2));
         }
 
         public void connect(Element from, int ep1, Element to, int ep2)
         {
-            connect(new EndpointKey(from, ep1), new EndpointKey(from, ep1));
+            connect(new EndpointKey(from, ep1), new EndpointKey(to, ep2));
         }
 
         public void connect(Element from, int ep1, Element to, string ep2)
         {
-            connect(new EndpointKey(from, ep1), new EndpointKey(from, ep1));
+            connect(new EndpointKey(from, ep1), new EndpointKey(to, ep2));
         }
 
         public void connect(Element from, string ep1, Element to, int ep2)
         {
-            connect(new EndpointKey(from, ep1), new EndpointKey(from, ep1));
+            connect(new EndpointKey(from, ep1), new EndpointKey(to, ep2));
         }
 
         private void connect(EndpointKey fromEp, EndpointKey toEp)
@@ -387,7 +405,9 @@ namespace sharptest
         {
             if (this.contents.Count == 0 || this.connections.Count == 0) return false;
             Dictionary<Element, bool> seen = new Dictionary<Element, bool>();
-            Element first = this.contents.GetEnumerator().Current.Value;
+            Dictionary<UniqueElemKey, Element>.Enumerator firstEnum = this.contents.GetEnumerator();
+            firstEnum.MoveNext();
+            Element first = firstEnum.Current.Value;
             isFullyConnectedImpl(seen, first);
             foreach (Element elm in this.contents.Values)
             {
@@ -427,7 +447,9 @@ namespace sharptest
             }
 
             Schematic all = this.Clone();
-            Element first = all.contents.GetEnumerator().Current.Value;
+            Dictionary<UniqueElemKey, Element>.Enumerator firstEnum = all.contents.GetEnumerator();
+            firstEnum.MoveNext();
+            Element first = firstEnum.Current.Value;
             Dictionary<UniqueElemKey, bool> seen = new Dictionary<UniqueElemKey, bool>();
             return resolveImpl(library, all, seen, new UniqueElemKey(first));
         }
@@ -488,7 +510,7 @@ namespace sharptest
         private bool resolveNeighbors(ModLibrary library, Element elm)
         {
             if (elm.availObjects.Count != 1) throw new ApplicationException("elm should contain a single availObject by this point");
-            signals.IConnectible avail = elm.availObjects.GetEnumerator().Current;
+            signals.IConnectible avail = elm.availObjects[0];
             Dictionary<Element, bool> recurseList = new Dictionary<Element, bool>();
             foreach (KeyValuePair<EndpointKey, EndpointKey> entry in connections)
             {
@@ -497,7 +519,7 @@ namespace sharptest
                 if (key.elem == elm)
                 {
                     Element otherElm = value.elem;
-                    signals.EType ourType = key.InputType(avail);
+                    signals.EType ourType = key.OutputType(avail);
                     bool changed = false;
                     if (otherElm.availObjects.Count > 1)
                     {
@@ -505,7 +527,7 @@ namespace sharptest
                         List<signals.IConnectible> newAvail = new List<signals.IConnectible>();
                         foreach (signals.IConnectible otherAvail in otherElm.availObjects)
                         {
-                            signals.EType otherType = value.OutputType(otherAvail);
+                            signals.EType otherType = value.InputType(otherAvail);
                             if (ourType != otherType && findImplicitConversion(library, ourType, otherType) == null)
                             {
                                 changed = true;
@@ -520,7 +542,7 @@ namespace sharptest
                     if (otherElm.availObjects.Count == 1)
                     {
                         // if we're on one-to-one terms, we might add compat connections
-                        signals.IConnectible otherAvail = otherElm.availObjects.GetEnumerator().Current;
+                        signals.IConnectible otherAvail = otherElm.availObjects[0];
                         signals.EType otherType = value.InputType(otherAvail);
                         if (ourType != otherType)
                         {
@@ -546,7 +568,7 @@ namespace sharptest
                 if (value.elem == elm)
                 {
                     Element otherElm = key.elem;
-                    signals.EType ourType = value.OutputType(avail);
+                    signals.EType ourType = value.InputType(avail);
                     bool changed = false;
                     if (otherElm.availObjects.Count > 1)
                     {
@@ -554,7 +576,7 @@ namespace sharptest
                         List<signals.IConnectible> newAvail = new List<signals.IConnectible>();
                         foreach (signals.IConnectible otherAvail in otherElm.availObjects)
                         {
-                            signals.EType otherType = key.InputType(otherAvail);
+                            signals.EType otherType = key.OutputType(otherAvail);
                             if (ourType != otherType && findImplicitConversion(library, otherType, ourType) == null)
                             {
                                 changed = true;
@@ -569,7 +591,7 @@ namespace sharptest
                     if (otherElm.availObjects.Count == 1)
                     {
                         // if we're on one-to-one terms, we might add compat connections
-                        signals.IConnectible otherAvail = otherElm.availObjects.GetEnumerator().Current;
+                        signals.IConnectible otherAvail = otherElm.availObjects[0];
                         signals.EType otherType = key.InputType(otherAvail);
                         if (ourType != otherType)
                         {
