@@ -103,6 +103,7 @@ namespace signals
     public interface IInEndpoint : IDisposable
 	{
         string EPName { get; }
+        string EPDescr { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
 		bool Connect(IEPReceiver recv);
@@ -114,6 +115,7 @@ namespace signals
     public interface IOutEndpoint : IDisposable
 	{
         string EPName { get; }
+        string EPDescr { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
 		bool Connect(IEPSender send);

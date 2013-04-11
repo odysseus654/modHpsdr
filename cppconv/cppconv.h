@@ -31,7 +31,8 @@ public:
 public: // IInEndpoint implementaton
 	virtual unsigned AddRef()		{ return m_parent->AddRef(); }
 	virtual unsigned Release()		{ return m_parent->Release(); }
-	virtual const char* EPName()	{ return m_spec->Description(); }
+	virtual const char* EPName()	{ return m_spec->Name(); }
+	virtual const char* EPDescr()	{ return m_spec->Description(); }
 //	virtual signals::EType Type() = 0;
 	virtual BOOL isConnected()		{ return !!m_readFrom; }
 	virtual BOOL Disconnect()		{ return Connect(NULL); }
@@ -58,7 +59,8 @@ public:
 		:m_spec(spec),m_parent(parent),m_writeTo(NULL),m_writeFrom(NULL) {}
 
 public: // IOutEndpoint implementaton
-	virtual const char* EPName()	{ return m_spec->Description(); }
+	virtual const char* EPName()	{ return m_spec->Name(); }
+	virtual const char* EPDescr()	{ return m_spec->Description(); }
 //	virtual signals::EType Type() = 0;
 	virtual BOOL isConnected()		{ return !!m_writeTo; }
 	virtual BOOL Disconnect()		{ return Connect(NULL); }

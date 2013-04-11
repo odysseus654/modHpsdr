@@ -17,7 +17,7 @@ namespace sharptest
 
             circuit.addGeneric(fftElem);
             circuit.addGeneric(radioElem);
-            circuit.connect(radioElem, 2, fftElem, 0);
+            circuit.connect(radioElem, "recv1", fftElem, 0);
             List<Schematic> options = circuit.resolve(library);
             
             signals.IBlock fft = library.block("fft")[0][0].Create();

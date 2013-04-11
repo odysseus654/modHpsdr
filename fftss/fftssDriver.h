@@ -150,14 +150,15 @@ public:
 		} attrs;
 
 	private:
-		const static char* EP_NAME[];
+		const static char* EP_NAME;
 		const static char* EP_DESCR;
 		COutgoing(const COutgoing& other);
 		COutgoing& operator=(const COutgoing& other);
 
 	public: // COutEndpointBase interface
 		virtual signals::EType Type()				{ return ETout; }
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
 
 		virtual signals::IEPBuffer* CreateBuffer()
@@ -186,7 +187,8 @@ public:
 		CIncoming& operator=(const CIncoming& other);
 
 	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
 		virtual signals::EType Type()				{ return ETin; }

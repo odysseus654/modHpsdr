@@ -200,7 +200,7 @@ unsigned CHpsdrEthernet::NodeId(char* buff, unsigned availChar)
 	if(availChar >= 17)
 	{
 		sprintf_s(buff, availChar+1, "%02X:%02X:%02X:%02X:%02X:%02X", (int)((m_macAddress>>40)&0xFF), (int)((m_macAddress>>32)&0xFF),
-			(int)((m_macAddress>>24)&0xFF),(int)((m_macAddress>>16)&0xFF),(int)(m_macAddress&0xFF));
+			(int)((m_macAddress>>24)&0xFF),(int)((m_macAddress>>16)&0xFF),(int)((m_macAddress>>8)&0xFF),(int)(m_macAddress&0xFF));
 	}
 	return 17;
 }

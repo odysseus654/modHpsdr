@@ -96,6 +96,11 @@ namespace sharptest
                                     {
                                         this.availObjects.Add(driver);
                                     }
+                                    if (driver.canDiscover)
+                                    {
+                                        signals.IBlock[] found = driver.Discover();
+                                        this.availObjects.AddRange(found);
+                                    }
                                 }
                             }
                         }
@@ -479,11 +484,13 @@ namespace sharptest
                         EndpointKey value = entry.Value;
                         if (key.elem == newElem)
                         {
-                            recurseList.Add(new UniqueElemKey(value.elem), true);
+                            UniqueElemKey newKey = new UniqueElemKey(value.elem);
+                            if (!seen.ContainsKey(newKey)) recurseList.Add(newKey, true);
                         }
-                        if (value.elem == newElem)
+                        else if (value.elem == newElem)
                         {
-                            recurseList.Add(new UniqueElemKey(key.elem), true);
+                            UniqueElemKey newKey = new UniqueElemKey(key.elem);
+                            if (!seen.ContainsKey(newKey)) recurseList.Add(newKey, true);
                         }
                     }
                     List<Schematic> possibles = new List<Schematic>();
@@ -512,7 +519,9 @@ namespace sharptest
             if (elm.availObjects.Count != 1) throw new ApplicationException("elm should contain a single availObject by this point");
             signals.IConnectible avail = elm.availObjects[0];
             Dictionary<Element, bool> recurseList = new Dictionary<Element, bool>();
-            foreach (KeyValuePair<EndpointKey, EndpointKey> entry in connections)
+            List<KeyValuePair<EndpointKey, EndpointKey>> tempCollect = new List<KeyValuePair<EndpointKey,EndpointKey>>();
+            tempCollect.AddRange(connections);
+            foreach (KeyValuePair<EndpointKey, EndpointKey> entry in tempCollect)
             {
                 EndpointKey key = entry.Key;
                 EndpointKey value = entry.Value;
@@ -592,7 +601,7 @@ namespace sharptest
                     {
                         // if we're on one-to-one terms, we might add compat connections
                         signals.IConnectible otherAvail = otherElm.availObjects[0];
-                        signals.EType otherType = key.InputType(otherAvail);
+                        signals.EType otherType = key.OutputType(otherAvail);
                         if (ourType != otherType)
                         {
                             signals.IFunctionSpec func = findImplicitConversion(library, otherType, ourType);

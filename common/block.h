@@ -111,6 +111,7 @@ namespace signals
 		unsigned AddRef();
 		unsigned Release();
 		const char* EPName();
+		const char* EPDescr();
 		EType Type();
 		IAttributes* Attributes();
 		BOOL Connect(IEPReceiver* recv);
@@ -122,6 +123,7 @@ namespace signals
 	__interface IOutEndpoint
 	{
 		const char* EPName();
+		const char* EPDescr();
 		EType Type();
 		IAttributes* Attributes();
 		BOOL Connect(IEPSender* send);

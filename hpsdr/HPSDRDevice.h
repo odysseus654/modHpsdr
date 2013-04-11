@@ -166,7 +166,8 @@ public:
 
 	public: // COutEndpointBase interface
 		virtual signals::EType Type()				{ return signals::etypComplex; }
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME[m_recvNum]; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual signals::IEPBuffer* CreateBuffer();
 		virtual BOOL Connect(signals::IEPSender* send);
@@ -199,7 +200,8 @@ public:
 
 	public: // COutEndpointBase interface
 		virtual signals::EType Type()				{ return signals::etypSingle; }
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IEPBuffer* CreateBuffer();
 		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
@@ -229,7 +231,8 @@ public:
 
 	public: // COutEndpointBase interface
 		virtual signals::EType Type()				{ return signals::etypSingle; }
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IEPBuffer* CreateBuffer();
 		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
@@ -258,7 +261,8 @@ public:
 		Transmitter& operator=(const Transmitter& other);
 
 	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
 		virtual signals::EType Type()				{ return signals::etypComplex; }
@@ -289,7 +293,8 @@ public:
 		Speaker& operator=(const Speaker& other);
 
 	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_DESCR; }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 		virtual unsigned Release()					{ return m_parent->Release(); }
 		virtual signals::EType Type()				{ return signals::etypLRSingle; }

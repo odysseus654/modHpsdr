@@ -270,6 +270,7 @@ namespace cppProxy
             uint AddRef();
             uint Release();
             IntPtr EPName();
+            IntPtr EPDescr();
             signals.EType Type();
             IntPtr Attributes();
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr recv);
@@ -281,6 +282,7 @@ namespace cppProxy
         public interface IOutEndpoint
         {
             IntPtr EPName();
+            IntPtr EPDescr();
             signals.EType Type();
             IntPtr Attributes();
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr send);
@@ -390,26 +392,33 @@ namespace cppProxy
                 {
                     Delegate queryDrivers = Marshal.GetDelegateForFunctionPointer(m_queryDrivers, typeof(QueryObjectsDelegate));
                     uint numDrivers = (uint)queryDrivers.DynamicInvoke(new object[] { null, 0u });
-                    IntPtr driverBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numDrivers);
-                    try
+                    if (numDrivers == 0)
                     {
-                        queryDrivers.DynamicInvoke(new object[] { driverBuff, numDrivers });
-                        IntPtr[] ptrArr = new IntPtr[numDrivers];
-                        Marshal.Copy(driverBuff, ptrArr, 0, (int)numDrivers);
-                        m_drivers = new CppProxyBlockDriver[numDrivers];
-                        for (int idx = 0; idx < numDrivers; idx++)
+                        m_drivers = new CppProxyBlockDriver[0];
+                    }
+                    else
+                    {
+                        IntPtr driverBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numDrivers);
+                        try
                         {
-                            if (ptrArr[idx] != IntPtr.Zero)
+                            queryDrivers.DynamicInvoke(new object[] { driverBuff, numDrivers });
+                            IntPtr[] ptrArr = new IntPtr[numDrivers];
+                            Marshal.Copy(driverBuff, ptrArr, 0, (int)numDrivers);
+                            m_drivers = new CppProxyBlockDriver[numDrivers];
+                            for (int idx = 0; idx < numDrivers; idx++)
                             {
-                                signals.IBlockDriver newObj = (signals.IBlockDriver)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null) newObj = new CppProxyBlockDriver(this, ptrArr[idx]);
-                                m_drivers[idx] = newObj;
+                                if (ptrArr[idx] != IntPtr.Zero)
+                                {
+                                    signals.IBlockDriver newObj = (signals.IBlockDriver)Registration.retrieveObject(ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyBlockDriver(this, ptrArr[idx]);
+                                    m_drivers[idx] = newObj;
+                                }
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(driverBuff);
+                        finally
+                        {
+                            Marshal.FreeHGlobal(driverBuff);
+                        }
                     }
                 }
                 return m_drivers;
@@ -424,26 +433,33 @@ namespace cppProxy
                 {
                     Delegate queryFunctions = Marshal.GetDelegateForFunctionPointer(m_queryFunctions, typeof(QueryObjectsDelegate));
                     uint numFunctions = (uint)queryFunctions.DynamicInvoke(new object[] { null, 0u });
-                    IntPtr functionBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numFunctions);
-                    try
+                    if (numFunctions == 0)
                     {
-                        queryFunctions.DynamicInvoke(new object[] { functionBuff, numFunctions });
-                        IntPtr[] ptrArr = new IntPtr[numFunctions];
-                        Marshal.Copy(functionBuff, ptrArr, 0, (int)numFunctions);
-                        m_functions = new CppProxyFunctionSpec[numFunctions];
-                        for (int idx = 0; idx < numFunctions; idx++)
+                        m_functions = new CppProxyFunctionSpec[0];
+                    }
+                    else
+                    {
+                        IntPtr functionBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numFunctions);
+                        try
                         {
-                            if (ptrArr[idx] != IntPtr.Zero)
+                            queryFunctions.DynamicInvoke(new object[] { functionBuff, numFunctions });
+                            IntPtr[] ptrArr = new IntPtr[numFunctions];
+                            Marshal.Copy(functionBuff, ptrArr, 0, (int)numFunctions);
+                            m_functions = new CppProxyFunctionSpec[numFunctions];
+                            for (int idx = 0; idx < numFunctions; idx++)
                             {
-                                signals.IFunctionSpec newObj = (signals.IFunctionSpec)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null) newObj = new CppProxyFunctionSpec(this, ptrArr[idx]);
-                                m_functions[idx] = newObj;
+                                if (ptrArr[idx] != IntPtr.Zero)
+                                {
+                                    signals.IFunctionSpec newObj = (signals.IFunctionSpec)Registration.retrieveObject(ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyFunctionSpec(this, ptrArr[idx]);
+                                    m_functions[idx] = newObj;
+                                }
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(functionBuff);
+                        finally
+                        {
+                            Marshal.FreeHGlobal(functionBuff);
+                        }
                     }
                 }
                 return m_functions;
@@ -578,7 +594,7 @@ namespace cppProxy
             {
                 uint numObj = m_native.Discover(discoverBuff, (uint)BufferSize);
                 IntPtr[] ptrArr = new IntPtr[numObj];
-                Marshal.Copy(discoverBuff, ptrArr, 0, (int)numObj);
+                if(numObj > 0) Marshal.Copy(discoverBuff, ptrArr, 0, (int)numObj);
                 signals.IBlock[] objArr = new signals.IBlock[numObj];
                 for (int idx = 0; idx < numObj; idx++)
                 {
@@ -707,27 +723,34 @@ namespace cppProxy
                 if (m_children == null)
                 {
                     uint numChildren = m_native.Children(IntPtr.Zero, 0);
-                    IntPtr childBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numChildren);
-                    try
+                    if (numChildren == 0)
                     {
-                        m_native.Children(childBuff, numChildren);
-                        IntPtr[] ptrArr = new IntPtr[numChildren];
-                        Marshal.Copy(childBuff, ptrArr, 0, (int)numChildren);
-                        m_children = new CppProxyBlock[numChildren];
-                        for (int idx = 0; idx < numChildren; idx++)
+                        m_children = new CppProxyBlock[0];
+                    }
+                    else
+                    {
+                        IntPtr childBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numChildren);
+                        try
                         {
-
-                            if (ptrArr[idx] != IntPtr.Zero)
+                            m_native.Children(childBuff, numChildren);
+                            IntPtr[] ptrArr = new IntPtr[numChildren];
+                            Marshal.Copy(childBuff, ptrArr, 0, (int)numChildren);
+                            m_children = new CppProxyBlock[numChildren];
+                            for (int idx = 0; idx < numChildren; idx++)
                             {
-                                signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null) newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
-                                m_children[idx] = newObj;
+
+                                if (ptrArr[idx] != IntPtr.Zero)
+                                {
+                                    signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
+                                    m_children[idx] = newObj;
+                                }
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(childBuff);
+                        finally
+                        {
+                            Marshal.FreeHGlobal(childBuff);
+                        }
                     }
                 }
                 return m_children;
@@ -741,27 +764,34 @@ namespace cppProxy
                 if (m_incoming == null)
                 {
                     uint numEP = m_native.Incoming(IntPtr.Zero, 0);
-                    IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
-                    try
+                    if (numEP == 0)
                     {
-                        m_native.Incoming(epBuff, numEP);
-                        IntPtr[] ptrArr = new IntPtr[numEP];
-                        Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
-                        m_incoming = new CppProxyInEndpoint[numEP];
-                        for (int idx = 0; idx < numEP; idx++)
+                        m_incoming = new CppProxyInEndpoint[0];
+                    }
+                    else
+                    {
+                        IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                        try
                         {
-
-                            if (ptrArr[idx] != IntPtr.Zero)
+                            m_native.Incoming(epBuff, numEP);
+                            IntPtr[] ptrArr = new IntPtr[numEP];
+                            Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
+                            m_incoming = new CppProxyInEndpoint[numEP];
+                            for (int idx = 0; idx < numEP; idx++)
                             {
-                                signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null) newObj = new CppProxyInEndpoint(m_driver.Module, this, ptrArr[idx]);
-                                m_incoming[idx] = newObj;
+
+                                if (ptrArr[idx] != IntPtr.Zero)
+                                {
+                                    signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyInEndpoint(m_driver.Module, this, ptrArr[idx]);
+                                    m_incoming[idx] = newObj;
+                                }
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(epBuff);
+                        finally
+                        {
+                            Marshal.FreeHGlobal(epBuff);
+                        }
                     }
                 }
                 return m_incoming;
@@ -775,27 +805,34 @@ namespace cppProxy
                 if (m_outgoing == null)
                 {
                     uint numEP = m_native.Outgoing(IntPtr.Zero, 0);
-                    IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
-                    try
+                    if (numEP == 0)
                     {
-                        m_native.Outgoing(epBuff, numEP);
-                        IntPtr[] ptrArr = new IntPtr[numEP];
-                        Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
-                        m_outgoing = new CppProxyOutEndpoint[numEP];
-                        for (int idx = 0; idx < numEP; idx++)
+                        m_outgoing = new CppProxyOutEndpoint[0];
+                    }
+                    else
+                    {
+                        IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                        try
                         {
-
-                            if (ptrArr[idx] != IntPtr.Zero)
+                            m_native.Outgoing(epBuff, numEP);
+                            IntPtr[] ptrArr = new IntPtr[numEP];
+                            Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
+                            m_outgoing = new CppProxyOutEndpoint[numEP];
+                            for (int idx = 0; idx < numEP; idx++)
                             {
-                                signals.IOutEndpoint newObj = (signals.IOutEndpoint)Registration.retrieveObject(ptrArr[idx]);
-                                if (newObj == null) newObj = new CppProxyOutEndpoint(m_driver.Module, this, ptrArr[idx]);
-                                m_outgoing[idx] = newObj;
+
+                                if (ptrArr[idx] != IntPtr.Zero)
+                                {
+                                    signals.IOutEndpoint newObj = (signals.IOutEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyOutEndpoint(m_driver.Module, this, ptrArr[idx]);
+                                    m_outgoing[idx] = newObj;
+                                }
                             }
                         }
-                    }
-                    finally
-                    {
-                        Marshal.FreeHGlobal(epBuff);
+                        finally
+                        {
+                            Marshal.FreeHGlobal(epBuff);
+                        }
                     }
                 }
                 return m_outgoing;
@@ -880,6 +917,7 @@ namespace cppProxy
         public signals.IAttribute[] Itemize()
         {
             uint numAttr = m_native.Itemize(IntPtr.Zero, 0);
+            if (numAttr == 0) return new signals.IAttribute[0];
             IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
             try
             {
@@ -1072,6 +1110,7 @@ namespace cppProxy
         private readonly ICollectible m_owner;
         private IntPtr m_nativeRef;
         private string m_name;
+        private string m_descr;
         private signals.EType m_type;
         private signals.IAttributes m_attrs = null;
 
@@ -1091,6 +1130,7 @@ namespace cppProxy
         private void interrogate()
         {
             m_name = Utilities.getString(m_native.EPName());
+            m_descr = Utilities.getString(m_native.EPDescr());
             m_type = m_native.Type();
         }
 
@@ -1135,6 +1175,7 @@ namespace cppProxy
         }
 
         public string EPName { get { return m_name; } }
+        public string EPDescr { get { return m_descr; } }
         public signals.EType Type { get { return m_type; } }
         public bool isConnected { get { return m_native.isConnected(); } }
         public bool Disconnect() { return m_native.Disconnect(); }
@@ -1182,6 +1223,7 @@ namespace cppProxy
         private readonly ICollectible m_owner;
         private IntPtr m_nativeRef;
         private string m_name;
+        private string m_descr;
         private signals.EType m_type;
         private signals.IAttributes m_attrs = null;
 
@@ -1209,6 +1251,7 @@ namespace cppProxy
         private void interrogate()
         {
             m_name = Utilities.getString(m_native.EPName());
+            m_descr = Utilities.getString(m_native.EPDescr());
             m_type = m_native.Type();
         }
 
@@ -1229,6 +1272,7 @@ namespace cppProxy
 
         public virtual void Dispose() { }
         public string EPName { get { return m_name; } }
+        public string EPDescr { get { return m_descr; } }
         public signals.EType Type { get { return m_type; } }
         public bool isConnected { get { return m_native.isConnected(); } }
         public bool Disconnect() { return m_native.Disconnect(); }
