@@ -5,7 +5,7 @@
 #include "waterfall.h"
 
 #define MAX_LOADSTRING 100
-HRESULT doTest(HWND hOutputWin);
+HRESULT doTest(HMODULE hModule, HWND hOutputWin);
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -118,7 +118,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
-   doTest(hWnd);
+   doTest(GetModuleHandle(NULL), hWnd);
 
    return TRUE;
 }

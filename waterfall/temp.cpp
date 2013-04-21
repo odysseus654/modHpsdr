@@ -2,8 +2,10 @@
 #include "unkref.h"
 
 #include <d3d10.h>
+#include <d3dx10async.h>
 #include <stddef.h>
 #pragma comment(lib, "d3d10.lib")
+#pragma comment(lib, "d3dx10.lib")
 
 typedef unk_ref_t<ID3D10Device> ID3D10DevicePtr;
 typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
@@ -12,11 +14,15 @@ typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
 typedef unk_ref_t<ID3D10DepthStencilView> ID3D10DepthStencilViewPtr;
 typedef unk_ref_t<ID3D10InputLayout> ID3D10InputLayoutPtr;
 typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
+typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
+typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 
-HRESULT doTest(HWND hOutputWin)
+HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 {
 	RECT rect;
 	if(!GetClientRect(hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
+	UINT screenHeight = rect.bottom - rect.top;
+	UINT screenWidth = rect.right - rect.left;
 
 	HDC hDC = GetDC(hOutputWin);
 	if(hDC == NULL) return HRESULT_FROM_WIN32(GetLastError());
@@ -26,10 +32,16 @@ HRESULT doTest(HWND hOutputWin)
 	DXGI_SWAP_CHAIN_DESC sd;
 	memset(&sd, 0, sizeof(sd));
 	sd.BufferCount = 1;
-	sd.BufferDesc.Width = rect.right - rect.left;
-	sd.BufferDesc.Height = rect.bottom - rect.top;
-	sd.BufferDesc.RefreshRate.Numerator = iRefresh;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
+	sd.BufferDesc.Width = screenWidth;
+	sd.BufferDesc.Height = screenHeight;
+	if(iRefresh > 1)
+	{
+		sd.BufferDesc.RefreshRate.Numerator = iRefresh;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+	} else {
+		sd.BufferDesc.RefreshRate.Numerator = 0;
+		sd.BufferDesc.RefreshRate.Denominator = 0;
+	}
 	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 //	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 //	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
@@ -65,13 +77,13 @@ HRESULT doTest(HWND hOutputWin)
 	depthBufferDesc.BindFlags = D3D10_BIND_DEPTH_STENCIL;
 	depthBufferDesc.CPUAccessFlags = 0;
 	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthBufferDesc.Height = rect.bottom - rect.top;
+	depthBufferDesc.Height = screenHeight;
 	depthBufferDesc.MipLevels = 1;
 //	depthBufferDesc.MiscFlags = 
 	depthBufferDesc.SampleDesc.Count = 1;
 	depthBufferDesc.SampleDesc.Quality = 0;
 	depthBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-	depthBufferDesc.Width = rect.right - rect.left;
+	depthBufferDesc.Width = screenWidth;
 
 	ID3D10Texture2DPtr depthBuffer;
 	ID3D10DepthStencilViewPtr pDepthView;	// hold until end
@@ -106,20 +118,55 @@ HRESULT doTest(HWND hOutputWin)
 
 	pDevice->OMSetRenderTargets(1, &mRenderTargetView, pDepthView);
 
+	// Setup the viewport for rendering.
+	D3D10_VIEWPORT viewport;
+	memset(&viewport, 0, sizeof(viewport));
+	viewport.Width = screenWidth;
+	viewport.Height = screenHeight;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	pDevice->RSSetViewports(1, &viewport);
+
+//	// Create an orthographic projection matrix for 2D rendering.
+//	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
+
 	struct TLVERTEX
 	{
-		float posX;
-		float posY;
-		float posZ;
-		float texX;
-		float texY;
+		D3DXVECTOR3 pos;
+		D3DXVECTOR2 tex;
 	};
 
 	D3D10_INPUT_ELEMENT_DESC vdesc[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TLVERTEX, posX), D3D10_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TLVERTEX, texX), D3D10_INPUT_PER_VERTEX_DATA, 0}
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TLVERTEX, pos), D3D10_INPUT_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TLVERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
+
+	// Load the shader in from the file.
+	static LPCTSTR filename = _T("waterfall.fx");
+	ID3D10EffectPtr pEffect;
+	ID3D10BlobPtr errorMessage;
+	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
+		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+	if(FAILED(hR))
+	{
+		// If the shader failed to compile it should have writen something to the error message.
+		if(errorMessage)
+		{
+//			OutputShaderErrorMessage(errorMessage, hOutputWin, filename);
+			LPCSTR compileErrors = LPCSTR(errorMessage->GetBufferPointer());
+			size_t bufferSize = errorMessage->GetBufferSize();
+		}
+//		// If there was  nothing in the error message then it simply could not find the shader file itself.
+//		else
+//		{
+//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
+//		}
+
+		return hR;
+	}
 
 	ID3D10InputLayoutPtr pInputLayout;
 	hR = pDevice->CreateInputLayout(vdesc, 2, NULL, 0, &pInputLayout);
@@ -133,3 +180,38 @@ HRESULT doTest(HWND hOutputWin)
 	*/
 	return S_OK;
 }
+/*
+void D3DClass::BeginScene(float red, float green, float blue, float alpha)
+{
+	float color[4];
+
+	// Setup the color to clear the buffer to.
+	color[0] = red;
+	color[1] = green;
+	color[2] = blue;
+	color[3] = alpha;
+
+	// Clear the back buffer.
+	m_device->ClearRenderTargetView(m_renderTargetView, color);
+    
+	// Clear the depth buffer.
+	m_device->ClearDepthStencilView(m_depthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+}
+
+void D3DClass::EndScene()
+{
+	// Present the back buffer to the screen since rendering is complete.
+	if(m_vsync_enabled)
+	{
+		// Lock to screen refresh rate.
+		m_swapChain->Present(1, 0);
+	}
+	else
+	{
+		// Present as fast as possible.
+		m_swapChain->Present(0, 0);
+	}
+
+	return;
+}
+*/
