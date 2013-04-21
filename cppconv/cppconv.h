@@ -21,7 +21,7 @@ class InputFunctionBase : public signals::IInputFunction
 protected:
 	signals::IFunction* m_parent;
 	signals::IFunctionSpec* m_spec;
-	signals::IEPReceiver* m_readFrom;
+	signals::IEPRecvFrom* m_readFrom;
 	signals::IInEndpoint* m_readTo;
 
 public:
@@ -38,7 +38,7 @@ public: // IInEndpoint implementaton
 	virtual BOOL Disconnect()		{ return Connect(NULL); }
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 	virtual signals::IAttributes* Attributes() { return m_readTo ? m_readTo->Attributes() : NULL; }
-	virtual BOOL Connect(signals::IEPReceiver* recv);
+	virtual BOOL Connect(signals::IEPRecvFrom* recv);
 
 public: // IEPReceiver implementaton
 //	virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout) = 0;
@@ -51,7 +51,7 @@ class OutputFunctionBase : public signals::IOutputFunction
 protected:
 	signals::IFunction* m_parent;
 	signals::IFunctionSpec* m_spec;
-	signals::IEPSender* m_writeTo;
+	signals::IEPSendTo* m_writeTo;
 	signals::IOutEndpoint* m_writeFrom;
 
 public:
@@ -66,7 +66,7 @@ public: // IOutEndpoint implementaton
 	virtual BOOL Disconnect()		{ return Connect(NULL); }
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 	virtual signals::IAttributes* Attributes() { return m_writeFrom ? m_writeFrom->Attributes() : NULL; }
-	virtual BOOL Connect(signals::IEPSender* send);
+	virtual BOOL Connect(signals::IEPSendTo* send);
 
 public: // IEPSender implementaton
 //	virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout) = 0;

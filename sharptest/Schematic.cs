@@ -99,7 +99,13 @@ namespace sharptest
                                     if (driver.canDiscover)
                                     {
                                         signals.IBlock[] found = driver.Discover();
-                                        this.availObjects.AddRange(found);
+                                        foreach(signals.IBlock discBlk in found)
+                                        {
+                                            if (this.nodeId == null || String.Compare(discBlk.NodeId, this.nodeId, true) == 0)
+                                            {
+                                                this.availObjects.Add(discBlk);
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -143,7 +149,7 @@ namespace sharptest
             }
         }
 
-        private class UniqueElemKey : IEquatable<UniqueElemKey>
+        public class UniqueElemKey : IEquatable<UniqueElemKey>
         {
             public readonly ElementType type;
             public readonly string name;
@@ -263,6 +269,32 @@ namespace sharptest
                 throw new IndexOutOfRangeException();
             }
 
+            public signals.IInEndpoint InputEP(signals.IBlock blk)
+            {
+                signals.Fingerprint print = blk.Fingerprint;
+                if (this.epString == null)
+                {
+                    if (epIdx < print.inputs.Length)
+                    {
+                        return blk.Incoming[epIdx];
+                    }
+                }
+                else
+                {
+                    if (print.inputNames != null)
+                    {
+                        for (int idx = 0; idx < print.inputs.Length; idx++)
+                        {
+                            if (print.inputNames[idx] != null && String.Compare(print.inputNames[idx], epString, true) == 0)
+                            {
+                                return blk.Incoming[idx];
+                            }
+                        }
+                    }
+                }
+                throw new IndexOutOfRangeException();
+            }
+
             public signals.EType OutputType(signals.IConnectible conn)
             {
                 return OutputType(conn.Fingerprint);
@@ -292,6 +324,33 @@ namespace sharptest
                 }
                 throw new IndexOutOfRangeException();
             }
+
+            public signals.IOutEndpoint OutputEP(signals.IBlock blk)
+            {
+                signals.Fingerprint print = blk.Fingerprint;
+                if (this.epString == null)
+                {
+                    if (epIdx < print.outputs.Length)
+                    {
+                        return blk.Outgoing[epIdx];
+                    }
+                }
+                else
+                {
+                    if (print.inputNames != null)
+                    {
+                        for (int idx = 0; idx < print.outputs.Length; idx++)
+                        {
+                            if (print.outputNames[idx] != null && String.Compare(print.outputNames[idx], epString, true) == 0)
+                            {
+                                return blk.Outgoing[idx];
+                            }
+                        }
+                    }
+                }
+                throw new IndexOutOfRangeException();
+            }
+
         }
 
         private Dictionary<EndpointKey, EndpointKey> connections;
@@ -654,6 +713,138 @@ namespace sharptest
             this.connections[fromEP] = new EndpointKey(newElm, 0);
             this.connections[new EndpointKey(newElm, 0)] = toEP;
             return true;
+        }
+
+        public Dictionary<UniqueElemKey, object> construct()
+        {
+            Dictionary<UniqueElemKey, object> result = new Dictionary<UniqueElemKey, object>();
+            Dictionary<Element, object> elmResult = new Dictionary<Element, object>();
+            foreach (KeyValuePair<UniqueElemKey, Element> here in contents)
+            {
+                Element elm = here.Value;
+                if (elm.availObjects.Count != 1) throw new ApplicationException("expecting all elements to have exactly one solution");
+                signals.IConnectible avail = elm.availObjects[0];
+                object newOb = null;
+                switch (elm.type)
+                {
+                    case ElementType.Module:
+                        {
+                            signals.IBlockDriver drv = avail as signals.IBlockDriver;
+                            if(drv != null)
+                            {
+                                newOb = drv.Create();
+                            } else {
+                                newOb = (signals.IBlock)avail;
+                            }
+                            break;
+                        }
+                    case ElementType.Function:
+                    case ElementType.FunctionOnIn:
+                    case ElementType.FunctionOnOut:
+                        newOb = ((signals.IFunctionSpec)avail).Create();
+                        break;
+                }
+                result.Add(here.Key, newOb);
+                elmResult.Add(elm, newOb);
+            }
+
+            foreach(KeyValuePair<EndpointKey,EndpointKey> conn in connections)
+            {
+                EndpointKey from = conn.Key;
+                EndpointKey to = conn.Value;
+                object fromObj = elmResult[from.elem];
+                object toObj = elmResult[to.elem];
+                switch (from.elem.type)
+                {
+                    case ElementType.Module:
+                        {
+                            signals.IOutEndpoint outEP = from.OutputEP((signals.IBlock)fromObj);
+                            switch (to.elem.type)
+                            {
+                                case ElementType.Module:
+                                    {
+                                        signals.IEPBuffer buff = outEP.CreateBuffer();
+                                        signals.IInEndpoint inEP = to.InputEP((signals.IBlock)toObj);
+                                        outEP.Connect(buff);
+                                        inEP.Connect(buff);
+                                        break;
+                                    }
+                                case ElementType.Function:
+                                case ElementType.FunctionOnIn:
+                                    {
+                                        signals.IEPBuffer buff = outEP.CreateBuffer();
+                                        signals.IInEndpoint inEP = ((signals.IFunction)toObj).Input;
+                                        outEP.Connect(buff);
+                                        inEP.Connect(buff);
+                                        break;
+                                    }
+                                case ElementType.FunctionOnOut:
+                                    {
+                                        signals.IEPSendTo inEP = ((signals.IFunction)toObj).Output;
+                                        outEP.Connect(inEP);
+                                        break;
+                                    }
+                            }
+                            break;
+                        }
+                    case ElementType.Function:
+                    case ElementType.FunctionOnIn:
+                        {
+                            signals.IInputFunction func = ((signals.IFunction)fromObj).Input;
+                            switch (to.elem.type)
+                            {
+                                case ElementType.Module:
+                                    {
+                                        signals.IInEndpoint inEP = to.InputEP((signals.IBlock)toObj);
+                                        inEP.Connect(func);
+                                        break;
+                                    }
+                                case ElementType.Function:
+                                case ElementType.FunctionOnIn:
+                                    {
+                                        signals.IInEndpoint inEP = ((signals.IFunction)toObj).Input;
+                                        inEP.Connect(func);
+                                        break;
+                                    }
+                                case ElementType.FunctionOnOut:
+                                    throw new ApplicationException("incompatible connection types");
+                            }
+                            break;
+                        }
+                    case ElementType.FunctionOnOut:
+                        {
+                            signals.IOutputFunction func = ((signals.IFunction)fromObj).Output;
+                            switch (to.elem.type)
+                            {
+                                case ElementType.Module:
+                                    {
+                                        signals.IEPBuffer buff = func.CreateBuffer();
+                                        signals.IInEndpoint inEP = to.InputEP((signals.IBlock)toObj);
+                                        func.Connect(buff);
+                                        inEP.Connect(buff);
+                                        break;
+                                    }
+                                case ElementType.Function:
+                                case ElementType.FunctionOnIn:
+                                    {
+                                        signals.IEPBuffer buff = func.CreateBuffer();
+                                        signals.IInEndpoint inEP = ((signals.IFunction)toObj).Input;
+                                        func.Connect(buff);
+                                        inEP.Connect(buff);
+                                        break;
+                                    }
+                                case ElementType.FunctionOnOut:
+                                    {
+                                        signals.IOutEndpoint outEP = ((signals.IFunction)toObj).Output;
+                                        outEP.Connect(func);
+                                        break;
+                                    }
+                            }
+                            break;
+                        }
+                }
+            }
+            return result;
         }
     }
 }

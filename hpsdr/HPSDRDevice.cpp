@@ -348,7 +348,7 @@ signals::IEPBuffer* CHpsdrDevice::Receiver::CreateBuffer()
 	return buff;
 }
 
-BOOL CHpsdrDevice::Receiver::Connect(signals::IEPSender* send)
+BOOL CHpsdrDevice::Receiver::Connect(signals::IEPSendTo* send)
 {
 	if(!COutEndpointBase::Connect(send)) return false;
 	{

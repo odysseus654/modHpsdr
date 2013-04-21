@@ -16,17 +16,14 @@ namespace sharptest
             Schematic.Element radioElem = new Schematic.Element(Schematic.ElementType.Module, "radio");
 
             circuit.addGeneric(fftElem);
-            circuit.addGeneric(radioElem);
+            circuit.add(radioElem);
             circuit.connect(radioElem, "recv1", fftElem, 0);
             List<Schematic> options = circuit.resolve(library);
-            
-            signals.IBlock fft = library.block("fft")[0][0].Create();
 
-            signals.IBlockDriver hpsdrDriver = library.block("radio")[0][0];
-            signals.IBlock[] devices = hpsdrDriver.Discover();
-            Console.Out.WriteLine(String.Format("{0} devices found", devices.Length));
+            Dictionary<Schematic.UniqueElemKey, object> radio = options[0].construct();
 
-            signals.IBlock hpsdr = devices[0];
+            signals.IBlock hpsdr = (signals.IBlock)radio[new Schematic.UniqueElemKey(radioElem)];
+            signals.IBlock fft = (signals.IBlock)radio[new Schematic.UniqueElemKey(fftElem)];
 
             signals.IAttributes attrs = hpsdr.Attributes;
             signals.OnChanged evt = new signals.OnChanged(OnChanged);
@@ -38,12 +35,6 @@ namespace sharptest
 
             signals.IAttribute recvSpeed = attrs.GetByName("recvRate");
             recvSpeed.Value = 48000;
-
-            signals.IOutEndpoint recv1 = hpsdr.Outgoing[2];
-            signals.IEPBuffer buff = recv1.CreateBuffer();
-            signals.IInEndpoint fftIn = fft.Incoming[0];
-            recv1.Connect(buff);
-            fftIn.Connect(buff);
 
             signals.IOutEndpoint fftOut = fft.Outgoing[0];
             signals.IEPBuffer buff2 = fftOut.CreateBuffer();
@@ -80,9 +71,9 @@ namespace sharptest
         {
             if (data.Length != 0)
             {
-                lock (st_screenLock)
+//                lock (st_screenLock)
                 {
-                    Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
+//                    Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
                     packetsReceived += data.Length;
                 }
             }

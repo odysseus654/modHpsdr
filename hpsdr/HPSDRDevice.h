@@ -170,7 +170,7 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual signals::IEPBuffer* CreateBuffer();
-		virtual BOOL Connect(signals::IEPSender* send);
+		virtual BOOL Connect(signals::IEPSendTo* send);
 		virtual BOOL Disconnect();
 	};
 

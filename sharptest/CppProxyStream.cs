@@ -9,9 +9,9 @@ namespace cppProxy
         public event OnReceive data;
         private Thread m_thread;
         private signals.EType m_type;
-        private signals.IEPReceiver m_recv;
+        private signals.IEPRecvFrom m_recv;
 
-        public ReceiveStream(signals.EType type, signals.IEPReceiver recv)
+        public ReceiveStream(signals.EType type, signals.IEPRecvFrom recv)
         {
             m_type = type;
             m_recv = recv;

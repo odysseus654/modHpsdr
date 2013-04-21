@@ -83,17 +83,17 @@ namespace signals
 		void Stop();
 	};
 
-    public interface IEPSender : IDisposable
+    public interface IEPSendTo : IDisposable
 	{
 		int Write(EType type, object[] buffer, int msTimeout);
 	};
 
-    public interface IEPReceiver : IDisposable
+    public interface IEPRecvFrom : IDisposable
 	{
 		void Read(EType type, out object[] buffer, bool bReadAll, int msTimeout);
 	};
 
-    public interface IEPBuffer : IEPSender, IEPReceiver
+    public interface IEPBuffer : IEPSendTo, IEPRecvFrom
 	{
         EType Type { get; }
         int Capacity { get; }
@@ -106,7 +106,7 @@ namespace signals
         string EPDescr { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
-		bool Connect(IEPReceiver recv);
+		bool Connect(IEPRecvFrom recv);
         bool isConnected { get; }
 		bool Disconnect();
 		IEPBuffer CreateBuffer();
@@ -118,7 +118,7 @@ namespace signals
         string EPDescr { get; }
         EType Type { get; }
         IAttributes Attributes { get; }
-		bool Connect(IEPSender send);
+		bool Connect(IEPSendTo send);
         bool isConnected { get; }
 		bool Disconnect();
 		IEPBuffer CreateBuffer();
@@ -158,11 +158,11 @@ namespace signals
 		IOutputFunction Output { get; }
     };
 
-	public interface IInputFunction : IInEndpoint, IEPReceiver
+	public interface IInputFunction : IInEndpoint, IEPRecvFrom
 	{
 	};
 
-	public interface IOutputFunction : IOutEndpoint, IEPSender
+	public interface IOutputFunction : IOutEndpoint, IEPSendTo
 	{
 	};
 }

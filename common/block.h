@@ -22,8 +22,8 @@ namespace signals
 	__interface IBlock;
 	__interface IBlockDriver;
 	__interface IEPBuffer;
-	__interface IEPReceiver;
-	__interface IEPSender;
+	__interface IEPRecvFrom;
+	__interface IEPSendTo;
 	__interface IFunction;
 	__interface IFunctionSpec;
 	__interface IInEndpoint;
@@ -85,21 +85,21 @@ namespace signals
 		void Stop();
 	};
 
-	__interface IEPSender
+	__interface IEPSendTo
 	{
 		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
 		unsigned AddRef(IOutEndpoint* src);
 		unsigned Release(IOutEndpoint* src);
 	};
 
-	__interface IEPReceiver
+	__interface IEPRecvFrom
 	{
 		unsigned Read(EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 		void onSinkConnected(IInEndpoint* src);
 		void onSinkDisconnected(IInEndpoint* src);
 	};
 
-	__interface IEPBuffer : public IEPSender, public IEPReceiver
+	__interface IEPBuffer : public IEPSendTo, public IEPRecvFrom
 	{
 		EType Type();
 		unsigned Capacity();
@@ -114,7 +114,7 @@ namespace signals
 		const char* EPDescr();
 		EType Type();
 		IAttributes* Attributes();
-		BOOL Connect(IEPReceiver* recv);
+		BOOL Connect(IEPRecvFrom* recv);
 		BOOL isConnected();
 		BOOL Disconnect();
 		IEPBuffer* CreateBuffer();
@@ -126,7 +126,7 @@ namespace signals
 		const char* EPDescr();
 		EType Type();
 		IAttributes* Attributes();
-		BOOL Connect(IEPSender* send);
+		BOOL Connect(IEPSendTo* send);
 		BOOL isConnected();
 		BOOL Disconnect();
 		IEPBuffer* CreateBuffer();
@@ -175,11 +175,11 @@ namespace signals
 		IOutputFunction* Output();
 	};
 
-	__interface IInputFunction : public IInEndpoint, public IEPReceiver
+	__interface IInputFunction : public IInEndpoint, public IEPRecvFrom
 	{
 	};
 
-	__interface IOutputFunction : public IOutEndpoint, public IEPSender
+	__interface IOutputFunction : public IOutEndpoint, public IEPSendTo
 	{
 	};
 }

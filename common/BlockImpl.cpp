@@ -18,7 +18,7 @@
 
 // ------------------------------------------------------------------ class CInEndpointBase
 
-BOOL CInEndpointBase::Connect(signals::IEPReceiver* recv)
+BOOL CInEndpointBase::Connect(signals::IEPRecvFrom* recv)
 {
 	Locker lock(m_connRecvLock);
 	if(recv != m_connRecv)
@@ -44,7 +44,7 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 
 // ------------------------------------------------------------------ class COutEndpointBase
 
-BOOL COutEndpointBase::Connect(signals::IEPSender* send)
+BOOL COutEndpointBase::Connect(signals::IEPSendTo* send)
 {
 	Locker lock(m_connSendLock);
 	if(send != m_connSend)

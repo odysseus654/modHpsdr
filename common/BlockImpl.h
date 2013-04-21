@@ -45,7 +45,7 @@ public:
 	inline CInEndpointBase():m_connRecv(NULL) {}
 	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 
-	virtual BOOL Connect(signals::IEPReceiver* recv);
+	virtual BOOL Connect(signals::IEPRecvFrom* recv);
 	virtual BOOL isConnected() { return !!m_connRecv; }
 	virtual BOOL Disconnect()  { return Connect(NULL); }
 //	virtual const char* EPName();
@@ -60,7 +60,7 @@ private:
 private:
 	Lock m_connRecvLock;
 	Condition m_connRecvConnected;
-	signals::IEPReceiver* m_connRecv;
+	signals::IEPRecvFrom* m_connRecv;
 };
 
 class COutEndpointBase : public signals::IOutEndpoint
@@ -69,7 +69,7 @@ public:
 	inline COutEndpointBase():m_connSend(NULL) {}
 	unsigned Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout);
 
-	virtual BOOL Connect(signals::IEPSender* send);
+	virtual BOOL Connect(signals::IEPSendTo* send);
 	virtual BOOL isConnected() { return !!m_connSend; }
 	virtual BOOL Disconnect()  { return Connect(NULL); }
 //	virtual const char* EPName();
@@ -82,7 +82,7 @@ private:
 private:
 	Lock m_connSendLock;
 	Condition m_connSendConnected;
-	signals::IEPSender* m_connSend;
+	signals::IEPSendTo* m_connSend;
 };
 
 class CAttributeBase : public signals::IAttribute
@@ -526,7 +526,7 @@ public: // IEPBuffer
 	virtual unsigned Capacity()		{ return buffer.capacity(); }
 	virtual unsigned Used()			{ return buffer.size(); }
 
-public: // IEPSender
+public: // IEPSendTo
 	virtual unsigned Write(signals::EType type, const void* pBuffer, unsigned numElem, unsigned msTimeout)
 	{
 		if(type == ET)

@@ -22,7 +22,7 @@
 
 // ---------------------------------------------------------------------------- class InputFunctionBase
 
-BOOL InputFunctionBase::Connect(signals::IEPReceiver* recv)
+BOOL InputFunctionBase::Connect(signals::IEPRecvFrom* recv)
 {
 	if(recv != m_readFrom)
 	{
@@ -54,7 +54,7 @@ void InputFunctionBase::onSinkDisconnected(signals::IInEndpoint* src)
 
 // ---------------------------------------------------------------------------- class OutputFunctionBase
 
-BOOL OutputFunctionBase::Connect(signals::IEPSender* send)
+BOOL OutputFunctionBase::Connect(signals::IEPSendTo* send)
 {
 	if(send != m_writeTo)
 	{

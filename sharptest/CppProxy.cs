@@ -291,21 +291,21 @@ namespace cppProxy
             IntPtr CreateBuffer();
         };
 
-        public interface IEPSender
+        public interface IEPSendTo
         {
             uint Write(signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
             uint AddRef(IntPtr iep);
             uint Release(IntPtr iep);
         };
 
-        public interface IEPReceiver
+        public interface IEPRecvFrom
         {
             uint Read(signals.EType type, IntPtr buffer, uint numAvail, [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
         };
 
-        public interface IEPBuffer : IEPSender, IEPReceiver
+        public interface IEPBuffer : IEPSendTo, IEPRecvFrom
         {
             signals.EType Type();
             uint Capacity();
@@ -334,11 +334,11 @@ namespace cppProxy
 		    IntPtr Output();
 	    };
 
-	    public interface IInputFunction : IInEndpoint, IEPReceiver
+	    public interface IInputFunction : IInEndpoint, IEPRecvFrom
 	    {
 	    };
 
-	    public interface IOutputFunction : IOutEndpoint, IEPSender
+	    public interface IOutputFunction : IOutEndpoint, IEPSendTo
 	    {
 	    };
     }
@@ -1189,10 +1189,10 @@ namespace cppProxy
             return buff;
         }
 
-        public bool Connect(signals.IEPReceiver recv)
+        public bool Connect(signals.IEPRecvFrom recv)
         {
             {
-                CppProxyEPReceiver proxy = recv as CppProxyEPReceiver;
+                CppProxyEPRecvFrom proxy = recv as CppProxyEPRecvFrom;
                 if (proxy != null)
                 {
                     return m_native.Connect(proxy.Native);
@@ -1286,7 +1286,7 @@ namespace cppProxy
             return buff;
         }
 
-        public bool Connect(signals.IEPSender recv)
+        public bool Connect(signals.IEPSendTo recv)
         {
             {
                 CppProxyEPSender proxy = recv as CppProxyEPSender;
@@ -1313,10 +1313,10 @@ namespace cppProxy
         }
     }
 
-    class CppProxyEPSender : signals.IEPSender
+    class CppProxyEPSender : signals.IEPSendTo
     {
         private readonly signals.IBlockDriver m_driver;
-        private Native.IEPSender m_native;
+        private Native.IEPSendTo m_native;
         private IntPtr m_nativeRef;
         private signals.EType m_type = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_typeInfo = null;
@@ -1328,7 +1328,7 @@ namespace cppProxy
             m_driver = driver;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IEPSender)CppNativeProxy.CreateCallout(native, typeof(Native.IEPSender));
+            m_native = (Native.IEPSendTo)CppNativeProxy.CreateCallout(native, typeof(Native.IEPSendTo));
         }
 
         ~CppProxyEPSender()
@@ -1385,27 +1385,27 @@ namespace cppProxy
         }
     }
 
-    class CppProxyEPReceiver : signals.IEPReceiver
+    class CppProxyEPRecvFrom : signals.IEPRecvFrom
     {
         private readonly signals.IBlockDriver m_driver;
-        private Native.IEPReceiver m_native;
+        private Native.IEPRecvFrom m_native;
         private IntPtr m_nativeRef;
         private signals.EType m_type = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_typeInfo = null;
         public const int DEFAULT_BUFFER = 100;
         public int BufferSize = DEFAULT_BUFFER;
 
-        public CppProxyEPReceiver(signals.IBlockDriver driver, IntPtr native)
+        public CppProxyEPRecvFrom(signals.IBlockDriver driver, IntPtr native)
         {
             if (driver == null) throw new ArgumentNullException("driver");
             if (native == IntPtr.Zero) throw new ArgumentNullException("native");
             m_driver = driver;
             m_nativeRef = native;
             Registration.storeObject(native, this);
-            m_native = (Native.IEPReceiver)CppNativeProxy.CreateCallout(native, typeof(Native.IEPReceiver));
+            m_native = (Native.IEPRecvFrom)CppNativeProxy.CreateCallout(native, typeof(Native.IEPRecvFrom));
         }
 
-        ~CppProxyEPReceiver()
+        ~CppProxyEPRecvFrom()
         {
             if (m_nativeRef != IntPtr.Zero)
             {
@@ -1687,7 +1687,7 @@ namespace cppProxy
 
     class CppProxyInputFunction : CppProxyInEndpoint, signals.IInputFunction
 	{
-        private Native.IEPReceiver m_nativeRecv;
+        private Native.IEPRecvFrom m_nativeRecv;
         private IntPtr m_nativeRecvRef;
         private signals.EType m_recvType = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_recvTypeInfo = null;
@@ -1698,7 +1698,7 @@ namespace cppProxy
             :base(module, owner, native)
         {
             m_nativeRecvRef = new IntPtr(native.ToInt64() + IntPtr.Size);
-            m_nativeRecv = (Native.IEPReceiver)CppNativeProxy.CreateCallout(m_nativeRecvRef, typeof(Native.IEPReceiver));
+            m_nativeRecv = (Native.IEPRecvFrom)CppNativeProxy.CreateCallout(m_nativeRecvRef, typeof(Native.IEPRecvFrom));
         }
 
         public IntPtr NativeReceiver { get { return m_nativeRecvRef; } }
@@ -1732,7 +1732,7 @@ namespace cppProxy
 
     class CppProxyOutputFunction : CppProxyOutEndpoint, signals.IOutputFunction
 	{
-        private Native.IEPSender m_nativeSend;
+        private Native.IEPSendTo m_nativeSend;
         private IntPtr m_nativeSendRef;
         private signals.EType m_sendType = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_sendTypeInfo = null;
@@ -1741,7 +1741,7 @@ namespace cppProxy
             :base(module, owner, native)
         {
             m_nativeSendRef = new IntPtr(native.ToInt64() + IntPtr.Size);
-            m_nativeSend = (Native.IEPSender)CppNativeProxy.CreateCallout(m_nativeSendRef, typeof(Native.IEPSender));
+            m_nativeSend = (Native.IEPSendTo)CppNativeProxy.CreateCallout(m_nativeSendRef, typeof(Native.IEPSendTo));
         }
 
         ~CppProxyOutputFunction()
