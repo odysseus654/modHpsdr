@@ -4,6 +4,7 @@
 #include <d3d10.h>
 #include <d3dx10async.h>
 #include <stddef.h>
+#include <string>
 #pragma comment(lib, "d3d10.lib")
 #pragma comment(lib, "d3dx10.lib")
 
@@ -16,6 +17,7 @@ typedef unk_ref_t<ID3D10InputLayout> ID3D10InputLayoutPtr;
 typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
 typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
+typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
 
 HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 {
@@ -132,6 +134,28 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 //	// Create an orthographic projection matrix for 2D rendering.
 //	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
 
+	// Load the shader in from the file.
+	static LPCTSTR filename = _T("waterfall.fx");
+	ID3D10EffectPtr pEffect;
+	ID3D10BlobPtr errorMessage;
+	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
+		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+	if(FAILED(hR))
+	{
+		// If the shader failed to compile it should have writen something to the error message.
+		if(errorMessage)
+		{
+			std::string compileErrors(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
+//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
+			int _i = 0;
+		}
+		return hR;
+	}
+
+	ID3D10EffectTechnique* pTechnique = pEffect->GetTechniqueByName("WaterfallTechnique");
+	D3D10_PASS_DESC PassDesc;
+	pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
+
 	struct TLVERTEX
 	{
 		D3DXVECTOR3 pos;
@@ -144,40 +168,61 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TLVERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
-	// Load the shader in from the file.
-	static LPCTSTR filename = _T("waterfall.fx");
-	ID3D10EffectPtr pEffect;
-	ID3D10BlobPtr errorMessage;
-	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
-		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
-	if(FAILED(hR))
-	{
-		// If the shader failed to compile it should have writen something to the error message.
-		if(errorMessage)
-		{
-//			OutputShaderErrorMessage(errorMessage, hOutputWin, filename);
-			LPCSTR compileErrors = LPCSTR(errorMessage->GetBufferPointer());
-			size_t bufferSize = errorMessage->GetBufferSize();
-		}
-//		// If there was  nothing in the error message then it simply could not find the shader file itself.
-//		else
-//		{
-//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
-//		}
-
-		return hR;
-	}
-
 	ID3D10InputLayoutPtr pInputLayout;
-	hR = pDevice->CreateInputLayout(vdesc, 2, NULL, 0, &pInputLayout);
+	hR = pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &pInputLayout);
 	if(FAILED(hR)) return hR;
-	/*
-	enum { D3DFVF_TLVERTEX = D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1 };
 
-	//Custom vertex
+	// calculate texture coordinates
+	float texLeft = (float)(int(screenWidth / 2) * -1);// + (float)positionX;
+	float texRight = texLeft + (float)screenWidth;
+	float texTop = (float)(screenHeight / 2);// - (float)positionY;
+	float texBottom = texTop - (float)screenHeight;
 
-	ID3D10VertexBuffer* vertexBuffer;
-	*/
+	// Now create the vertex buffer.
+	TLVERTEX vertices[4];
+	vertices[0].pos = D3DXVECTOR3(texLeft, texTop, 0.0f);
+	vertices[0].tex = D3DXVECTOR2(0.0f, 0.0f);
+	vertices[1].pos = D3DXVECTOR3(texRight, texTop, 0.0f);
+	vertices[1].tex = D3DXVECTOR2(1.0f, 0.0f);
+	vertices[2].pos = D3DXVECTOR3(texLeft, texBottom, 0.0f);
+	vertices[2].tex = D3DXVECTOR2(0.0f, 1.0f);
+	vertices[3].pos = D3DXVECTOR3(texRight, texBottom, 0.0f);
+	vertices[3].tex = D3DXVECTOR2(1.0f, 1.0f);
+
+	D3D10_BUFFER_DESC vertexBufferDesc;
+	memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
+	vertexBufferDesc.Usage = D3D10_USAGE_DYNAMIC;
+	vertexBufferDesc.ByteWidth = sizeof(TLVERTEX) * 4;
+	vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+	vertexBufferDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+//	vertexBufferDesc.MiscFlags = 0;
+
+	D3D10_SUBRESOURCE_DATA vertexData;
+	memset(&vertexData, 0, sizeof(vertexData));
+	vertexData.pSysMem = vertices;
+
+	ID3D10BufferPtr pVertexBuffer;
+	hR = pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, &pVertexBuffer);
+	if(FAILED(hR)) return hR;
+
+	// Now create the index buffer.
+	static const unsigned long vertexIndices[4] = { 2, 0, 3, 1 };
+	D3D10_BUFFER_DESC indexBufferDesc;
+	memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
+	indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+	indexBufferDesc.ByteWidth = sizeof(unsigned long) * 4;
+	indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+//	indexBufferDesc.CPUAccessFlags = 0;
+//	indexBufferDesc.MiscFlags = 0;
+
+	D3D10_SUBRESOURCE_DATA indexData;
+	memset(&indexData, 0, sizeof(indexData));
+	vertexData.pSysMem = vertexIndices;
+
+	ID3D10BufferPtr pVertexIndexBuffer;
+	hR = pDevice->CreateBuffer(&indexBufferDesc, &vertexData, &pVertexIndexBuffer);
+	if(FAILED(hR)) return hR;
+
 	return S_OK;
 }
 /*
