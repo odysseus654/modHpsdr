@@ -20,7 +20,60 @@ typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
 typedef unk_ref_t<ID3D10Texture1D> ID3D10Texture1DPtr;
 
-D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv)
+class D3Dtest
+{
+public:
+	inline D3Dtest(HMODULE hModule, HWND hOutputWin)
+		:m_hModule(hModule),m_hOutputWin(hOutputWin),m_bEnableVsync(false),m_screenWidth(0),m_screenHeight(0) {}
+	~D3Dtest();
+	HRESULT init();
+protected:
+	static D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv);
+	HRESULT initDevice();
+	HRESULT initTexture();
+
+	HMODULE m_hModule;
+	HWND m_hOutputWin;
+	bool m_bEnableVsync;
+	UINT m_screenWidth;
+	UINT m_screenHeight;
+
+	// Direct3d references we use
+	ID3D10DevicePtr m_pDevice;
+	IDXGISwapChainPtr m_pSwapChain;
+	ID3D10Texture2DPtr m_dataTex;
+
+	// these are mapped resources, we don't reference them other than managing their lifetime
+	ID3D10DepthStencilStatePtr m_pDepthStencilState;
+	ID3D10DepthStencilViewPtr m_pDepthView;
+	ID3D10RenderTargetViewPtr m_pRenderTargetView;
+};
+
+HRESULT doTest(HMODULE hModule, HWND hOutputWin)
+{
+	D3Dtest test(hModule, hOutputWin);
+	return test.init();
+}
+
+D3Dtest::~D3Dtest()
+{
+	if(m_pDevice)
+	{
+		if(m_pDepthStencilState)
+		{
+			m_pDevice->OMSetDepthStencilState(NULL, 1);
+			m_pDepthStencilState.Release();
+		}
+		if(m_pRenderTargetView || m_pDepthView)
+		{
+			m_pDevice->OMSetRenderTargets(0, NULL, NULL);
+			m_pRenderTargetView.Release();
+			m_pDepthView.Release();
+		}
+	}
+}
+
+D3DXVECTOR3 D3Dtest::hsv2rgb(const D3DVECTOR& hsv)
 {
 	if(hsv.y == 0.0f) return D3DXVECTOR3(hsv.z, hsv.z, hsv.z);
 	int sect = int(hsv.x) % 6;
@@ -48,23 +101,23 @@ D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv)
 	}
 }
 
-HRESULT doTest(HMODULE hModule, HWND hOutputWin)
+HRESULT D3Dtest::initDevice()
 {
 	RECT rect;
-	if(!GetClientRect(hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
-	UINT screenHeight = rect.bottom - rect.top;
-	UINT screenWidth = rect.right - rect.left;
+	if(!GetClientRect(m_hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
+	m_screenHeight = rect.bottom - rect.top;
+	m_screenWidth = rect.right - rect.left;
 
-	HDC hDC = GetDC(hOutputWin);
+	HDC hDC = GetDC(m_hOutputWin);
 	if(hDC == NULL) return HRESULT_FROM_WIN32(GetLastError());
 	int iRefresh = GetDeviceCaps(hDC, VREFRESH);
-	ReleaseDC(hOutputWin, hDC);
+	ReleaseDC(m_hOutputWin, hDC);
 
 	DXGI_SWAP_CHAIN_DESC sd;
 	memset(&sd, 0, sizeof(sd));
 	sd.BufferCount = 1;
-	sd.BufferDesc.Width = screenWidth;
-	sd.BufferDesc.Height = screenHeight;
+	sd.BufferDesc.Width = m_screenWidth;
+	sd.BufferDesc.Height = m_screenHeight;
 	if(iRefresh > 1)
 	{
 		sd.BufferDesc.RefreshRate.Numerator = iRefresh;
@@ -78,7 +131,7 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 //	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.Flags = 0;
-	sd.OutputWindow = hOutputWin;
+	sd.OutputWindow = m_hOutputWin;
 	sd.SampleDesc.Count = 1;
 	sd.SampleDesc.Quality = 0;
 	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
@@ -89,17 +142,14 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 #else
 	enum { DX_FLAGS = 0 };
 #endif
-	ID3D10DevicePtr pDevice;
-	IDXGISwapChainPtr pSwapChain;
 	HRESULT hR = D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE,
-		NULL, DX_FLAGS, D3D10_SDK_VERSION, &sd, &pSwapChain, &pDevice);
+		NULL, DX_FLAGS, D3D10_SDK_VERSION, &sd, &m_pSwapChain, &m_pDevice);
 	if(FAILED(hR)) return hR;
 
-	ID3D10RenderTargetViewPtr mRenderTargetView;	// hold until end
 	ID3D10Texture2DPtr backBuffer;
-	hR = pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
+	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
 	if(FAILED(hR)) return hR;
-	hR = pDevice->CreateRenderTargetView(backBuffer, NULL, &mRenderTargetView);
+	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, &m_pRenderTargetView);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC depthBufferDesc;
@@ -108,17 +158,16 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	depthBufferDesc.BindFlags = D3D10_BIND_DEPTH_STENCIL;
 	depthBufferDesc.CPUAccessFlags = 0;
 	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthBufferDesc.Height = screenHeight;
+	depthBufferDesc.Height = m_screenHeight;
 	depthBufferDesc.MipLevels = 1;
 //	depthBufferDesc.MiscFlags = 
 	depthBufferDesc.SampleDesc.Count = 1;
 	depthBufferDesc.SampleDesc.Quality = 0;
 	depthBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-	depthBufferDesc.Width = screenWidth;
+	depthBufferDesc.Width = m_screenWidth;
 
 	ID3D10Texture2DPtr depthBuffer;
-	ID3D10DepthStencilViewPtr pDepthView;	// hold until end
-	hR = pDevice->CreateTexture2D(&depthBufferDesc, NULL, &depthBuffer);
+	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, &depthBuffer);
 	if(FAILED(hR)) return hR;
 
 	D3D10_DEPTH_STENCIL_DESC depthStencilDesc;
@@ -138,42 +187,43 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	depthStencilDesc.BackFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
 	depthStencilDesc.BackFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
 	
-	ID3D10DepthStencilStatePtr pDepthStencilState; // hold until end
-	hR = pDevice->CreateDepthStencilState(&depthStencilDesc, &pDepthStencilState);
+	hR = m_pDevice->CreateDepthStencilState(&depthStencilDesc, &m_pDepthStencilState);
 	if(FAILED(hR)) return hR;
 
-	pDevice->OMSetDepthStencilState(pDepthStencilState, 1);
+	m_pDevice->OMSetDepthStencilState(m_pDepthStencilState, 1);
 
-	hR = pDevice->CreateDepthStencilView(depthBuffer, NULL, &pDepthView);
+	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, &m_pDepthView);
 	if(FAILED(hR)) return hR;
 
-	pDevice->OMSetRenderTargets(1, &mRenderTargetView, pDepthView);
+	m_pDevice->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthView);
 
 	// Setup the viewport for rendering.
 	D3D10_VIEWPORT viewport;
 	memset(&viewport, 0, sizeof(viewport));
-	viewport.Width = screenWidth;
-	viewport.Height = screenHeight;
+	viewport.Width = m_screenWidth;
+	viewport.Height = m_screenHeight;
 	viewport.MinDepth = 0.0f;
 	viewport.MaxDepth = 1.0f;
 	viewport.TopLeftX = 0;
 	viewport.TopLeftY = 0;
-	pDevice->RSSetViewports(1, &viewport);
+	m_pDevice->RSSetViewports(1, &viewport);
 
-//	// Create an orthographic projection matrix for 2D rendering.
-//	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
+	return S_OK;
+}
 
+HRESULT D3Dtest::initTexture()
+{
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
 	ID3D10EffectPtr pEffect;
 	ID3D10BlobPtr errorMessage;
 #ifdef _DEBUG
-	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
-		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
 #else
-	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
-		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
 #endif
+	HRESULT hR = D3DX10CreateEffectFromResource(m_hModule, filename, filename, NULL, NULL,
+		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
 	if(FAILED(hR))
 	{
 		// If the shader failed to compile it should have writen something to the error message.
@@ -203,14 +253,14 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	};
 
 	ID3D10InputLayoutPtr pInputLayout;
-	hR = pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &pInputLayout);
+	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &pInputLayout);
 	if(FAILED(hR)) return hR;
 
 	// calculate texture coordinates
-	float texLeft = (float)(int(screenWidth / 2) * -1);// + (float)positionX;
-	float texRight = texLeft + (float)screenWidth;
-	float texTop = (float)(screenHeight / 2);// - (float)positionY;
-	float texBottom = texTop - (float)screenHeight;
+	float texLeft = (float)(int(m_screenWidth / 2) * -1);// + (float)positionX;
+	float texRight = texLeft + (float)m_screenWidth;
+	float texTop = (float)(m_screenHeight / 2);// - (float)positionY;
+	float texBottom = texTop - (float)m_screenHeight;
 
 	// Now create the vertex buffer.
 	TLVERTEX vertices[4];
@@ -236,7 +286,7 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	vertexData.pSysMem = vertices;
 
 	ID3D10BufferPtr pVertexBuffer;
-	hR = pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, &pVertexBuffer);
+	hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, &pVertexBuffer);
 	if(FAILED(hR)) return hR;
 
 	// Now create the index buffer.
@@ -254,7 +304,7 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	vertexData.pSysMem = vertexIndices;
 
 	ID3D10BufferPtr pVertexIndexBuffer;
-	hR = pDevice->CreateBuffer(&indexBufferDesc, &vertexData, &pVertexIndexBuffer);
+	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, &pVertexIndexBuffer);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE1D_DESC waterfallDesc;
@@ -307,7 +357,7 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	waterfallData.pSysMem = waterfallColors;
 
 	ID3D10Texture1DPtr waterfallTex;
-	hR = pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, &waterfallTex);
+	hR = m_pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, &waterfallTex);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC dataDesc;
@@ -323,12 +373,29 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-	ID3D10Texture2DPtr dataTex;
-	hR = pDevice->CreateTexture2D(&dataDesc, NULL, &dataTex);
+	hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, &m_dataTex);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
 }
+
+HRESULT D3Dtest::init()
+{
+	HRESULT hR = initDevice();
+	if(FAILED(hR)) return hR;
+
+	hR = initTexture();
+	if(FAILED(hR)) return hR;
+
+//	// Create an orthographic projection matrix for 2D rendering.
+//	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
+
+	hR = m_pSwapChain->Present(m_bEnableVsync ? 1 : 0, 0);
+	if(FAILED(hR)) return hR;
+
+	return S_OK;
+}
+
 /*
 void D3DClass::BeginScene(float red, float green, float blue, float alpha)
 {
@@ -345,22 +412,5 @@ void D3DClass::BeginScene(float red, float green, float blue, float alpha)
     
 	// Clear the depth buffer.
 	m_device->ClearDepthStencilView(m_depthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
-}
-
-void D3DClass::EndScene()
-{
-	// Present the back buffer to the screen since rendering is complete.
-	if(m_vsync_enabled)
-	{
-		// Lock to screen refresh rate.
-		m_swapChain->Present(1, 0);
-	}
-	else
-	{
-		// Present as fast as possible.
-		m_swapChain->Present(0, 0);
-	}
-
-	return;
 }
 */
