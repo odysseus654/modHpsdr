@@ -18,6 +18,35 @@ typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
 typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
+typedef unk_ref_t<ID3D10Texture1D> ID3D10Texture1DPtr;
+
+D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv)
+{
+	if(hsv.y == 0.0f) return D3DXVECTOR3(hsv.z, hsv.z, hsv.z);
+	int sect = int(hsv.x) % 6;
+	if(sect < 0) sect += 6;
+	float fact = hsv.x - floor(hsv.x);
+
+	float p = hsv.z * ( 1.0f - hsv.y );
+	float q = hsv.z * ( 1.0f - hsv.y * fact );
+	float t = hsv.z * ( 1.0f - hsv.y * ( 1.0f - fact ) );
+
+	switch(int(hsv.x) % 6)
+	{
+	case 0:
+		return D3DXVECTOR3(hsv.z, t, p);
+	case 1:
+		return D3DXVECTOR3(q, hsv.z, p);
+	case 2:
+		return D3DXVECTOR3(p, hsv.z, t);
+	case 3:
+		return D3DXVECTOR3(p, q, hsv.z);
+	case 4:
+		return D3DXVECTOR3(t, p, hsv.z);
+	default: // case 5:
+		return D3DXVECTOR3(hsv.z, p, q);
+	}
+}
 
 HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 {
@@ -138,8 +167,13 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	static LPCTSTR filename = _T("waterfall.fx");
 	ID3D10EffectPtr pEffect;
 	ID3D10BlobPtr errorMessage;
+#ifdef _DEBUG
+	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
+		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+#else
 	hR = D3DX10CreateEffectFromResource(hModule, filename, filename, NULL, NULL,
 		"fx_4_0", D3D10_SHADER_ENABLE_STRICTNESS, 0, pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+#endif
 	if(FAILED(hR))
 	{
 		// If the shader failed to compile it should have writen something to the error message.
@@ -221,6 +255,76 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 
 	ID3D10BufferPtr pVertexIndexBuffer;
 	hR = pDevice->CreateBuffer(&indexBufferDesc, &vertexData, &pVertexIndexBuffer);
+	if(FAILED(hR)) return hR;
+
+	D3D10_TEXTURE1D_DESC waterfallDesc;
+	memset(&waterfallDesc, 0, sizeof(waterfallDesc));
+	waterfallDesc.Width = 256;
+	waterfallDesc.MipLevels = 1;
+	waterfallDesc.ArraySize = 1;
+	waterfallDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
+	waterfallDesc.Usage = D3D10_USAGE_IMMUTABLE;
+	waterfallDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	waterfallDesc.CPUAccessFlags = 0;
+
+	const static D3DVECTOR WATERFALL_POINTS[] = {
+		{ 0.0f,		0.0f,	0.0f },
+		{ 4.0f,		1.0f,	0.533f },
+		{ 3.904f,	1.0f,	0.776f },
+		{ 3.866f,	1.0f,	0.937f },
+		{ 0.925f,	0.390f,	0.937f },
+		{ 1.027f,	0.753f,	0.776f },
+		{ 1.025f,	0.531f,	0.894f },
+		{ 1.0f,		1.0f,	1.0f },
+		{ 0.203f,	1.0f,	0.984f },
+	};
+
+	D3DXVECTOR3 waterfallColors[256];
+	for(int i=0; i < 256; i++)
+	{
+		int slice = i >> 5;
+		float distto = (i % 32) / 32.0f;
+		float distfrom = 1.0f - distto;
+		const D3DVECTOR& from = WATERFALL_POINTS[slice];
+		const D3DVECTOR& to = WATERFALL_POINTS[slice=1];
+		if(from.x == 0.0f && distto != 0.0f)
+		{
+			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(to.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+		}
+		else if(to.x == 0.0f && distfrom != 0.0f)
+		{
+			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+		}
+		else
+		{
+			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + to.x*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+		}
+	}
+	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
+
+	D3D10_SUBRESOURCE_DATA waterfallData;
+	memset(&waterfallColors, 0, sizeof(waterfallColors));
+	waterfallData.pSysMem = waterfallColors;
+
+	ID3D10Texture1DPtr waterfallTex;
+	hR = pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, &waterfallTex);
+	if(FAILED(hR)) return hR;
+
+	D3D10_TEXTURE2D_DESC dataDesc;
+	memset(&dataDesc, 0, sizeof(dataDesc));
+	dataDesc.Width = 1024;
+	dataDesc.Height = 512;
+	dataDesc.MipLevels = 1;
+	dataDesc.ArraySize = 1;
+	dataDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	dataDesc.SampleDesc.Count = 1;
+	dataDesc.SampleDesc.Quality = 0;
+	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
+	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+
+	ID3D10Texture2DPtr dataTex;
+	hR = pDevice->CreateTexture2D(&dataDesc, NULL, &dataTex);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
