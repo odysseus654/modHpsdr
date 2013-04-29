@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "waterfall.h"
+#include "temp.h"
 
 #define MAX_LOADSTRING 100
 HRESULT doTest(HMODULE hModule, HWND hOutputWin);

@@ -1,5 +1,5 @@
 #include "stdafx.h"
-#include "unkref.h"
+#include "temp.h"
 
 #include <d3d10.h>
 #include <d3dx10async.h>
@@ -8,66 +8,13 @@
 #pragma comment(lib, "d3d10.lib")
 #pragma comment(lib, "d3dx10.lib")
 
-typedef unk_ref_t<ID3D10Device> ID3D10DevicePtr;
-typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
-typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
-typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
-typedef unk_ref_t<ID3D10DepthStencilView> ID3D10DepthStencilViewPtr;
-typedef unk_ref_t<ID3D10InputLayout> ID3D10InputLayoutPtr;
-typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
-typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
-typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
 typedef unk_ref_t<ID3D10Texture1D> ID3D10Texture1DPtr;
-typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
 
-class D3Dtest
+struct TLVERTEX
 {
-public:
-	inline D3Dtest(HMODULE hModule, HWND hOutputWin)
-		:m_hModule(hModule),m_hOutputWin(hOutputWin),m_bEnableVsync(false),
-		 m_screenWidth(0),m_screenHeight(0),m_pTechnique(NULL) {}
-	~D3Dtest();
-	HRESULT init();
-
-protected:
-	struct TLVERTEX
-	{
-		D3DXVECTOR3 pos;
-		D3DXVECTOR2 tex;
-	};
-
-protected:
-	static D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv);
-	HRESULT initDevice();
-	HRESULT initTexture();
-
-	HMODULE m_hModule;
-	HWND m_hOutputWin;
-	bool m_bEnableVsync;
-	UINT m_screenWidth;
-	UINT m_screenHeight;
-
-	// Direct3d references we use
-	ID3D10DevicePtr m_pDevice;
-	IDXGISwapChainPtr m_pSwapChain;
-	ID3D10Texture2DPtr m_dataTex;
-	ID3D10EffectPtr m_pEffect;
-	ID3D10EffectTechnique* m_pTechnique;
-
-	// vertex stuff
-	ID3D10BufferPtr m_pVertexBuffer;
-	ID3D10BufferPtr m_pVertexIndexBuffer;
-	ID3D10InputLayoutPtr m_pInputLayout;
-	static const unsigned long VERTEX_INDICES[4];
-	static const D3DVECTOR WATERFALL_POINTS[];
-
-	// these are mapped resources, we don't reference them other than managing their lifetime
-	ID3D10DepthStencilStatePtr m_pDepthStencilState;
-	ID3D10DepthStencilViewPtr m_pDepthView;
-	ID3D10RenderTargetViewPtr m_pRenderTargetView;
-	ID3D10ShaderResourceViewPtr m_waterfallView;
-	ID3D10ShaderResourceViewPtr m_dataView;
+	D3DXVECTOR3 pos;
+	D3DXVECTOR2 tex;
 };
 
 HRESULT doTest(HMODULE hModule, HWND hOutputWin)
@@ -77,19 +24,6 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 }
 
 const unsigned long D3Dtest::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
-
-const D3DVECTOR D3Dtest::WATERFALL_POINTS[] = {
-	{ 0.0f,		0.0f,	0.0f },
-	{ 4.0f,		1.0f,	0.533f },
-	{ 3.904f,	1.0f,	0.776f },
-	{ 3.866f,	1.0f,	0.937f },
-	{ 0.925f,	0.390f,	0.937f },
-	{ 1.027f,	0.753f,	0.776f },
-	{ 1.025f,	0.531f,	0.894f },
-	{ 1.0f,		1.0f,	1.0f },
-	{ 0.203f,	1.0f,	0.984f },
-};
-
 
 D3Dtest::~D3Dtest()
 {
@@ -104,7 +38,7 @@ D3Dtest::~D3Dtest()
 	}
 }
 
-D3DXVECTOR3 D3Dtest::hsv2rgb(const D3DVECTOR& hsv)
+static D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv)
 {
 	if(hsv.y == 0.0f) return D3DXVECTOR3(hsv.z, hsv.z, hsv.z);
 	int sect = int(hsv.x) % 6;
@@ -244,6 +178,18 @@ HRESULT D3Dtest::initDevice()
 
 HRESULT D3Dtest::initTexture()
 {
+	static const D3DVECTOR WATERFALL_POINTS[] = {
+		{ 0.0f,		0.0f,	0.0f },
+		{ 4.0f,		1.0f,	0.533f },
+		{ 3.904f,	1.0f,	0.776f },
+		{ 3.866f,	1.0f,	0.937f },
+		{ 0.925f,	0.390f,	0.937f },
+		{ 1.027f,	0.753f,	0.776f },
+		{ 1.025f,	0.531f,	0.894f },
+		{ 1.0f,		1.0f,	1.0f },
+		{ 0.203f,	1.0f,	0.984f },
+	};
+
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
 	ID3D10BlobPtr errorMessage;

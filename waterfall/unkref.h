@@ -128,7 +128,7 @@ public:
 	{
 		_Release();
 		m_pInterface = NULL;
-		return &(_InterfaceType*)m_pInterface;
+		return (_InterfaceType**)&m_pInterface;
 	}
 
 	// Allows this class to be used as the interface itself. Also provides simple error checking.
@@ -252,7 +252,7 @@ public:
 	
 private:
 	// The Interface.
-	_InterfaceType* m_pInterface;
+	_CommonType* m_pInterface;
 	
 	// Releases only if the interface is not null.
 	// The interface is not set to NULL.
