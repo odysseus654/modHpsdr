@@ -109,7 +109,7 @@ public:
 		ASSERT(m_pInterface != NULL);
 		return *(_InterfaceType*)m_pInterface; 
 	}
-	
+	/*
 	// Returns the address of the interface pointer contained in this
 	// class. This is useful when using the COM/OLE interfaces to create
 	// this interface.
@@ -119,7 +119,18 @@ public:
 		m_pInterface = NULL;
 		return &(_InterfaceType*)m_pInterface;
 	}
-	
+	*/
+
+	// Returns the address of the interface pointer contained in this
+	// class. This is useful when using the COM/OLE interfaces to create
+	// this interface.
+	_InterfaceType** inref() throw()
+	{
+		_Release();
+		m_pInterface = NULL;
+		return &(_InterfaceType*)m_pInterface;
+	}
+
 	// Allows this class to be used as the interface itself. Also provides simple error checking.
 	_InterfaceType* operator->() const 
 	{

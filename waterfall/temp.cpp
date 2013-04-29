@@ -19,14 +19,24 @@ typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
 typedef unk_ref_t<ID3D10Texture1D> ID3D10Texture1DPtr;
+typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
 
 class D3Dtest
 {
 public:
 	inline D3Dtest(HMODULE hModule, HWND hOutputWin)
-		:m_hModule(hModule),m_hOutputWin(hOutputWin),m_bEnableVsync(false),m_screenWidth(0),m_screenHeight(0) {}
+		:m_hModule(hModule),m_hOutputWin(hOutputWin),m_bEnableVsync(false),
+		 m_screenWidth(0),m_screenHeight(0),m_pTechnique(NULL) {}
 	~D3Dtest();
 	HRESULT init();
+
+protected:
+	struct TLVERTEX
+	{
+		D3DXVECTOR3 pos;
+		D3DXVECTOR2 tex;
+	};
+
 protected:
 	static D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv);
 	HRESULT initDevice();
@@ -42,11 +52,22 @@ protected:
 	ID3D10DevicePtr m_pDevice;
 	IDXGISwapChainPtr m_pSwapChain;
 	ID3D10Texture2DPtr m_dataTex;
+	ID3D10EffectPtr m_pEffect;
+	ID3D10EffectTechnique* m_pTechnique;
+
+	// vertex stuff
+	ID3D10BufferPtr m_pVertexBuffer;
+	ID3D10BufferPtr m_pVertexIndexBuffer;
+	ID3D10InputLayoutPtr m_pInputLayout;
+	static const unsigned long VERTEX_INDICES[4];
+	static const D3DVECTOR WATERFALL_POINTS[];
 
 	// these are mapped resources, we don't reference them other than managing their lifetime
 	ID3D10DepthStencilStatePtr m_pDepthStencilState;
 	ID3D10DepthStencilViewPtr m_pDepthView;
 	ID3D10RenderTargetViewPtr m_pRenderTargetView;
+	ID3D10ShaderResourceViewPtr m_waterfallView;
+	ID3D10ShaderResourceViewPtr m_dataView;
 };
 
 HRESULT doTest(HMODULE hModule, HWND hOutputWin)
@@ -55,21 +76,31 @@ HRESULT doTest(HMODULE hModule, HWND hOutputWin)
 	return test.init();
 }
 
+const unsigned long D3Dtest::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
+
+const D3DVECTOR D3Dtest::WATERFALL_POINTS[] = {
+	{ 0.0f,		0.0f,	0.0f },
+	{ 4.0f,		1.0f,	0.533f },
+	{ 3.904f,	1.0f,	0.776f },
+	{ 3.866f,	1.0f,	0.937f },
+	{ 0.925f,	0.390f,	0.937f },
+	{ 1.027f,	0.753f,	0.776f },
+	{ 1.025f,	0.531f,	0.894f },
+	{ 1.0f,		1.0f,	1.0f },
+	{ 0.203f,	1.0f,	0.984f },
+};
+
+
 D3Dtest::~D3Dtest()
 {
 	if(m_pDevice)
 	{
-		if(m_pDepthStencilState)
-		{
-			m_pDevice->OMSetDepthStencilState(NULL, 1);
-			m_pDepthStencilState.Release();
-		}
-		if(m_pRenderTargetView || m_pDepthView)
-		{
-			m_pDevice->OMSetRenderTargets(0, NULL, NULL);
-			m_pRenderTargetView.Release();
-			m_pDepthView.Release();
-		}
+		m_pDevice->ClearState();
+//		m_pDevice->OMSetDepthStencilState(NULL, 1);
+//		m_pDevice->OMSetRenderTargets(0, NULL, NULL);
+//		m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
+//		m_pDevice->IASetIndexBuffer(NULL, DXGI_FORMAT_R32_UINT, 0);
+//		m_pDevice->IASetInputLayout(NULL);
 	}
 }
 
@@ -143,13 +174,13 @@ HRESULT D3Dtest::initDevice()
 	enum { DX_FLAGS = 0 };
 #endif
 	HRESULT hR = D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE,
-		NULL, DX_FLAGS, D3D10_SDK_VERSION, &sd, &m_pSwapChain, &m_pDevice);
+		NULL, DX_FLAGS, D3D10_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
 	if(FAILED(hR)) return hR;
 
 	ID3D10Texture2DPtr backBuffer;
 	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
 	if(FAILED(hR)) return hR;
-	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, &m_pRenderTargetView);
+	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC depthBufferDesc;
@@ -160,14 +191,13 @@ HRESULT D3Dtest::initDevice()
 	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	depthBufferDesc.Height = m_screenHeight;
 	depthBufferDesc.MipLevels = 1;
-//	depthBufferDesc.MiscFlags = 
 	depthBufferDesc.SampleDesc.Count = 1;
 	depthBufferDesc.SampleDesc.Quality = 0;
 	depthBufferDesc.Usage = D3D10_USAGE_DEFAULT;
 	depthBufferDesc.Width = m_screenWidth;
 
 	ID3D10Texture2DPtr depthBuffer;
-	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, &depthBuffer);
+	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, depthBuffer.inref());
 	if(FAILED(hR)) return hR;
 
 	D3D10_DEPTH_STENCIL_DESC depthStencilDesc;
@@ -187,15 +217,16 @@ HRESULT D3Dtest::initDevice()
 	depthStencilDesc.BackFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
 	depthStencilDesc.BackFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
 	
-	hR = m_pDevice->CreateDepthStencilState(&depthStencilDesc, &m_pDepthStencilState);
+	hR = m_pDevice->CreateDepthStencilState(&depthStencilDesc, m_pDepthStencilState.inref());
 	if(FAILED(hR)) return hR;
 
 	m_pDevice->OMSetDepthStencilState(m_pDepthStencilState, 1);
 
-	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, &m_pDepthView);
+	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
 	if(FAILED(hR)) return hR;
 
-	m_pDevice->OMSetRenderTargets(1, &m_pRenderTargetView, m_pDepthView);
+	ID3D10RenderTargetView* targs = m_pRenderTargetView;
+	m_pDevice->OMSetRenderTargets(1, &targs, m_pDepthView);
 
 	// Setup the viewport for rendering.
 	D3D10_VIEWPORT viewport;
@@ -215,7 +246,6 @@ HRESULT D3Dtest::initTexture()
 {
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
-	ID3D10EffectPtr pEffect;
 	ID3D10BlobPtr errorMessage;
 #ifdef _DEBUG
 	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
@@ -223,7 +253,7 @@ HRESULT D3Dtest::initTexture()
 	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
 #endif
 	HRESULT hR = D3DX10CreateEffectFromResource(m_hModule, filename, filename, NULL, NULL,
-		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, &pEffect, &errorMessage, NULL);
+		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, m_pEffect.inref(), errorMessage.inref(), NULL);
 	if(FAILED(hR))
 	{
 		// If the shader failed to compile it should have writen something to the error message.
@@ -236,15 +266,9 @@ HRESULT D3Dtest::initTexture()
 		return hR;
 	}
 
-	ID3D10EffectTechnique* pTechnique = pEffect->GetTechniqueByName("WaterfallTechnique");
+	m_pTechnique = m_pEffect->GetTechniqueByName("WaterfallTechnique");
 	D3D10_PASS_DESC PassDesc;
-	pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
-
-	struct TLVERTEX
-	{
-		D3DXVECTOR3 pos;
-		D3DXVECTOR2 tex;
-	};
+	m_pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
 
 	D3D10_INPUT_ELEMENT_DESC vdesc[] =
 	{
@@ -252,8 +276,7 @@ HRESULT D3Dtest::initTexture()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TLVERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
-	ID3D10InputLayoutPtr pInputLayout;
-	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, &pInputLayout);
+	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, m_pInputLayout.inref());
 	if(FAILED(hR)) return hR;
 
 	// calculate texture coordinates
@@ -285,26 +308,23 @@ HRESULT D3Dtest::initTexture()
 	memset(&vertexData, 0, sizeof(vertexData));
 	vertexData.pSysMem = vertices;
 
-	ID3D10BufferPtr pVertexBuffer;
-	hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, &pVertexBuffer);
+	hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
 	if(FAILED(hR)) return hR;
 
 	// Now create the index buffer.
-	static const unsigned long vertexIndices[4] = { 2, 0, 3, 1 };
 	D3D10_BUFFER_DESC indexBufferDesc;
 	memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
 	indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
-	indexBufferDesc.ByteWidth = sizeof(unsigned long) * 4;
+	indexBufferDesc.ByteWidth = sizeof(VERTEX_INDICES);
 	indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
 //	indexBufferDesc.CPUAccessFlags = 0;
 //	indexBufferDesc.MiscFlags = 0;
 
 	D3D10_SUBRESOURCE_DATA indexData;
 	memset(&indexData, 0, sizeof(indexData));
-	vertexData.pSysMem = vertexIndices;
+	vertexData.pSysMem = VERTEX_INDICES;
 
-	ID3D10BufferPtr pVertexIndexBuffer;
-	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, &pVertexIndexBuffer);
+	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, m_pVertexIndexBuffer.inref());
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE1D_DESC waterfallDesc;
@@ -316,18 +336,6 @@ HRESULT D3Dtest::initTexture()
 	waterfallDesc.Usage = D3D10_USAGE_IMMUTABLE;
 	waterfallDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 	waterfallDesc.CPUAccessFlags = 0;
-
-	const static D3DVECTOR WATERFALL_POINTS[] = {
-		{ 0.0f,		0.0f,	0.0f },
-		{ 4.0f,		1.0f,	0.533f },
-		{ 3.904f,	1.0f,	0.776f },
-		{ 3.866f,	1.0f,	0.937f },
-		{ 0.925f,	0.390f,	0.937f },
-		{ 1.027f,	0.753f,	0.776f },
-		{ 1.025f,	0.531f,	0.894f },
-		{ 1.0f,		1.0f,	1.0f },
-		{ 0.203f,	1.0f,	0.984f },
-	};
 
 	D3DXVECTOR3 waterfallColors[256];
 	for(int i=0; i < 256; i++)
@@ -357,7 +365,17 @@ HRESULT D3Dtest::initTexture()
 	waterfallData.pSysMem = waterfallColors;
 
 	ID3D10Texture1DPtr waterfallTex;
-	hR = m_pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, &waterfallTex);
+	hR = m_pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, waterfallTex.inref());
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
+	if(FAILED(hR)) return hR;
+
+	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("waterfallColors");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectShaderResourceVariable* pVarRes = pVar->AsShaderResource();
+	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
+	hR = pVarRes->SetResource(m_waterfallView);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC dataDesc;
@@ -373,7 +391,28 @@ HRESULT D3Dtest::initTexture()
 	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-	hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, &m_dataTex);
+	hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
+	if(FAILED(hR)) return hR;
+
+	pVar = m_pEffect->GetVariableByName("waterfallValues");
+	if(!pVar) return E_FAIL;
+	pVarRes = pVar->AsShaderResource();
+	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
+	hR = pVarRes->SetResource(m_dataView);
+	if(FAILED(hR)) return hR;
+
+	// Create an orthographic projection matrix for 2D rendering.
+	D3DXMATRIX orthoMatrix;
+	D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenWidth, (float)m_screenHeight, 0.0f, 1.0f);
+
+	pVar = m_pEffect->GetVariableByName("orthoMatrix");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
+	if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
+	hR = pVarMat->SetMatrix(orthoMatrix);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
@@ -387,8 +426,29 @@ HRESULT D3Dtest::init()
 	hR = initTexture();
 	if(FAILED(hR)) return hR;
 
-//	// Create an orthographic projection matrix for 2D rendering.
-//	D3DXMatrixOrthoLH(&m_orthoMatrix, (float)screenWidth, (float)screenHeight, screenNear, screenDepth);
+	// setup the input assembler.
+	UINT stride = sizeof(TLVERTEX); 
+	UINT offset = 0;
+	ID3D10Buffer* buf = m_pVertexBuffer;
+	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
+	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	m_pDevice->IASetInputLayout(m_pInputLayout);
+
+	// Get the description structure of the technique from inside the shader so it can be used for rendering.
+	D3D10_TECHNIQUE_DESC techniqueDesc;
+	memset(&techniqueDesc, 0, sizeof(techniqueDesc));
+	hR = m_pTechnique->GetDesc(&techniqueDesc);
+	if(FAILED(hR)) return hR;
+
+	// Go through each pass in the technique (should be just one currently) and render the triangles.
+	for(UINT i=0; i<techniqueDesc.Passes; ++i)
+	{
+		hR = m_pTechnique->GetPassByIndex(i)->Apply(0);
+		if(FAILED(hR)) return hR;
+
+		m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
+	}
 
 	hR = m_pSwapChain->Present(m_bEnableVsync ? 1 : 0, 0);
 	if(FAILED(hR)) return hR;
