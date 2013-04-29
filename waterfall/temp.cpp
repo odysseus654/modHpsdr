@@ -17,12 +17,6 @@ struct TLVERTEX
 	D3DXVECTOR2 tex;
 };
 
-HRESULT doTest(HMODULE hModule, HWND hOutputWin)
-{
-	D3Dtest test(hModule, hOutputWin);
-	return test.init();
-}
-
 const unsigned long D3Dtest::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 
 D3Dtest::~D3Dtest()
@@ -35,6 +29,11 @@ D3Dtest::~D3Dtest()
 //		m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
 //		m_pDevice->IASetIndexBuffer(NULL, DXGI_FORMAT_R32_UINT, 0);
 //		m_pDevice->IASetInputLayout(NULL);
+	}
+	if(m_dataTexData)
+	{
+		delete [] m_dataTexData;
+		m_dataTexData = NULL;
 	}
 }
 
@@ -305,6 +304,7 @@ HRESULT D3Dtest::initTexture()
 		}
 	}
 	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
+	waterfallColors[0] = D3DXVECTOR3(0, 1, 0);
 
 	D3D10_SUBRESOURCE_DATA waterfallData;
 	memset(&waterfallColors, 0, sizeof(waterfallColors));
@@ -324,10 +324,15 @@ HRESULT D3Dtest::initTexture()
 	hR = pVarRes->SetResource(m_waterfallView);
 	if(FAILED(hR)) return hR;
 
+	m_dataTexWidth = 1024;
+	m_dataTexHeight = 512;
+	m_dataTexData = new float[m_dataTexWidth*m_dataTexHeight];
+	memset(m_dataTexData, 0, sizeof(float)*m_dataTexWidth*m_dataTexHeight);
+
 	D3D10_TEXTURE2D_DESC dataDesc;
 	memset(&dataDesc, 0, sizeof(dataDesc));
-	dataDesc.Width = 1024;
-	dataDesc.Height = 512;
+	dataDesc.Width = m_dataTexWidth;
+	dataDesc.Height = m_dataTexHeight;
 	dataDesc.MipLevels = 1;
 	dataDesc.ArraySize = 1;
 	dataDesc.Format = DXGI_FORMAT_R32_FLOAT;
@@ -364,13 +369,47 @@ HRESULT D3Dtest::initTexture()
 	return S_OK;
 }
 
-HRESULT D3Dtest::init()
+HRESULT D3Dtest::init(HMODULE hModule, HWND hOutputWin)
 {
+	m_hModule = hModule;
+	m_hOutputWin = hOutputWin;
+
 	HRESULT hR = initDevice();
 	if(FAILED(hR)) return hR;
 
 	hR = initTexture();
 	if(FAILED(hR)) return hR;
+
+	return S_OK;
+}
+
+HRESULT D3Dtest::bumpTex()
+{
+	// shift the data up one row
+	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(float)*m_dataTexWidth*(m_dataTexHeight-1));
+
+	// write a new bottom line
+	float* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+	for(unsigned i = 0; i < m_dataTexWidth; i++)
+	{
+		newLine[i] = float(i) / m_dataTexWidth;
+	}
+	return S_OK;
+}
+
+HRESULT D3Dtest::renderCycle()
+{
+	// bump the texture
+	HRESULT hR = bumpTex();
+	if(FAILED(hR)) return hR;
+
+	D3D10_MAPPED_TEXTURE2D mappedDataTex;
+	memset(&mappedDataTex, 0, sizeof(mappedDataTex));
+	UINT subr = D3D10CalcSubresource(0, 0, 0);
+	hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
+	if(FAILED(hR)) return hR;
+	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(float)*m_dataTexWidth*m_dataTexHeight);
+	m_dataTex->Unmap(subr);
 
 	// setup the input assembler.
 	UINT stride = sizeof(TLVERTEX); 

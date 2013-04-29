@@ -5,8 +5,9 @@
 #include "waterfall.h"
 #include "temp.h"
 
+static D3Dtest test;
+
 #define MAX_LOADSTRING 100
-HRESULT doTest(HMODULE hModule, HWND hOutputWin);
 
 // Global Variables:
 HINSTANCE hInst;								// current instance
@@ -119,7 +120,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
-   doTest(GetModuleHandle(NULL), hWnd);
+   test.init(GetModuleHandle(NULL), hWnd);
+   SetTimer(hWnd, 1, 500, NULL);
 
    return TRUE;
 }
@@ -165,6 +167,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
+		break;
+	case WM_TIMER:
+		test.renderCycle();
 		break;
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);

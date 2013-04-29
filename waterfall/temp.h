@@ -28,15 +28,17 @@ typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
 class D3Dtest
 {
 public:
-	inline D3Dtest(HMODULE hModule, HWND hOutputWin)
-		:m_hModule(hModule),m_hOutputWin(hOutputWin),m_bEnableVsync(false),
-		 m_screenWidth(0),m_screenHeight(0),m_pTechnique(NULL) {}
+	inline D3Dtest()
+		:m_hModule((HMODULE)INVALID_HANDLE_VALUE),m_hOutputWin((HWND)INVALID_HANDLE_VALUE),m_bEnableVsync(false),
+		 m_screenWidth(0),m_screenHeight(0),m_pTechnique(NULL),m_dataTexWidth(0),m_dataTexHeight(0),m_dataTexData(NULL) {}
 	~D3Dtest();
-	HRESULT init();
+	HRESULT init(HMODULE hModule, HWND hOutputWin);
+	HRESULT renderCycle();
 
 protected:
 	HRESULT initDevice();
 	HRESULT initTexture();
+	HRESULT bumpTex();
 
 	HMODULE m_hModule;
 	HWND m_hOutputWin;
@@ -50,6 +52,9 @@ protected:
 	ID3D10Texture2DPtr m_dataTex;
 	ID3D10EffectPtr m_pEffect;
 	ID3D10EffectTechnique* m_pTechnique;
+	UINT m_dataTexWidth;
+	UINT m_dataTexHeight;
+	float *m_dataTexData;
 
 	// vertex stuff
 	ID3D10BufferPtr m_pVertexBuffer;
