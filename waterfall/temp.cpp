@@ -175,7 +175,7 @@ HRESULT D3Dtest::initDevice()
 	return S_OK;
 }
 
-HRESULT D3Dtest::initTexture()
+static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
 		{ 0.0f,		0.0f,	0.0f },
@@ -189,6 +189,46 @@ HRESULT D3Dtest::initTexture()
 		{ 0.203f,	1.0f,	0.984f },
 	};
 
+	for(int slice = 0; slice < 8; slice++)
+	{
+		const D3DVECTOR& from = WATERFALL_POINTS[slice];
+		const D3DVECTOR& to = WATERFALL_POINTS[slice+1];
+		float distH = to.x - from.x;
+
+		for(int off=0; off < 32; off++)
+		{
+			int i = slice * 32 + off;
+			float distto = off / 32.0f;
+			float distfrom = 1.0f - distto;
+
+			if(from.x == 0.0f && distto != 0.0f)
+			{
+				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(to.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+			}
+			else if(to.x == 0.0f && distfrom != 0.0f)
+			{
+				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+			}
+			else if(distH < -3.0f)
+			{
+				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + (to.x+6.0f)*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+			}
+			else if(distH > 3.0f)
+			{
+				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + (to.x-6.0f)*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+			}
+			else
+			{
+				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + to.x*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
+			}
+		}
+	}
+	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
+	waterfallColors[0] = D3DXVECTOR3(0, 1, 0);
+}
+
+HRESULT D3Dtest::initTexture()
+{
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
 	ID3D10BlobPtr errorMessage;
@@ -243,10 +283,10 @@ HRESULT D3Dtest::initTexture()
 
 	D3D10_BUFFER_DESC vertexBufferDesc;
 	memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
-	vertexBufferDesc.Usage = D3D10_USAGE_DYNAMIC;
+	vertexBufferDesc.Usage = D3D10_USAGE_DEFAULT;
 	vertexBufferDesc.ByteWidth = sizeof(TLVERTEX) * 4;
 	vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+	vertexBufferDesc.CPUAccessFlags = 0;
 //	vertexBufferDesc.MiscFlags = 0;
 
 	D3D10_SUBRESOURCE_DATA vertexData;
@@ -283,31 +323,10 @@ HRESULT D3Dtest::initTexture()
 	waterfallDesc.CPUAccessFlags = 0;
 
 	D3DXVECTOR3 waterfallColors[256];
-	for(int i=0; i < 256; i++)
-	{
-		int slice = i >> 5;
-		float distto = (i % 32) / 32.0f;
-		float distfrom = 1.0f - distto;
-		const D3DVECTOR& from = WATERFALL_POINTS[slice];
-		const D3DVECTOR& to = WATERFALL_POINTS[slice=1];
-		if(from.x == 0.0f && distto != 0.0f)
-		{
-			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(to.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-		}
-		else if(to.x == 0.0f && distfrom != 0.0f)
-		{
-			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-		}
-		else
-		{
-			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + to.x*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-		}
-	}
-	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
-	waterfallColors[0] = D3DXVECTOR3(0, 1, 0);
+	buildWaterfallTexture(waterfallColors);
 
 	D3D10_SUBRESOURCE_DATA waterfallData;
-	memset(&waterfallColors, 0, sizeof(waterfallColors));
+	memset(&waterfallData, 0, sizeof(waterfallData));
 	waterfallData.pSysMem = waterfallColors;
 
 	ID3D10Texture1DPtr waterfallTex;
@@ -410,6 +429,9 @@ HRESULT D3Dtest::renderCycle()
 	if(FAILED(hR)) return hR;
 	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(float)*m_dataTexWidth*m_dataTexHeight);
 	m_dataTex->Unmap(subr);
+
+	m_pDevice->ClearRenderTargetView(m_pRenderTargetView, D3DXVECTOR4(0, 1, 1, 0));
+	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 
 	// setup the input assembler.
 	UINT stride = sizeof(TLVERTEX); 

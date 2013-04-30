@@ -121,7 +121,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    ShowWindow(hWnd, nCmdShow);
    UpdateWindow(hWnd);
    test.init(GetModuleHandle(NULL), hWnd);
-   SetTimer(hWnd, 1, 500, NULL);
+   SetTimer(hWnd, 1, 100, NULL);
 
    return TRUE;
 }

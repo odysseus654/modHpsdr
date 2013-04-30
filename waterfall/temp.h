@@ -51,6 +51,7 @@ protected:
 	IDXGISwapChainPtr m_pSwapChain;
 	ID3D10Texture2DPtr m_dataTex;
 	ID3D10EffectPtr m_pEffect;
+	ID3D10DepthStencilViewPtr m_pDepthView;
 	ID3D10EffectTechnique* m_pTechnique;
 	UINT m_dataTexWidth;
 	UINT m_dataTexHeight;
@@ -64,7 +65,6 @@ protected:
 
 	// these are mapped resources, we don't reference them other than managing their lifetime
 	ID3D10DepthStencilStatePtr m_pDepthStencilState;
-	ID3D10DepthStencilViewPtr m_pDepthView;
 	ID3D10RenderTargetViewPtr m_pRenderTargetView;
 	ID3D10ShaderResourceViewPtr m_waterfallView;
 	ID3D10ShaderResourceViewPtr m_dataView;
