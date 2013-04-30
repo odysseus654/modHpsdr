@@ -175,6 +175,25 @@ HRESULT D3Dtest::initDevice()
 	return S_OK;
 }
 
+static const float PI = std::atan(1.0f)*4;
+
+static std::pair<float,float> polar2rect(float t, float r)
+{
+	return std::pair<float,float>(r*cos(t*PI/3.0f), r*sin(t*PI/3.0f));
+}
+
+static std::pair<float,float> rect2polar(float x, float y)
+{
+	if(x != 0.0f)
+	{
+		std::pair<float,float> ret(atan2(y, x) * 3.0f/PI, sqrt(x*x+y*y));
+		if(ret.first < 0) ret.first += 6.0f;
+		return ret;
+	} else {
+		return std::pair<float,float>(y == 0.0f ? 0.0f : y > 0 ? 1.5f : 4.5f, abs(y));
+	}
+}
+
 static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
@@ -193,34 +212,22 @@ static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
 	{
 		const D3DVECTOR& from = WATERFALL_POINTS[slice];
 		const D3DVECTOR& to = WATERFALL_POINTS[slice+1];
-		float distH = to.x - from.x;
+
+		std::pair<float,float> fromRect = polar2rect(from.x, from.y);
+		std::pair<float,float> toRect = polar2rect(to.x, to.y);
+		D3DXVECTOR3 diffRect(toRect.first - fromRect.first, toRect.second - fromRect.second, to.z - from.z);
 
 		for(int off=0; off < 32; off++)
 		{
 			int i = slice * 32 + off;
 			float distto = off / 32.0f;
-			float distfrom = 1.0f - distto;
 
-			if(from.x == 0.0f && distto != 0.0f)
-			{
-				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(to.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-			}
-			else if(to.x == 0.0f && distfrom != 0.0f)
-			{
-				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-			}
-			else if(distH < -3.0f)
-			{
-				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + (to.x+6.0f)*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-			}
-			else if(distH > 3.0f)
-			{
-				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + (to.x-6.0f)*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-			}
-			else
-			{
-				waterfallColors[i] = hsv2rgb(D3DXVECTOR3(from.x*distfrom + to.x*distto, from.y*distfrom + to.y*distto, from.z*distfrom + to.z*distto));
-			}
+			D3DXVECTOR3 newRect(fromRect.first + diffRect.x * distto,
+				fromRect.second + diffRect.y * distto,
+				from.z + diffRect.z * distto);
+			std::pair<float,float> newPolar = rect2polar(newRect.x, newRect.y);
+
+			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(newPolar.first, newPolar.second, newRect.z));
 		}
 	}
 	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
