@@ -2,7 +2,7 @@
 
 // globals
 matrix orthoMatrix;
-Texture2D waterfallValues; // DXGI_FORMAT_R32_FLOAT, 0 >= x => 1
+Texture2D waterfallValues; // DXGI_FORMAT_R16_UNORM, 0 >= x => 1
 Texture1D waterfallColors; // DXGI_FORMAT_R32G32B32_FLOAT
 
 SamplerState ValueSampleType
@@ -49,7 +49,7 @@ PixelInputType VS(VertexInputType input)
 
 float4 PS(PixelInputType input) : SV_Target
 {
-	float val = waterfallValues.Sample(ValueSampleType, input.tex);
+	unorm float val = waterfallValues.Sample(ValueSampleType, input.tex);
 	float4 texColor = waterfallColors.Sample(ColorSampleType, val);
 	return texColor;
 }

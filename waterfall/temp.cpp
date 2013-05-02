@@ -3,6 +3,7 @@
 
 #include <d3d10.h>
 #include <d3dx10async.h>
+#include <limits.h>
 #include <stddef.h>
 #include <string>
 #pragma comment(lib, "d3d10.lib")
@@ -194,7 +195,7 @@ static std::pair<float,float> rect2polar(float x, float y)
 	}
 }
 
-static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
+static HRESULT buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10Texture1DPtr& waterfallTex)
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
 		{ 0.0f,		0.0f,	0.0f },
@@ -207,6 +208,28 @@ static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
 		{ 1.0f,		1.0f,	1.0f },
 		{ 0.203f,	1.0f,	0.984f },
 	};
+
+	D3D10_TEXTURE1D_DESC waterfallDesc;
+	memset(&waterfallDesc, 0, sizeof(waterfallDesc));
+	waterfallDesc.Width = 256;
+	waterfallDesc.MipLevels = 1;
+	waterfallDesc.ArraySize = 1;
+	waterfallDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	waterfallDesc.Usage = D3D10_USAGE_IMMUTABLE;
+	waterfallDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	waterfallDesc.CPUAccessFlags = 0;
+
+#pragma pack(push,1)
+	struct colors_t {
+		byte x;
+		byte y;
+		byte z;
+		byte a;
+		inline colors_t() {}
+		inline colors_t(byte pX, byte pY, byte pZ):x(pX),y(pY),z(pZ),a(0) {}
+	};
+	colors_t waterfallColors[256];
+#pragma pack(pop)
 
 	for(int slice = 0; slice < 8; slice++)
 	{
@@ -227,11 +250,20 @@ static void buildWaterfallTexture(D3DXVECTOR3 waterfallColors[256])
 				from.z + diffRect.z * distto);
 			std::pair<float,float> newPolar = rect2polar(newRect.x, newRect.y);
 
-			waterfallColors[i] = hsv2rgb(D3DXVECTOR3(newPolar.first, newPolar.second, newRect.z));
+			D3DXVECTOR3 newRGB = hsv2rgb(D3DXVECTOR3(newPolar.first, newPolar.second, newRect.z));
+			waterfallColors[i] = colors_t(byte(newRGB.x * 255), byte(newRGB.y * 255), byte(newRGB.z * 255));
 		}
 	}
-	waterfallColors[255] = D3DXVECTOR3(1, 0, 1);
-	waterfallColors[0] = D3DXVECTOR3(0, 1, 0);
+	waterfallColors[255] = colors_t(255, 0, 255);
+
+	D3D10_SUBRESOURCE_DATA waterfallData;
+	memset(&waterfallData, 0, sizeof(waterfallData));
+	waterfallData.pSysMem = waterfallColors;
+
+	HRESULT hR = pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, waterfallTex.inref());
+	if(FAILED(hR)) return hR;
+
+	return S_OK;
 }
 
 HRESULT D3Dtest::initTexture()
@@ -319,25 +351,8 @@ HRESULT D3Dtest::initTexture()
 	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, m_pVertexIndexBuffer.inref());
 	if(FAILED(hR)) return hR;
 
-	D3D10_TEXTURE1D_DESC waterfallDesc;
-	memset(&waterfallDesc, 0, sizeof(waterfallDesc));
-	waterfallDesc.Width = 256;
-	waterfallDesc.MipLevels = 1;
-	waterfallDesc.ArraySize = 1;
-	waterfallDesc.Format = DXGI_FORMAT_R32G32B32_FLOAT;
-	waterfallDesc.Usage = D3D10_USAGE_IMMUTABLE;
-	waterfallDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-	waterfallDesc.CPUAccessFlags = 0;
-
-	D3DXVECTOR3 waterfallColors[256];
-	buildWaterfallTexture(waterfallColors);
-
-	D3D10_SUBRESOURCE_DATA waterfallData;
-	memset(&waterfallData, 0, sizeof(waterfallData));
-	waterfallData.pSysMem = waterfallColors;
-
 	ID3D10Texture1DPtr waterfallTex;
-	hR = m_pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, waterfallTex.inref());
+	hR = buildWaterfallTexture(m_pDevice, waterfallTex);
 	if(FAILED(hR)) return hR;
 
 	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
@@ -352,8 +367,8 @@ HRESULT D3Dtest::initTexture()
 
 	m_dataTexWidth = 1024;
 	m_dataTexHeight = 512;
-	m_dataTexData = new float[m_dataTexWidth*m_dataTexHeight];
-	memset(m_dataTexData, 0, sizeof(float)*m_dataTexWidth*m_dataTexHeight);
+	m_dataTexData = new dataTex_t[m_dataTexWidth*m_dataTexHeight];
+	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
 
 	D3D10_TEXTURE2D_DESC dataDesc;
 	memset(&dataDesc, 0, sizeof(dataDesc));
@@ -361,7 +376,7 @@ HRESULT D3Dtest::initTexture()
 	dataDesc.Height = m_dataTexHeight;
 	dataDesc.MipLevels = 1;
 	dataDesc.ArraySize = 1;
-	dataDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	dataDesc.Format = DXGI_FORMAT_R16_UNORM;
 	dataDesc.SampleDesc.Count = 1;
 	dataDesc.SampleDesc.Quality = 0;
 	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
@@ -412,13 +427,13 @@ HRESULT D3Dtest::init(HMODULE hModule, HWND hOutputWin)
 HRESULT D3Dtest::bumpTex()
 {
 	// shift the data up one row
-	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(float)*m_dataTexWidth*(m_dataTexHeight-1));
+	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(dataTex_t)*m_dataTexWidth*(m_dataTexHeight-1));
 
 	// write a new bottom line
-	float* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+	dataTex_t* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
 	for(unsigned i = 0; i < m_dataTexWidth; i++)
 	{
-		newLine[i] = float(i) / m_dataTexWidth;
+		newLine[i] = dataTex_t(USHRT_MAX * float(i) / m_dataTexWidth);
 	}
 	return S_OK;
 }
@@ -434,10 +449,9 @@ HRESULT D3Dtest::renderCycle()
 	UINT subr = D3D10CalcSubresource(0, 0, 0);
 	hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
 	if(FAILED(hR)) return hR;
-	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(float)*m_dataTexWidth*m_dataTexHeight);
+	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
 	m_dataTex->Unmap(subr);
 
-	m_pDevice->ClearRenderTargetView(m_pRenderTargetView, D3DXVECTOR4(0, 1, 1, 0));
 	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 
 	// setup the input assembler.
@@ -469,22 +483,3 @@ HRESULT D3Dtest::renderCycle()
 
 	return S_OK;
 }
-
-/*
-void D3DClass::BeginScene(float red, float green, float blue, float alpha)
-{
-	float color[4];
-
-	// Setup the color to clear the buffer to.
-	color[0] = red;
-	color[1] = green;
-	color[2] = blue;
-	color[3] = alpha;
-
-	// Clear the back buffer.
-	m_device->ClearRenderTargetView(m_renderTargetView, color);
-    
-	// Clear the depth buffer.
-	m_device->ClearDepthStencilView(m_depthStencilView, D3D10_CLEAR_DEPTH, 1.0f, 0);
-}
-*/

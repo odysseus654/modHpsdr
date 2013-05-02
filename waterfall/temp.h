@@ -55,7 +55,9 @@ protected:
 	ID3D10EffectTechnique* m_pTechnique;
 	UINT m_dataTexWidth;
 	UINT m_dataTexHeight;
-	float *m_dataTexData;
+
+	typedef unsigned short dataTex_t;
+	dataTex_t *m_dataTexData;
 
 	// vertex stuff
 	ID3D10BufferPtr m_pVertexBuffer;
