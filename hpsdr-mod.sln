@@ -20,6 +20,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cppconv", "cppconv\cppconv.
 		{1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22} = {1DCCE8F0-EDB3-4AE7-B2E0-6013CB682E22}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "waterfall", "waterfall\waterfall.vcxproj", "{9B565958-1136-40B9-9ADE-13002F646A12}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -57,6 +59,12 @@ Global
 		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Release|Win32.Build.0 = Release|Win32
 		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Smoketest|Win32.ActiveCfg = Debug|Win32
 		{5772A5BF-E6F3-4E57-984D-89A9B5DAC856}.Smoketest|Win32.Build.0 = Debug|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Debug|Win32.Build.0 = Debug|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Release|Win32.ActiveCfg = Release|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Release|Win32.Build.0 = Release|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Smoketest|Win32.ActiveCfg = Release|Win32
+		{9B565958-1136-40B9-9ADE-13002F646A12}.Smoketest|Win32.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

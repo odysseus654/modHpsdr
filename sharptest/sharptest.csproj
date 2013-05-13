@@ -38,9 +38,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="block.cs" />
+    <Compile Include="Canvas.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="CppProxy.cs" />
     <Compile Include="CppProxyImpl.cs" />
     <Compile Include="CppProxyStream.cs" />

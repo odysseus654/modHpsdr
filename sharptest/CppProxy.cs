@@ -32,7 +32,7 @@ namespace cppProxy
 
     class Registration
     {
-        private static sharptest.WeakValuedDictionary<IntPtr, object> m_universe = new sharptest.WeakValuedDictionary<IntPtr, object>();
+        private static WeakValuedDictionary<IntPtr, object> m_universe = new WeakValuedDictionary<IntPtr, object>();
 
         public static object retrieveObject(IntPtr key)
         {
@@ -914,10 +914,10 @@ namespace cppProxy
             }
         }
 
-        public signals.IAttribute[] Itemize()
+        public IEnumerator<signals.IAttribute> GetEnumerator()
         {
             uint numAttr = m_native.Itemize(IntPtr.Zero, 0);
-            if (numAttr == 0) return new signals.IAttribute[0];
+            if (numAttr == 0) return ((IList<signals.IAttribute>)new signals.IAttribute[0]).GetEnumerator();
             IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
             try
             {
@@ -934,12 +934,17 @@ namespace cppProxy
                         attrArray[idx] = newObj;
                     }
                 }
-                return attrArray;
+                return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
             }
             finally
             {
                 Marshal.FreeHGlobal(attrBuff);
             }
+        }
+
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 

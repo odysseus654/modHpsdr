@@ -25,6 +25,15 @@ namespace cppProxy
             Dispose(false);
         }
 
+        public void Stop()
+        {
+            if (m_thread != null && m_thread.IsAlive)
+            {
+                m_thread.Abort();
+                m_thread.Join();
+            }
+        }
+
         public void Dispose()
         {
             Dispose(true);
@@ -33,11 +42,7 @@ namespace cppProxy
 
         protected virtual void Dispose(bool disposing)
         {
-            if (m_thread != null && m_thread.IsAlive)
-            {
-                m_thread.Abort();
-                m_thread.Join();
-            }
+            Stop();
         }
 
         private void start()

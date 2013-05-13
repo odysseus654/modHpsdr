@@ -36,11 +36,13 @@ namespace signals
 		etypNone	= 0x00,
 		etypEvent	= 0x01,
 		etypString	= 0x02,
+		etypWinHdl	= 0x03,
 
 		etypBoolean	= 0x10,
 		etypByte	= 0x11,
 		etypShort	= 0x12,
 		etypLong	= 0x13,
+		etypInt64	= 0x14,
 		etypSingle	= 0x23,
 		etypDouble	= 0x24,
 		etypComplex	= 0x34,

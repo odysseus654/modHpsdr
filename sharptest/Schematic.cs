@@ -715,7 +715,7 @@ namespace sharptest
             return true;
         }
 
-        public Dictionary<UniqueElemKey, object> construct()
+        public Circuit construct()
         {
             Dictionary<UniqueElemKey, object> result = new Dictionary<UniqueElemKey, object>();
             Dictionary<Element, object> elmResult = new Dictionary<Element, object>();
@@ -844,7 +844,59 @@ namespace sharptest
                         }
                 }
             }
-            return result;
+            return new Circuit(result);
+        }
+    }
+
+    public class Circuit
+    {
+        protected Dictionary<Schematic.UniqueElemKey, object> radio;
+
+        public Circuit(Dictionary<Schematic.UniqueElemKey, object> r)
+        {
+            radio = r;
+        }
+
+        public object Entry(Schematic.UniqueElemKey key)
+        {
+            object val;
+            if (radio.TryGetValue(key, out val))
+            {
+                return val;
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        public object Entry(Schematic.Element elem)
+        {
+            return Entry(new Schematic.UniqueElemKey(elem));
+        }
+
+        public void Start()
+        {
+            foreach(KeyValuePair<Schematic.UniqueElemKey, object> entry in radio)
+            {
+                signals.IBlock blk = entry.Value as signals.IBlock;
+                if(blk != null)
+                {
+                    blk.Start();
+                }
+            }
+        }
+
+        public void Stop()
+        {
+            foreach(KeyValuePair<Schematic.UniqueElemKey, object> entry in radio)
+            {
+                signals.IBlock blk = entry.Value as signals.IBlock;
+                if(blk != null)
+                {
+                    blk.Stop();
+                }
+            }
         }
     }
 }

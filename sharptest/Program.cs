@@ -9,45 +9,43 @@ namespace sharptest
         static void Main(string[] args)
         {
             ModLibrary library = new ModLibrary();
+#if DEBUG
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug", library);
+#else
+            cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Release", library);
+#endif
 
-            Schematic circuit = new Schematic();
+            Schematic schem = new Schematic();
             Schematic.Element fftElem = new Schematic.Element(Schematic.ElementType.Module, "fft");
             Schematic.Element radioElem = new Schematic.Element(Schematic.ElementType.Module, "radio");
 
-            circuit.addGeneric(fftElem);
-            circuit.add(radioElem);
-            circuit.connect(radioElem, "recv1", fftElem, 0);
-            List<Schematic> options = circuit.resolve(library);
+            schem.addGeneric(fftElem);
+            schem.add(radioElem);
+            schem.connect(radioElem, "recv1", fftElem, 0);
+            List<Schematic> options = schem.resolve(library);
+            Circuit circuit = options[0].construct();
 
-            Dictionary<Schematic.UniqueElemKey, object> radio = options[0].construct();
-
-            signals.IBlock hpsdr = (signals.IBlock)radio[new Schematic.UniqueElemKey(radioElem)];
-            signals.IBlock fft = (signals.IBlock)radio[new Schematic.UniqueElemKey(fftElem)];
-
+            signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
             signals.IAttributes attrs = hpsdr.Attributes;
             signals.OnChanged evt = new signals.OnChanged(OnChanged);
-            signals.IAttribute[] attrList = attrs.Itemize();
-            for (int i = 0; i < attrList.Length; i++)
-            {
-                attrList[i].changed += evt;
-            }
+            foreach(signals.IAttribute attr in attrs) attr.changed += evt;
+            attrs.GetByName("recvRate").Value = 48000;
 
-            signals.IAttribute recvSpeed = attrs.GetByName("recvRate");
-            recvSpeed.Value = 48000;
-
+            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
             signals.IOutEndpoint fftOut = fft.Outgoing[0];
-            signals.IEPBuffer buff2 = fftOut.CreateBuffer();
-            fftOut.Connect(buff2);
-            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, buff2);
+            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
+            fftOut.Connect(outBuff);
+            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
             stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
 
-            hpsdr.Start();
-            Thread.Sleep(30000);
-            hpsdr.Stop();
+            Canvas canvas = new Canvas();
+            circuit.Start();
+            Thread canvasThread = canvas.Start();
+            canvasThread.Join();
+            circuit.Stop();
+            stream.Stop();
             
             Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
-            Thread.Sleep(20000);
         }
 
         protected static object st_screenLock = new object();

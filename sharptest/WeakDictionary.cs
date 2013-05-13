@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace sharptest
+namespace cppProxy
 {
     public class WeakValuedDictionary<TKey, TValue> : IDictionary<TKey, TValue>
     {

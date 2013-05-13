@@ -1,198 +1,99 @@
-// waterfall.cpp : Defines the entry point for the application.
+// waterfall.cpp : Defines the exported functions for the DLL application.
 //
-
 #include "stdafx.h"
 #include "waterfall.h"
-#include "temp.h"
 
-static D3Dtest test;
+HMODULE gl_DllModule;
 
-#define MAX_LOADSTRING 100
+const char* CDirectxWaterfallDriver::NAME = "waterfall";
+const char* CDirectxWaterfallDriver::DESCR = "DirectX waterfall display";
+const unsigned char CDirectxWaterfallDriver::FINGERPRINT[] = { 1, signals::etypVecDouble, 0 };
+char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
+const char* CDirectxWaterfall::CIncoming::EP_NAME = "in";
+const char* CDirectxWaterfall::CIncoming::EP_DESCR = "Waterfall incoming endpoint";
 
-// Global Variables:
-HINSTANCE hInst;								// current instance
-TCHAR szTitle[MAX_LOADSTRING];					// The title bar text
-TCHAR szWindowClass[MAX_LOADSTRING];			// the main window class name
-
-// Forward declarations of functions included in this code module:
-ATOM				MyRegisterClass(HINSTANCE hInstance);
-BOOL				InitInstance(HINSTANCE, int);
-LRESULT CALLBACK	WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK	About(HWND, UINT, WPARAM, LPARAM);
-
-int APIENTRY _tWinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPTSTR    lpCmdLine,
-                     int       nCmdShow)
+BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
 {
-	UNREFERENCED_PARAMETER(hPrevInstance);
-	UNREFERENCED_PARAMETER(lpCmdLine);
-
- 	// TODO: Place code here.
-	MSG msg;
-	HACCEL hAccelTable;
-
-	// Initialize global strings
-	LoadString(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-	LoadString(hInstance, IDC_WATERFALL, szWindowClass, MAX_LOADSTRING);
-	MyRegisterClass(hInstance);
-
-	// Perform application initialization:
-	if (!InitInstance (hInstance, nCmdShow))
+	switch (ul_reason_for_call)
 	{
-		return FALSE;
+	case DLL_PROCESS_ATTACH:
+	case DLL_THREAD_ATTACH:
+		gl_DllModule = hModule;
+		break;
+//	case DLL_THREAD_DETACH:
+//	case DLL_PROCESS_DETACH:
+//		break;
 	}
+	return TRUE;
+}
 
-	hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WATERFALL));
-
-	// Main message loop:
-	while (GetMessage(&msg, NULL, 0, 0))
+extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
+{
+	static CDirectxWaterfallDriver DRIVER_waterfall;
+	if(drivers && availDrivers)
 	{
-		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+		drivers[0] = &DRIVER_waterfall;
+	}
+	return 1;
+}
+
+signals::IBlock* CDirectxWaterfallDriver::Create()
+{
+	signals::IBlock* blk = new CDirectxWaterfall(this);
+	blk->AddRef();
+	return blk;
+}
+
+#pragma warning(push)
+#pragma warning(disable: 4355)
+CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):m_driver(driver),m_incoming(this),m_bDataThreadEnabled(true),
+	 m_dataThread(Thread<CDirectxWaterfall*>::delegate_type(&CDirectxWaterfall::process_thread)),m_bufSize(0)
+{
+	buildAttrs();
+	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
+}
+#pragma warning(pop)
+
+unsigned CDirectxWaterfall::Incoming(signals::IInEndpoint** ep, unsigned availEP)
+{
+	if(ep && availEP)
+	{
+		ep[0] = &m_incoming;
+	}
+	return 1;
+}
+
+void CDirectxWaterfall::process_thread(CDirectxWaterfall* owner)
+{
+	ThreadBase::SetThreadName("Waterfall Display Thread");
+
+	std::vector<double> buffer;
+	while(owner->m_bDataThreadEnabled)
+	{
 		{
-			TranslateMessage(&msg);
-			DispatchMessage(&msg);
+			Locker lock(owner->m_buffLock);
+			if(owner->m_bufSize > buffer.capacity()) buffer.resize(owner->m_bufSize);
+		}
+		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer,
+			buffer.capacity(), FALSE, IN_BUFFER_TIMEOUT);
+		if(recvCount)
+		{
+			Locker lock(owner->m_buffLock);
+			unsigned bufSize = owner->m_bufSize;
+			if(!bufSize) bufSize = recvCount;
+
+			double* buffPtr = buffer.data();
+			while(recvCount)
+			{
+				owner->onReceivedFrame(buffer.data(), bufSize);
+				buffPtr += bufSize;
+				recvCount -= min(recvCount, bufSize);
+			}
 		}
 	}
-
-	return (int) msg.wParam;
 }
 
-
-
-//
-//  FUNCTION: MyRegisterClass()
-//
-//  PURPOSE: Registers the window class.
-//
-//  COMMENTS:
-//
-//    This function and its usage are only necessary if you want this code
-//    to be compatible with Win32 systems prior to the 'RegisterClassEx'
-//    function that was added to Windows 95. It is important to call this function
-//    so that the application will get 'well formed' small icons associated
-//    with it.
-//
-ATOM MyRegisterClass(HINSTANCE hInstance)
-{
-	WNDCLASSEX wcex;
-
-	wcex.cbSize = sizeof(WNDCLASSEX);
-
-	wcex.style			= CS_HREDRAW | CS_VREDRAW;
-	wcex.lpfnWndProc	= WndProc;
-	wcex.cbClsExtra		= 0;
-	wcex.cbWndExtra		= 0;
-	wcex.hInstance		= hInstance;
-	wcex.hIcon			= LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WATERFALL));
-	wcex.hCursor		= LoadCursor(NULL, IDC_ARROW);
-	wcex.hbrBackground	= (HBRUSH)(COLOR_WINDOW+1);
-	wcex.lpszMenuName	= MAKEINTRESOURCE(IDC_WATERFALL);
-	wcex.lpszClassName	= szWindowClass;
-	wcex.hIconSm		= LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
-
-	return RegisterClassEx(&wcex);
-}
-
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-   HWND hWnd;
-
-   hInst = hInstance; // Store instance handle in our global variable
-
-   hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-   test.init(GetModuleHandle(NULL), hWnd);
-   SetTimer(hWnd, 1, 100, NULL);
-
-   return TRUE;
-}
-
-//
-//  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
-//
-//  PURPOSE:  Processes messages for the main window.
-//
-//  WM_COMMAND	- process the application menu
-//  WM_PAINT	- Paint the main window
-//  WM_DESTROY	- post a quit message and return
-//
-//
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	int wmId, wmEvent;
-	PAINTSTRUCT ps;
-	HDC hdc;
-
-	switch (message)
-	{
-	case WM_COMMAND:
-		wmId    = LOWORD(wParam);
-		wmEvent = HIWORD(wParam);
-		// Parse the menu selections:
-		switch (wmId)
-		{
-		case IDM_ABOUT:
-			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-			break;
-		case IDM_EXIT:
-			DestroyWindow(hWnd);
-			break;
-		default:
-			return DefWindowProc(hWnd, message, wParam, lParam);
-		}
-		break;
-	case WM_PAINT:
-		hdc = BeginPaint(hWnd, &ps);
-		// TODO: Add any drawing code here...
-		EndPaint(hWnd, &ps);
-		break;
-	case WM_DESTROY:
-		PostQuitMessage(0);
-		break;
-	case WM_TIMER:
-		test.renderCycle();
-		break;
-	default:
-		return DefWindowProc(hWnd, message, wParam, lParam);
-	}
-	return 0;
-}
-
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-	UNREFERENCED_PARAMETER(lParam);
-	switch (message)
-	{
-	case WM_INITDIALOG:
-		return (INT_PTR)TRUE;
-
-	case WM_COMMAND:
-		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-		{
-			EndDialog(hDlg, LOWORD(wParam));
-			return (INT_PTR)TRUE;
-		}
-		break;
-	}
-	return (INT_PTR)FALSE;
-}
+// void CDirectxWaterfall::buildAttrs()
+// void CDirectxWaterfall::Start()
+// void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *)
+// void CDirectxWaterfall::onReceivedFrame(double *,unsigned)

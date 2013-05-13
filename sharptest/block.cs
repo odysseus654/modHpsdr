@@ -15,6 +15,7 @@ namespace signals
 		None	= 0x00,
 		Event	= 0x01,
         String  = 0x02,
+        WinHdl  = 0x03,
         
         Boolean = 0x10,
 		Byte	= 0x11,
@@ -124,9 +125,9 @@ namespace signals
 		IEPBuffer CreateBuffer();
 	};
 
-    public interface IAttributes
+    public interface IAttributes : System.Collections.Generic.IEnumerable<IAttribute>
 	{
-		IAttribute[] Itemize();
+//		IAttribute[] Itemize();
 		IAttribute GetByName(string name);
     };
 

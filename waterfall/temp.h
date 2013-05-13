@@ -46,6 +46,11 @@ protected:
 	UINT m_screenWidth;
 	UINT m_screenHeight;
 
+	typedef unsigned short dataTex_t;
+	UINT m_dataTexWidth;
+	UINT m_dataTexHeight;
+	dataTex_t *m_dataTexData;
+
 	// Direct3d references we use
 	ID3D10DevicePtr m_pDevice;
 	IDXGISwapChainPtr m_pSwapChain;
@@ -53,11 +58,6 @@ protected:
 	ID3D10EffectPtr m_pEffect;
 	ID3D10DepthStencilViewPtr m_pDepthView;
 	ID3D10EffectTechnique* m_pTechnique;
-	UINT m_dataTexWidth;
-	UINT m_dataTexHeight;
-
-	typedef unsigned short dataTex_t;
-	dataTex_t *m_dataTexData;
 
 	// vertex stuff
 	ID3D10BufferPtr m_pVertexBuffer;
@@ -71,4 +71,3 @@ protected:
 	ID3D10ShaderResourceViewPtr m_waterfallView;
 	ID3D10ShaderResourceViewPtr m_dataView;
 };
-

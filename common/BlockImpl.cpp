@@ -24,6 +24,7 @@ BOOL CInEndpointBase::Connect(signals::IEPRecvFrom* recv)
 	if(recv != m_connRecv)
 	{
 		if(recv) recv->onSinkConnected(this);
+		OnConnection(recv);
 		if(m_connRecv) m_connRecv->onSinkDisconnected(this);
 		m_connRecv = recv;
 		if(m_connRecv) m_connRecvConnected.wakeAll();
@@ -50,6 +51,7 @@ BOOL COutEndpointBase::Connect(signals::IEPSendTo* send)
 	if(send != m_connSend)
 	{
 		if(send) send->AddRef(this);
+		OnConnection(send);
 		if(m_connSend) m_connSend->Release(this);
 		m_connSend = send;
 		if(m_connSend) m_connSendConnected.wakeAll();

@@ -3,83 +3,46 @@
 // http://www.resedit.net
 
 #include <windows.h>
-#include <commctrl.h>
-#include <richedit.h>
+//#include <commctrl.h>
+//#include <richedit.h>
 #include "resource.h"
-
-
-
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 waterfall.fx    RCDATA   ".\\waterfall.fx"
 
-
-
 //
-// Menu resources
+// Version Information resources
 //
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-IDC_WATERFALL MENU
+LANGUAGE 0, SUBLANG_NEUTRAL
+1 VERSIONINFO
+    FILEVERSION     0,0,1,0
+    PRODUCTVERSION  0,0,1,0
+    FILEOS          VOS__WINDOWS32
+    FILETYPE        VFT_DLL
+    FILESUBTYPE     VFT2_UNKNOWN
+    FILEFLAGSMASK   0x00000000
+    FILEFLAGS       0x00000000
 {
-    POPUP "&File"
+    BLOCK "StringFileInfo"
     {
-        MENUITEM "E&xit", IDM_EXIT
+        BLOCK "040904E4"
+        {
+            VALUE "Comments", ""
+            VALUE "CompanyName", ""
+            VALUE "FileDescription", "DirectX Waterfall Module"
+            VALUE "FileVersion", "0.1"
+            VALUE "InternalName", "waterfall"
+            VALUE "LegalCopyright", ""
+            VALUE "LegalTrademarks", ""
+            VALUE "OriginalFilename", "waterfall"
+            VALUE "PrivateBuild", ""
+            VALUE "ProductName", "mod-hpsdr"
+            VALUE "ProductVersion", "0.1"
+            VALUE "SpecialBuild", ""
+        }
     }
-    POPUP "&Help"
+    BLOCK "VarFileInfo"
     {
-        MENUITEM "&About ...", IDM_ABOUT
+        VALUE "Translation", 0x0409, 0x04E4
     }
 }
-
-
-
-//
-// Dialog resources
-//
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-IDD_ABOUTBOX DIALOGEX 0, 0, 170, 62
-STYLE DS_MODALFRAME | DS_SHELLFONT | WS_CAPTION | WS_POPUP | WS_SYSMENU
-CAPTION "About waterfall"
-FONT 8, "MS Shell Dlg", 0, 0, 1
-{
-    ICON            IDR_MAINFRAME, IDC_STATIC, 14, 14, 21, 20, SS_ICON
-    LTEXT           "waterfall, Version 1.0", IDC_STATIC, 42, 14, 114, 8, SS_LEFT | SS_NOPREFIX
-    LTEXT           "Copyright (C) 2013", IDC_STATIC, 42, 26, 114, 8, SS_LEFT
-    DEFPUSHBUTTON   "OK", IDOK, 113, 41, 50, 14, WS_GROUP
-}
-
-
-
-//
-// String Table resources
-//
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-STRINGTABLE
-{
-    IDC_WATERFALL                 "WATERFALL"
-    IDS_APP_TITLE                 "waterfall"
-}
-
-
-
-//
-// Accelerator resources
-//
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-IDC_WATERFALL ACCELERATORS
-{
-    "?",            IDM_ABOUT, ASCII, ALT
-    "/",            IDM_ABOUT, ASCII, ALT
-}
-
-
-
-//
-// Icon resources
-//
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-IDI_SMALL          ICON           "small.ico"
-
-
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-IDI_WATERFALL      ICON           "waterfall.ico"

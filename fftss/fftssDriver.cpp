@@ -18,20 +18,7 @@
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
-/*
-	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecCmplDbl> fft_dd;
-	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecComplex> fft_ds;
-	static fftss::CFFTransformDriver<signals::etypComplex,signals::etypVecCmplDbl> fft_sd;
-	static fftss::CFFTransformDriver<signals::etypComplex,signals::etypVecComplex> fft_ss;
-	if(drivers && availDrivers)
-	{
-		if(availDrivers > 0) drivers[0] = &fft_dd;
-		if(availDrivers > 1) drivers[1] = &fft_ds;
-		if(availDrivers > 2) drivers[2] = &fft_sd;
-		if(availDrivers > 3) drivers[3] = &fft_ss;
-	}
-*/
-	static fftss::CFFTransformDriver<signals::etypCmplDbl,signals::etypVecCmplDbl> fft_dd;
+	static fftss::CFFTransformDriver fft_dd;
 	if(drivers && availDrivers)
 	{
 		if(availDrivers > 0) drivers[0] = &fft_dd;
@@ -41,6 +28,16 @@ extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned avail
 
 namespace fftss {
 
+const char* CFFTransform::NAME = "FFT Transform using fftss";
+const char* CFFTransform::CIncoming::EP_NAME = "in";
+const char* CFFTransform::CIncoming::EP_DESCR = "FFT Transform incoming endpoint";
+const char* CFFTransform::COutgoing::EP_NAME = "out";
+const char* CFFTransform::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
+
+const unsigned char CFFTransformDriver::FINGERPRINT[] = { 1, (unsigned char)signals::etypCmplDbl, 1, (unsigned char)signals::etypCmplDbl };
+const char* CFFTransformDriver::NAME = "fft";
+const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
+
 // ------------------------------------------------------------------ class CFFTransform
 
 class CAttr_block_size : public CRWAttribute<signals::etypLong>
@@ -48,14 +45,14 @@ class CAttr_block_size : public CRWAttribute<signals::etypLong>
 private:
 	typedef CRWAttribute<signals::etypLong> base;
 public:
-	inline CAttr_block_size(CFFTransformBase& parent, const char* name, const char* descr, long deflt)
+	inline CAttr_block_size(CFFTransform& parent, const char* name, const char* descr, long deflt)
 		:base(name, descr, deflt), m_parent(parent)
 	{
 		m_parent.setBlockSize(deflt);
 	}
 
 protected:
-	CFFTransformBase& m_parent;
+	CFFTransform& m_parent;
 
 protected:
 	virtual void onSetValue(const store_type& newVal)
@@ -65,21 +62,27 @@ protected:
 	}
 };
 
-CFFTransformBase::CFFTransformBase(signals::IBlockDriver* driver)
+#pragma warning(push)
+#pragma warning(disable: 4355)
+CFFTransform::CFFTransform(signals::IBlockDriver* driver)
 	:m_driver(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
-	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransformBase::refreshPlan)),m_bFaulted(false)
+	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),m_bFaulted(false),
+	 m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
+	 m_dataThread(Thread<CFFTransform*>::delegate_type(&fft_process_thread))
 {
-//	buildAttrs();
+	buildAttrs();
+	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
 }
+#pragma warning(pop)
 
-CFFTransformBase::~CFFTransformBase()
+CFFTransform::~CFFTransform()
 {
+	m_bDataThreadEnabled = false;
+	m_dataThread.close();
 	clearPlan();
 }
 
-const char* CFFTransformBase::NAME = "FFT Transform using fftss";
-
-void CFFTransformBase::clearPlan()
+void CFFTransform::clearPlan()
 {
 	if(m_currPlan)
 	{
@@ -100,14 +103,31 @@ void CFFTransformBase::clearPlan()
 
 }
 
-void CFFTransformBase::buildAttrs()
+unsigned CFFTransform::Incoming(signals::IInEndpoint** ep, unsigned availEP)
 {
-	attrs.blockSize = addLocalAttr(true, new CAttr_block_size(*this, "blockSize", "Number of samples to process in each block", DEFAULT_BLOCK_SIZE));
-
-//	m_outgoing.buildAttrs(*this);
+	if(ep && availEP)
+	{
+		ep[0] = &m_incoming;
+	}
+	return 1;
 }
 
-void CFFTransformBase::setBlockSize(long blockSize)
+unsigned CFFTransform::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
+{
+	if(ep && availEP)
+	{
+		ep[0] = &m_outgoing;
+	}
+	return 1;
+}
+
+void CFFTransform::buildAttrs()
+{
+	attrs.blockSize = addLocalAttr(true, new CAttr_block_size(*this, "blockSize", "Number of samples to process in each block", DEFAULT_BLOCK_SIZE));
+	m_outgoing.buildAttrs(*this);
+}
+
+void CFFTransform::setBlockSize(long blockSize)
 {
 	long prevValue = InterlockedExchange(&m_requestSize, blockSize);
 	if(blockSize != prevValue)
@@ -116,7 +136,7 @@ void CFFTransformBase::setBlockSize(long blockSize)
 	}
 }
 
-void CFFTransformBase::refreshPlan()
+void CFFTransform::refreshPlan()
 {
 	{
 		Locker lock(m_planLock);
@@ -125,7 +145,7 @@ void CFFTransformBase::refreshPlan()
 	startPlan(false);
 }
 
-bool CFFTransformBase::startPlan(bool bLockHeld)
+bool CFFTransform::startPlan(bool bLockHeld)
 {
 	long reqSize = m_requestSize;
 	if(!reqSize) return false;
@@ -155,18 +175,23 @@ bool CFFTransformBase::startPlan(bool bLockHeld)
 	}
 }
 
-void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>* owner)
+void CFFTransform::COutgoing::buildAttrs(const CFFTransform& parent)
+{
+	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
+//	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
+}
+
+void CFFTransform::fft_process_thread(CFFTransform* owner)
 {
 	ThreadBase::SetThreadName("FFTSS Transform Thread");
 
-	CFFTransformBase::TComplexDbl buffer[CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE];
+	TComplexDbl buffer[IN_BUFFER_SIZE];
 
 	unsigned inOffset = 0;
 	while(owner->m_bDataThreadEnabled)
 	{
 		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer,
-			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_SIZE, TRUE,
-			CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>::IN_BUFFER_TIMEOUT);
+			IN_BUFFER_SIZE, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			Locker lock(owner->m_planLock);
@@ -183,7 +208,7 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>*
 			unsigned numXfer = min(owner->m_bufSize - inOffset, recvCount);
 			if(numXfer)
 			{
-				memcpy(&owner->m_inBuffer[inOffset], buffer, sizeof(CFFTransformBase::TComplexDbl) * numXfer);
+				memcpy(&owner->m_inBuffer[inOffset], buffer, sizeof(buffer[0]) * numXfer);
 			}
 			inOffset += numXfer;
 			recvCount -= numXfer;
@@ -205,15 +230,24 @@ void fft_process_thread(CFFTransform<signals::etypCmplDbl,signals::etypCmplDbl>*
 				}
 
 				numXfer = min(recvCount, owner->m_bufSize);
-				for(unsigned idx=0; idx < numXfer; idx++)
+				if(numXfer)
 				{
-					memcpy(owner->m_inBuffer, &buffer[outOffset], sizeof(CFFTransformBase::TComplexDbl) * numXfer);
+					memcpy(owner->m_inBuffer, &buffer[outOffset], sizeof(buffer[0]) * numXfer);
 				}
 				outOffset += numXfer;
 				inOffset = recvCount;
 			}
 		}
 	}
+}
+
+// ------------------------------------------------------------------ class CFFTransformDriver
+
+signals::IBlock * CFFTransformDriver::Create()
+{
+	signals::IBlock* blk = new CFFTransform(this);
+	blk->AddRef();
+	return blk;
 }
 
 }

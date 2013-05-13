@@ -54,6 +54,8 @@ public:
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
+protected:
+	virtual void OnConnection(signals::IEPRecvFrom* recv) { }
 private:
 	CInEndpointBase(const CInEndpointBase& other);
 	CInEndpointBase& operator=(const CInEndpointBase& other);
@@ -76,6 +78,8 @@ public:
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
+protected:
+	virtual void OnConnection(signals::IEPSendTo* send) { }
 private:
 	COutEndpointBase(const COutEndpointBase& other);
 	COutEndpointBase& operator=(const COutEndpointBase& other);
@@ -154,6 +158,12 @@ template<> struct StoreType<signals::etypBoolean>
 	typedef Buffer<type> buffer_type;
 };
 
+template<> struct StoreType<signals::etypWinHdl>
+{
+	typedef HANDLE type;
+	typedef Buffer<type> buffer_type;
+};
+
 template<> struct StoreType<signals::etypByte>
 {
 	typedef unsigned char type;
@@ -169,6 +179,12 @@ template<> struct StoreType<signals::etypShort>
 template<> struct StoreType<signals::etypLong>
 {
 	typedef long type;
+	typedef Buffer<type> buffer_type;
+};
+
+template<> struct StoreType<signals::etypInt64>
+{
+	typedef __int64 type;
 	typedef Buffer<type> buffer_type;
 };
 
