@@ -411,10 +411,10 @@ private:
 	typedef CAttribute<ET> base_type;
 	CRWAttribute(const my_type& other);
 	my_type& operator=(const my_type& other);
-protected:
+public:
 	inline CRWAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:base_type(pName, pDescr, deflt) { }
-public:
+
 	virtual ~CRWAttribute()				{ }
 	virtual BOOL isReadOnly()			{ return false; }
 

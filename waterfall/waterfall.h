@@ -1,5 +1,32 @@
 #pragma once
 #include <blockImpl.h>
+#include "unkref.h"
+#include <Unknwn.h>
+
+struct ID3D10Buffer;
+struct ID3D10DepthStencilState;
+struct ID3D10DepthStencilView;
+struct ID3D10Device;
+struct ID3D10Effect;
+struct ID3D10EffectTechnique;
+struct ID3D10InputLayout;
+struct ID3D10RenderTargetView;
+struct ID3D10ShaderResourceView;
+struct ID3D10Texture1D;
+struct ID3D10Texture2D;
+struct IDXGISwapChain;
+
+typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
+typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
+typedef unk_ref_t<ID3D10DepthStencilView> ID3D10DepthStencilViewPtr;
+typedef unk_ref_t<ID3D10Device> ID3D10DevicePtr;
+typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
+typedef unk_ref_t<ID3D10InputLayout> ID3D10InputLayoutPtr;
+typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
+typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
+typedef unk_ref_t<ID3D10Texture1D> ID3D10Texture1DPtr;
+typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
+typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
 
 class CDirectxWaterfallDriver : public signals::IBlockDriver
 {
@@ -30,7 +57,7 @@ class CDirectxWaterfall : public signals::IBlock, public CAttributesBase, protec
 {
 public:
 	CDirectxWaterfall(signals::IBlockDriver* driver);
-	virtual ~CDirectxWaterfall() {}
+	virtual ~CDirectxWaterfall();
 
 private:
 	CDirectxWaterfall(const CDirectxWaterfall& other);
@@ -47,19 +74,27 @@ public: // IBlock implementation
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
 	virtual unsigned Outgoing(signals::IOutEndpoint** /* ep */ , unsigned /* availEP */) { return 0; }
-	virtual void Start();
+	virtual void Start()					{ }
 	virtual void Stop()						{ }
+
+	struct
+	{
+		CAttributeBase* targetWindow;
+		CRWAttribute<signals::etypBoolean>* enableVsync;
+	} attrs;
+
+	void setTargetWindow(HWND hWnd);
 
 public:
 	class CIncoming : public CInEndpointBase, public CAttributesBase
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(signals::IBlock* parent):m_parent(parent) { }
+		inline CIncoming(CDirectxWaterfall* parent):m_parent(parent) { }
 		virtual ~CIncoming() {}
 
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
-		signals::IBlock* m_parent;
+		CDirectxWaterfall* m_parent;
 
 	private:
 		const static char* EP_NAME;
@@ -89,6 +124,7 @@ public:
 private:
 	enum
 	{
+		DEFAULT_CAPACITY = 2048,
 		IN_BUFFER_TIMEOUT = 1000
 	};
 
@@ -101,8 +137,52 @@ private:
 	Lock m_buffLock;
 	unsigned m_bufSize;
 
+private: // directx stuff
+	HWND m_hOutputWin;
+	WNDPROC m_pOldWinProc;
+	UINT m_screenWinWidth;
+	UINT m_screenWinHeight;
+	UINT m_screenCliWidth;
+	UINT m_screenCliHeight;
+
+	typedef unsigned short dataTex_t;
+	UINT m_dataTexWidth;
+	UINT m_dataTexHeight;
+	dataTex_t *m_dataTexData;
+
+	// Direct3d references we use
+	ID3D10DevicePtr m_pDevice;
+	IDXGISwapChainPtr m_pSwapChain;
+	ID3D10Texture2DPtr m_dataTex;
+	ID3D10EffectPtr m_pEffect;
+	ID3D10DepthStencilViewPtr m_pDepthView;
+	ID3D10EffectTechnique* m_pTechnique;
+
+	// vertex stuff
+	ID3D10BufferPtr m_pVertexBuffer;
+	ID3D10BufferPtr m_pVertexIndexBuffer;
+	ID3D10InputLayoutPtr m_pInputLayout;
+	static const unsigned long VERTEX_INDICES[4];
+
+	// these are mapped resources, we don't reference them other than managing their lifetime
+	ID3D10DepthStencilStatePtr m_pDepthStencilState;
+	ID3D10RenderTargetViewPtr m_pRenderTargetView;
+	ID3D10ShaderResourceViewPtr m_waterfallView;
+	ID3D10ShaderResourceViewPtr m_dataView;
+
 protected:
+	typedef fastdelegate::FastDelegate4<HWND,UINT,WPARAM,LPARAM,LRESULT> windowproc_delegate_type;
+	const windowproc_delegate_type m_pWinprocDelgate;
+
 	void buildAttrs();
+	void releaseDevice();
+	HRESULT initDevice();
+	static HRESULT buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10Texture1DPtr& waterfallTex);
+	HRESULT initTexture();
+	HRESULT resizeDevice();
+	HRESULT drawFrame();
+
 	void onReceivedFrame(double* frame, unsigned size);
 	static void process_thread(CDirectxWaterfall* owner);
+	LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 };
