@@ -42,9 +42,6 @@
     <ClInclude Include="Resource.h">
       <Filter>Infrastructure</Filter>
     </ClInclude>
-    <ClInclude Include="temp.h">
-      <Filter>Implementation</Filter>
-    </ClInclude>
     <ClInclude Include="waterfall.h">
       <Filter>Implementation</Filter>
     </ClInclude>
@@ -54,9 +51,6 @@
       <Filter>Infrastructure</Filter>
     </ClCompile>
     <ClCompile Include="waterfall.cpp">
-      <Filter>Implementation</Filter>
-    </ClCompile>
-    <ClCompile Include="temp.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>

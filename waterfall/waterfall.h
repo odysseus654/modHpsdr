@@ -81,16 +81,18 @@ public: // IBlock implementation
 	{
 		CAttributeBase* targetWindow;
 		CRWAttribute<signals::etypBoolean>* enableVsync;
+		CAttributeBase* height;
 	} attrs;
 
 	void setTargetWindow(HWND hWnd);
+	void setHeight(short height);
 
 public:
-	class CIncoming : public CInEndpointBase, public CAttributesBase
+	class CIncoming : public CInEndpointBase, public CAttributesBase, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxWaterfall* parent):m_parent(parent) { }
-		virtual ~CIncoming() {}
+		inline CIncoming(CDirectxWaterfall* parent):m_parent(parent),m_lastWidthAttr(NULL) { }
+		virtual ~CIncoming();
 
 	protected:
 		enum { DEFAULT_BUFSIZE = 4096 };
@@ -109,6 +111,7 @@ public:
 		virtual unsigned Release()					{ return m_parent->Release(); }
 		virtual signals::EType Type()				{ return signals::etypVecDouble; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
+		virtual void OnChanged(const char* name, signals::EType type, const void* value);
 
 		virtual signals::IEPBuffer* CreateBuffer()
 		{
@@ -119,6 +122,7 @@ public:
 
 	protected:
 		virtual void OnConnection(signals::IEPRecvFrom* recv);
+		signals::IAttribute* m_lastWidthAttr;
 	};
 
 private:
@@ -179,6 +183,7 @@ protected:
 	HRESULT initDevice();
 	static HRESULT buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10Texture1DPtr& waterfallTex);
 	HRESULT initTexture();
+	HRESULT initDataTexture();
 	HRESULT resizeDevice();
 	HRESULT drawFrame();
 

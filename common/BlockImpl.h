@@ -55,7 +55,7 @@ public:
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 protected:
-	virtual void OnConnection(signals::IEPRecvFrom* recv) { }
+	virtual void OnConnection(signals::IEPRecvFrom*) { }
 private:
 	CInEndpointBase(const CInEndpointBase& other);
 	CInEndpointBase& operator=(const CInEndpointBase& other);
@@ -79,7 +79,7 @@ public:
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 protected:
-	virtual void OnConnection(signals::IEPSendTo* send) { }
+	virtual void OnConnection(signals::IEPSendTo*) { }
 private:
 	COutEndpointBase(const COutEndpointBase& other);
 	COutEndpointBase& operator=(const COutEndpointBase& other);
@@ -531,9 +531,10 @@ protected:
 
 	buffer_type buffer;
 	signals::IInEndpoint* m_iep;
+	signals::IOutEndpoint* m_oep;
 
 public:
-	inline CEPBuffer(typename buffer_type::size_type capacity):buffer(capacity), m_iep(NULL)
+	inline CEPBuffer(typename buffer_type::size_type capacity):buffer(capacity), m_iep(NULL), m_oep(NULL)
 	{
 	}
 
@@ -580,7 +581,12 @@ public: // IEPSendTo
 		}
 	}
 
-public: // IEPReceiver
+	virtual signals::IAttributes* OutputAttributes()
+	{
+		return m_oep ? m_oep->Attributes() : NULL;
+	}
+
+public: // IEPRecvFrom
 	virtual unsigned Read(signals::EType type, void* pBuffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 	{
 		if(type == ET)
@@ -598,10 +604,24 @@ public: // IEPReceiver
 		else return 0; // implicit translation not yet supported
 	}
 
-	virtual unsigned AddRef()		{ return CRefcountObject::AddRef(); }
-	virtual unsigned Release()		{ return CRefcountObject::Release(); }
-	virtual unsigned AddRef(signals::IOutEndpoint*)		{ return CRefcountObject::AddRef(); }
-	virtual unsigned Release(signals::IOutEndpoint*)	{ return CRefcountObject::Release(); }
+	virtual signals::IAttributes* InputAttributes()
+	{
+		return m_iep ? m_iep->Attributes() : NULL;
+	}
+
+//	virtual unsigned AddRef()							{ return CRefcountObject::AddRef(); }
+//	virtual unsigned Release()							{ return CRefcountObject::Release(); }
+	virtual unsigned AddRef(signals::IOutEndpoint* oep)
+	{
+		if(oep) m_oep = oep;
+		return CRefcountObject::AddRef();
+	}
+
+	virtual unsigned Release(signals::IOutEndpoint* oep)
+	{
+		if(oep && oep == m_oep) m_oep = NULL;
+		return CRefcountObject::Release();
+	}
 };
 
 // ------------------------------------------------------------------------------------------------

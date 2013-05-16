@@ -92,6 +92,7 @@ namespace signals
 		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
 		unsigned AddRef(IOutEndpoint* src);
 		unsigned Release(IOutEndpoint* src);
+		IAttributes* OutputAttributes();
 	};
 
 	__interface IEPRecvFrom
@@ -99,6 +100,7 @@ namespace signals
 		unsigned Read(EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 		void onSinkConnected(IInEndpoint* src);
 		void onSinkDisconnected(IInEndpoint* src);
+		IAttributes* InputAttributes();
 	};
 
 	__interface IEPBuffer : public IEPSendTo, public IEPRecvFrom

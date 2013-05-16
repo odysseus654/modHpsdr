@@ -84,6 +84,27 @@ protected:
 	}
 };
 
+class CAttr_height : public CRWAttribute<signals::etypShort>
+{
+private:
+	typedef CRWAttribute<signals::etypShort> base;
+public:
+	inline CAttr_height(CDirectxWaterfall& parent, const char* name, const char* descr, store_type deflt)
+		:base(name, descr, deflt), m_parent(parent)
+	{
+	}
+
+protected:
+	CDirectxWaterfall& m_parent;
+
+protected:
+	virtual void onSetValue(const store_type& newVal)
+	{
+		m_parent.setHeight(newVal);
+		base::onSetValue(newVal);
+	}
+};
+
 // ---------------------------------------------------------------------------- DirectX utilities
 
 static D3DXVECTOR3 hsv2rgb(const D3DVECTOR& hsv)
@@ -200,7 +221,7 @@ void CDirectxWaterfall::buildAttrs()
 {
 	attrs.targetWindow = addLocalAttr(true, new CAttr_target_hwnd(*this, "targetWindow", "Window to display waterfall on"));
 	attrs.enableVsync = addLocalAttr(true, new CRWAttribute<signals::etypBoolean>("enableVsync", "Use monitor vsync on display", false));
-//	attrs.targetWindow = addLocalAttr(true, new CAttr_target_hwnd(*this, "targetWindow", "Window to display waterfall on"));
+	attrs.height = addLocalAttr(true, new CAttr_height(*this, "height", "Rows of history to display", 512));
 }
 
 void CDirectxWaterfall::releaseDevice()
@@ -212,6 +233,7 @@ void CDirectxWaterfall::releaseDevice()
 		{
 			SetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC, (LONG)m_pOldWinProc);
 		}
+		m_hOutputWin = NULL;
 	}
 	if(m_pDevice) m_pDevice->ClearState();
 	m_pSwapChain.Release();
@@ -529,37 +551,6 @@ HRESULT CDirectxWaterfall::initTexture()
 	hR = pVarRes->SetResource(m_waterfallView);
 	if(FAILED(hR)) return hR;
 
-	m_dataTexWidth = 1024;
-	m_dataTexHeight = 512;
-	m_dataTexData = new dataTex_t[m_dataTexWidth*m_dataTexHeight];
-	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
-
-	D3D10_TEXTURE2D_DESC dataDesc;
-	memset(&dataDesc, 0, sizeof(dataDesc));
-	dataDesc.Width = m_dataTexWidth;
-	dataDesc.Height = m_dataTexHeight;
-	dataDesc.MipLevels = 1;
-	dataDesc.ArraySize = 1;
-	dataDesc.Format = DXGI_FORMAT_R16_UNORM;
-	dataDesc.SampleDesc.Count = 1;
-	dataDesc.SampleDesc.Quality = 0;
-	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
-	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
-
-	hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
-	if(FAILED(hR)) return hR;
-
-	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
-	if(FAILED(hR)) return hR;
-
-	pVar = m_pEffect->GetVariableByName("waterfallValues");
-	if(!pVar) return E_FAIL;
-	pVarRes = pVar->AsShaderResource();
-	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
-	hR = pVarRes->SetResource(m_dataView);
-	if(FAILED(hR)) return hR;
-
 	// Create an orthographic projection matrix for 2D rendering.
 	D3DXMATRIX orthoMatrix;
 	D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
@@ -569,6 +560,50 @@ HRESULT CDirectxWaterfall::initTexture()
 	ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
 	if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
 	hR = pVarMat->SetMatrix(orthoMatrix);
+	if(FAILED(hR)) return hR;
+
+	return initDataTexture();
+}
+
+HRESULT CDirectxWaterfall::initDataTexture()
+{
+	if(!m_dataTexWidth || !m_dataTexHeight)
+	{
+		return S_FALSE;
+	}
+	m_dataView.Release();
+	m_dataTex.Release();
+	if(m_dataTexData) delete [] m_dataTexData;
+
+//	m_dataTexWidth = 1024;
+//	m_dataTexHeight = 512;
+	m_dataTexData = new dataTex_t[m_dataTexWidth*m_dataTexHeight];
+	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
+
+	D3D10_TEXTURE2D_DESC dataDesc;
+	memset(&dataDesc, 0, sizeof(dataDesc));
+	dataDesc.Width = m_dataTexWidth;
+	dataDesc.Height = m_dataTexHeight;
+	dataDesc.MipLevels = 1;
+	dataDesc.ArraySize = 1;
+	dataDesc.Format = DXGI_FORMAT_R16_SNORM;
+	dataDesc.SampleDesc.Count = 1;
+	dataDesc.SampleDesc.Quality = 0;
+	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
+	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+
+	HRESULT hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
+	if(FAILED(hR)) return hR;
+
+	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("waterfallValues");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectShaderResourceVariable* pVarRes = pVar->AsShaderResource();
+	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
+	hR = pVarRes->SetResource(m_dataView);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
@@ -762,5 +797,69 @@ LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 	return CallWindowProc(m_pOldWinProc, hWnd, uMsg, wParam, lParam);
 }
 
-// void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
-// void CDirectxWaterfall::onReceivedFrame(double *,unsigned)
+void CDirectxWaterfall::setHeight(short newHeight)
+{
+	if(newHeight == m_dataTexHeight || newHeight <= 0) return;
+	m_dataTexHeight = newHeight;
+	initDataTexture();
+}
+
+CDirectxWaterfall::CIncoming::~CIncoming()
+{
+	if(m_lastWidthAttr)
+	{
+		m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+}
+
+void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
+{
+	if(m_lastWidthAttr)
+	{
+		m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+	if(!conn) return;
+	signals::IAttributes* attrs = conn->InputAttributes();
+	if(!attrs) return;
+	signals::IAttribute* attr = attrs->GetByName("blockSize");
+	if(!attr || attr->Type() != signals::etypShort) return;
+	m_lastWidthAttr = attr;
+	m_lastWidthAttr->Observe(this);
+	OnChanged(attr->Name(), attr->Type(), attr->getValue());
+}
+
+void CDirectxWaterfall::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
+{
+	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
+	{
+		short width = *(short*)value;
+		if(width != m_parent->m_dataTexWidth && width > 0)
+		{
+			m_parent->m_dataTexWidth = width;
+			m_parent->initDataTexture();
+		}
+	}
+}
+
+void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
+{
+	if(size && size != m_dataTexWidth)
+	{
+		m_dataTexWidth = size;
+		initDataTexture();
+	}
+
+	// shift the data up one row
+	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(dataTex_t)*m_dataTexWidth*(m_dataTexHeight-1));
+
+	// write a new bottom line
+	dataTex_t* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+	for(unsigned i = 0; i < m_dataTexWidth; i++)
+	{
+		newLine[i] = dataTex_t(SHRT_MAX * frame[i]);
+	}
+
+	VERIFY(drawFrame());
+}

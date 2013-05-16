@@ -40,12 +40,12 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 
 // ------------------------------------------------------------------ class CFFTransform
 
-class CAttr_block_size : public CRWAttribute<signals::etypLong>
+class CAttr_block_size : public CRWAttribute<signals::etypShort>
 {
 private:
-	typedef CRWAttribute<signals::etypLong> base;
+	typedef CRWAttribute<signals::etypShort> base;
 public:
-	inline CAttr_block_size(CFFTransform& parent, const char* name, const char* descr, long deflt)
+	inline CAttr_block_size(CFFTransform& parent, const char* name, const char* descr, short deflt)
 		:base(name, descr, deflt), m_parent(parent)
 	{
 		m_parent.setBlockSize(deflt);
