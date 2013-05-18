@@ -53,6 +53,7 @@ namespace signals
 		etypVecByte		= 0x19,
 		etypVecShort	= 0x1A,
 		etypVecLong		= 0x1B,
+		etypVecInt64	= 0x1C,
 		etypVecSingle	= 0x2B,
 		etypVecDouble	= 0x2C,
 		etypVecComplex	= 0x3C,
@@ -160,6 +161,7 @@ namespace signals
 	__interface IAttributeObserver
 	{
 		void OnChanged(const char* name, EType type, const void* value);
+		void OnDetached(const char* name);
 	};
 
 	__interface IFunctionSpec

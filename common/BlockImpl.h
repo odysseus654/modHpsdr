@@ -93,7 +93,14 @@ class CAttributeBase : public signals::IAttribute
 {
 public:
 	inline CAttributeBase(const char* pName, const char* pDescr):m_name(pName),m_descr(pDescr) { }
-	virtual ~CAttributeBase()			{ }
+	virtual ~CAttributeBase()
+	{
+		Locker obslock(m_observersLock);
+		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
+		{
+			(*trans)->OnDetached(m_name);
+		}
+	}
 	virtual const char* Name()			{ return m_name; }
 	virtual const char* Description()	{ return m_descr; }
 	virtual void Observe(signals::IAttributeObserver* obs);
@@ -247,6 +254,12 @@ template<> struct StoreType<signals::etypVecLong>
 	typedef VectorBuffer<type> buffer_type;
 };
 
+template<> struct StoreType<signals::etypVecInt64>
+{
+	typedef __int64 type;
+	typedef VectorBuffer<type> buffer_type;
+};
+	
 template<> struct StoreType<signals::etypVecSingle>
 {
 	typedef float type;

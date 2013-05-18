@@ -169,6 +169,7 @@ CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):m_driver(dri
 
 CDirectxWaterfall::~CDirectxWaterfall()
 {
+	Locker lock(m_refLock);
 	releaseDevice();
 	if(m_dataTexData)
 	{
@@ -226,6 +227,7 @@ void CDirectxWaterfall::buildAttrs()
 
 void CDirectxWaterfall::releaseDevice()
 {
+	// ASSUMES m_refLock IS HELD BY CALLER
 	if(m_hOutputWin != NULL)
 	{
 		LONG_PTR pCurWnd = GetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC);
@@ -252,6 +254,7 @@ void CDirectxWaterfall::releaseDevice()
 
 void CDirectxWaterfall::setTargetWindow(HWND hWnd)
 {
+	Locker lock(m_refLock);
 	releaseDevice();
 	m_hOutputWin = hWnd;
 	if(hWnd != NULL && hWnd != INVALID_HANDLE_VALUE)
@@ -268,6 +271,7 @@ void CDirectxWaterfall::setTargetWindow(HWND hWnd)
 
 HRESULT CDirectxWaterfall::initDevice()
 {
+	// ASSUMES m_refLock IS HELD BY CALLER
 	{
 		RECT rect;
 		if(!GetClientRect(m_hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
@@ -454,6 +458,7 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10
 
 HRESULT CDirectxWaterfall::initTexture()
 {
+	// ASSUMES m_refLock IS HELD BY CALLER
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
 	ID3D10BlobPtr errorMessage;
@@ -567,6 +572,7 @@ HRESULT CDirectxWaterfall::initTexture()
 
 HRESULT CDirectxWaterfall::initDataTexture()
 {
+	// ASSUMES m_refLock IS HELD BY CALLER
 	if(!m_dataTexWidth || !m_dataTexHeight)
 	{
 		return S_FALSE;
@@ -611,6 +617,7 @@ HRESULT CDirectxWaterfall::initDataTexture()
 
 HRESULT CDirectxWaterfall::resizeDevice()
 {
+	// ASSUMES m_refLock IS HELD BY CALLER
 	if(!m_pDevice || !m_pSwapChain || !m_hOutputWin)
 	{
 		return S_FALSE;
@@ -716,6 +723,7 @@ HRESULT CDirectxWaterfall::resizeDevice()
 
 HRESULT CDirectxWaterfall::drawFrame()
 {
+	Locker lock(m_refLock);
 	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pTechnique || !m_pSwapChain)
 	{
 		return E_POINTER;
@@ -774,9 +782,13 @@ LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			case SIZE_RESTORED:
 				if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
 				{
-					m_screenWinWidth = LOWORD(lParam);
-					m_screenWinHeight = HIWORD(lParam);
-					VERIFY(SUCCEEDED(resizeDevice()));
+					Locker lock(m_refLock);
+					if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
+					{
+						m_screenWinWidth = LOWORD(lParam);
+						m_screenWinHeight = HIWORD(lParam);
+						VERIFY(SUCCEEDED(resizeDevice()));
+					}
 				}
 				break;
 			}
@@ -786,9 +798,13 @@ LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 				LPWINDOWPOS winPos = (LPWINDOWPOS)lParam;
 				if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
 				{
-					m_screenWinWidth = winPos->cx;
-					m_screenWinHeight = winPos->cy;
-					VERIFY(SUCCEEDED(resizeDevice()));
+					Locker lock(m_refLock);
+					if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
+					{
+						m_screenWinWidth = winPos->cx;
+						m_screenWinHeight = winPos->cy;
+						VERIFY(SUCCEEDED(resizeDevice()));
+					}
 				}
 				break;
 			}
@@ -800,6 +816,7 @@ LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 void CDirectxWaterfall::setHeight(short newHeight)
 {
 	if(newHeight == m_dataTexHeight || newHeight <= 0) return;
+	Locker lock(m_refLock);
 	m_dataTexHeight = newHeight;
 	initDataTexture();
 }
@@ -808,7 +825,7 @@ CDirectxWaterfall::CIncoming::~CIncoming()
 {
 	if(m_lastWidthAttr)
 	{
-		m_lastWidthAttr->Unobserve(this);
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
 		m_lastWidthAttr = NULL;
 	}
 }
@@ -817,7 +834,7 @@ void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 {
 	if(m_lastWidthAttr)
 	{
-		m_lastWidthAttr->Unobserve(this);
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
 		m_lastWidthAttr = NULL;
 	}
 	if(!conn) return;
@@ -827,6 +844,7 @@ void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 	if(!attr || attr->Type() != signals::etypShort) return;
 	m_lastWidthAttr = attr;
 	m_lastWidthAttr->Observe(this);
+	m_bAttached = true;
 	OnChanged(attr->Name(), attr->Type(), attr->getValue());
 }
 
@@ -837,9 +855,21 @@ void CDirectxWaterfall::CIncoming::OnChanged(const char* name, signals::EType ty
 		short width = *(short*)value;
 		if(width != m_parent->m_dataTexWidth && width > 0)
 		{
-			m_parent->m_dataTexWidth = width;
-			m_parent->initDataTexture();
+			Locker lock(m_parent->m_refLock);
+			if(width != m_parent->m_dataTexWidth && width > 0)
+			{
+				m_parent->m_dataTexWidth = width;
+				m_parent->initDataTexture();
+			}
 		}
+	}
+}
+
+void CDirectxWaterfall::CIncoming::OnDetached(const char* name)
+{
+	if(_stricmp(name, "blockSize") == 0)
+	{
+		m_bAttached = false;
 	}
 }
 
@@ -847,8 +877,12 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 {
 	if(size && size != m_dataTexWidth)
 	{
-		m_dataTexWidth = size;
-		initDataTexture();
+		Locker lock(m_refLock);
+		if(size && size != m_dataTexWidth)
+		{
+			m_dataTexWidth = size;
+			initDataTexture();
+		}
 	}
 
 	// shift the data up one row

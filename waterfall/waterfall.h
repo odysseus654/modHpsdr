@@ -91,7 +91,7 @@ public:
 	class CIncoming : public CInEndpointBase, public CAttributesBase, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxWaterfall* parent):m_parent(parent),m_lastWidthAttr(NULL) { }
+		inline CIncoming(CDirectxWaterfall* parent):m_parent(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
 		virtual ~CIncoming();
 
 	protected:
@@ -112,6 +112,7 @@ public:
 		virtual signals::EType Type()				{ return signals::etypVecDouble; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual void OnChanged(const char* name, signals::EType type, const void* value);
+		virtual void OnDetached(const char* name);
 
 		virtual signals::IEPBuffer* CreateBuffer()
 		{
@@ -123,6 +124,7 @@ public:
 	protected:
 		virtual void OnConnection(signals::IEPRecvFrom* recv);
 		signals::IAttribute* m_lastWidthAttr;
+		bool m_bAttached;
 	};
 
 private:
@@ -142,6 +144,7 @@ private:
 	unsigned m_bufSize;
 
 private: // directx stuff
+	Lock m_refLock;
 	HWND m_hOutputWin;
 	WNDPROC m_pOldWinProc;
 	UINT m_screenWinWidth;

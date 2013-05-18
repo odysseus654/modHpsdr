@@ -21,6 +21,7 @@ namespace signals
 		Byte	= 0x11,
 		Short	= 0x12,
 		Long	= 0x13,
+        Int64	= 0x14,
 		Single	= 0x23,
 		Double	= 0x24,
 		Complex	= 0x34,
@@ -31,6 +32,7 @@ namespace signals
         VecByte     = 0x19,
         VecShort    = 0x1A,
         VecLong     = 0x1B,
+        VecInt64    = 0x1C,
         VecSingle   = 0x2B,
         VecDouble   = 0x2C,
         VecComplex  = 0x3C,
@@ -87,12 +89,14 @@ namespace signals
     public interface IEPSendTo : IDisposable
 	{
 		int Write(EType type, object[] buffer, int msTimeout);
-	};
+        IAttributes OutputAttributes { get; }
+    };
 
     public interface IEPRecvFrom : IDisposable
 	{
 		void Read(EType type, out object[] buffer, bool bReadAll, int msTimeout);
-	};
+        IAttributes InputAttributes { get; }
+    };
 
     public interface IEPBuffer : IEPSendTo, IEPRecvFrom
 	{
