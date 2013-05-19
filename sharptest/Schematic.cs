@@ -13,6 +13,80 @@ namespace sharptest
             FunctionOnIn
         }
 
+        public static string TypeName(signals.EType typ)
+        {
+            switch (typ)
+            {
+                case signals.EType.None:
+                    return "none";
+                case signals.EType.Event:
+                    return "event";
+                case signals.EType.String:
+                    return "string";
+                case signals.EType.WinHdl:
+                    return "HWND";
+                case signals.EType.Boolean:
+                    return "bool";
+                case signals.EType.Byte:
+                    return "byte";
+                case signals.EType.Short:
+                    return "short";
+                case signals.EType.Long:
+                    return "int";
+                case signals.EType.Int64:
+                    return "long";
+                case signals.EType.Single:
+                    return "float";
+                case signals.EType.Double:
+                    return "double";
+                case signals.EType.Complex:
+                    return "complex(float)";
+                case signals.EType.CmplDbl:
+                    return "complex(double)";
+                case signals.EType.LRSingle:
+                    return "left-right(float)";
+                case signals.EType.VecBoolean:
+                    return "array(bool)";
+                case signals.EType.VecByte:
+                    return "array(byte)";
+                case signals.EType.VecShort:
+                    return "array(short)";
+                case signals.EType.VecLong:
+                    return "array(int)";
+                case signals.EType.VecInt64:
+                    return "array(long)";
+                case signals.EType.VecSingle:
+                    return "array(float)";
+                case signals.EType.VecDouble:
+                    return "array(double)";
+                case signals.EType.VecComplex:
+                    return "array(complex(float))";
+                case signals.EType.VecCmplDbl:
+                    return "array(complex(double))";
+                case signals.EType.VecLRSingle:
+                    return "array(left-right(float))";
+                default:
+                    return String.Format("unknown({0})", typ);
+            }
+        }
+
+        public static string ElementTypeName(ElementType typ)
+        {
+            switch (typ)
+            {
+                case ElementType.Module:
+                    return "module";
+                case ElementType.Function:
+                    return "function";
+                case ElementType.FunctionOnOut:
+                    return "function(out)";
+                case ElementType.FunctionOnIn:
+                    return "function(in)";
+                default:
+                    return String.Format("unknown({0})", typ);
+            }
+        }
+
         public class Element : ICloneable
         {
             public readonly string name;
@@ -80,6 +154,13 @@ namespace sharptest
                 this.circuitId = 0;
                 this.availObjects = null;
                 this.explicitAvail = false;
+            }
+
+            public override string ToString()
+            {
+                string result = String.Format("{0} {1}", ElementTypeName(this.type), this.name);
+                if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
+                return result;
             }
 
             public void populateAvail(ModLibrary library)
@@ -193,11 +274,13 @@ namespace sharptest
             }
             public override string ToString()
             {
-                return String.Format("{0}[{1}]", name, nodeId);
+                string result = String.Format("{0} {1}", ElementTypeName(this.type), this.name);
+                if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
+                return result;
             }
         }
         
-        private class EndpointKey : IEquatable<EndpointKey>
+        public class EndpointKey : IEquatable<EndpointKey>
         {
             public readonly Element elem;
             public readonly string epString;
@@ -357,7 +440,131 @@ namespace sharptest
                 }
                 throw new IndexOutOfRangeException();
             }
+        }
 
+        public abstract class ResolveFailureReason : ApplicationException, IEquatable<ResolveFailureReason>
+        {
+            public override bool Equals(object obj)
+            {
+                return Equals(obj as ResolveFailureReason);
+            }
+
+            public abstract bool Equals(ResolveFailureReason obj);
+            public abstract override int GetHashCode();
+        }
+
+        public class LinkTypeFailure : ResolveFailureReason
+        {
+            public readonly EndpointKey fromEP;
+            public readonly signals.EType fromType;
+            public readonly EndpointKey toEP;
+            public readonly signals.EType toType;
+
+            public LinkTypeFailure(EndpointKey fromEP, signals.EType fromType, EndpointKey toEP, signals.EType toType)
+            {
+                this.fromEP = fromEP;
+                this.fromType = fromType;
+                this.toEP = toEP;
+                this.toType = toType;
+                this.HResult = unchecked((int)0x80020005);
+            }
+
+            public override bool Equals(ResolveFailureReason obj)
+            {
+                LinkTypeFailure other = obj as LinkTypeFailure;
+                if (other == null) return false;
+                return this.fromEP.Equals(other.fromEP) && this.fromType == other.fromType &&
+                    this.toEP.Equals(other.toEP) && this.toType == other.toType;
+            }
+
+            public override int GetHashCode()
+            {
+                return this.fromEP.GetHashCode() ^ this.toEP.GetHashCode() ^ (int)this.fromType ^ (int)this.toType;
+            }
+
+            public override string Message
+            {
+                get
+                {
+                    return String.Format("Cannot connect {0} (type {1}) to {2} (type {3})",
+                        fromEP.ToString(), TypeName(fromType), toEP.ToString(), TypeName(toType));
+                }
+            }
+        }
+
+        public class CannotResolveElement : ResolveFailureReason
+        {
+            public readonly Element elm;
+
+            public CannotResolveElement(Element elm)
+            {
+                this.elm = elm;
+                this.HResult = unchecked((int)0x80070490);
+            }
+
+            public override bool Equals(ResolveFailureReason obj)
+            {
+                CannotResolveElement other = obj as CannotResolveElement;
+                if (other == null) return false;
+                return this.elm.Equals(other.elm);
+            }
+
+            public override int GetHashCode()
+            {
+                return this.elm.GetHashCode();
+            }
+
+            public override string Message
+            {
+                get
+                {
+                    return String.Format("No implementations for {0} are available", elm.ToString());
+                }
+            }
+        }
+
+        public class ResolveFailure : ApplicationException
+        {
+            public Dictionary<ResolveFailureReason,bool> reasons;
+
+            public ResolveFailure()
+            {
+                reasons = new Dictionary<ResolveFailureReason, bool>();
+            }
+
+            public void Add(ResolveFailureReason rsn)
+            {
+                if(!reasons.ContainsKey(rsn)) reasons.Add(rsn, true);
+            }
+
+            public void Add(ResolveFailure fail)
+            {
+                foreach(KeyValuePair<ResolveFailureReason,bool> entry in fail.reasons)
+                {
+                    Add(entry.Key);
+                }
+            }
+
+            public override string Message
+            {
+                get
+                {
+                    string msgs = null;
+                    foreach (KeyValuePair<ResolveFailureReason, bool> entry in this.reasons)
+                    {
+                        if (msgs != null)
+                        {
+                            msgs += ", ";
+                        }
+                        else
+                        {
+                            msgs = "";
+                        }
+                        msgs += entry.Key.Message;
+                    }
+                    return String.Format("Cannot resolve circuit: {0}", msgs);
+                }
+            }
         }
 
         private Dictionary<EndpointKey, EndpointKey> connections;
@@ -538,6 +745,7 @@ namespace sharptest
             try
             {
                 List<Schematic> answers = new List<Schematic>();
+                ResolveFailure failure = new ResolveFailure();
                 foreach (signals.ICircuitConnectible avail in elm.availObjects)
                 {
                     Schematic newSchem = here.Clone();
@@ -545,7 +753,15 @@ namespace sharptest
                     newElem.availObjects.Clear();
                     newElem.availObjects.Add(avail);
 
-                    if (!newSchem.resolveNeighbors(library, newElem)) continue;
+                    try
+                    {
+                        newSchem.resolveNeighbors(library, newElem);
+                    }
+                    catch (ResolveFailureReason fault)
+                    {
+                        failure.Add(fault);
+                        continue;
+                    }
 
                     Dictionary<int, bool> recurseList = new Dictionary<int, bool>();
                     foreach (KeyValuePair<EndpointKey, EndpointKey> entry in newSchem.connections)
@@ -569,10 +785,21 @@ namespace sharptest
                         possibles = new List<Schematic>();
                         foreach (Schematic possible in prevPass)
                         {
-                            possibles.AddRange(resolveImpl(library, possible, seen, entry.Key));
+                            try
+                            {
+                                possibles.AddRange(resolveImpl(library, possible, seen, entry.Key));
+                            }
+                            catch (ResolveFailure fail)
+                            {
+                                failure.Add(fail);
+                            }
                         }
                     }
                     answers.AddRange(possibles);
+                }
+                if (answers.Count == 0 && failure.reasons.Count > 0)
+                {
+                    throw failure;
                 }
                 return answers;
             }
@@ -582,7 +809,7 @@ namespace sharptest
             }
         }
 
-        private bool resolveNeighbors(ModLibrary library, Element elm)
+        private void resolveNeighbors(ModLibrary library, Element elm)
         {
             if (elm.availObjects.Count != 1) throw new ApplicationException("elm should contain a single availObject by this point");
             signals.ICircuitConnectible avail = elm.availObjects[0];
@@ -627,7 +854,7 @@ namespace sharptest
                             if (func == null)
                             {
                                 // only option isn't type-compatible? Looks like we broke a connection
-                                return false;
+                                throw new LinkTypeFailure(entry.Key, ourType, entry.Value, otherType);
                             }
                             else
                             {
@@ -638,7 +865,7 @@ namespace sharptest
                     else if (otherElm.availObjects.Count == 0)
                     {
                         // ran out of possible connections? Looks like we broke a connection
-                        return false;
+                        throw new CannotResolveElement(otherElm);
                     }
                     if(changed) recurseList.Add(value.elem, true);
                 }
@@ -676,7 +903,7 @@ namespace sharptest
                             if (func == null)
                             {
                                 // only option isn't type-compatible? Looks like we broke a connection
-                                return false;
+                                throw new LinkTypeFailure(entry.Key, otherType, entry.Value, ourType);
                             }
                             else
                             {
@@ -687,16 +914,15 @@ namespace sharptest
                     else if (otherElm.availObjects.Count == 0)
                     {
                         // ran out of possible connections? Looks like we broke a connection
-                        return false;
+                        throw new CannotResolveElement(otherElm);
                     }
                     if (changed) recurseList.Add(value.elem, true);
                 }
             }
             foreach (KeyValuePair<Element, bool> entry in recurseList)
             {
-                if (!resolveNeighbors(library, entry.Key)) return false;
+                resolveNeighbors(library, entry.Key);
             }
-            return true;
         }
 
         private static signals.IFunctionSpec findImplicitConversion(ModLibrary library, signals.EType inpType, signals.EType outType)
