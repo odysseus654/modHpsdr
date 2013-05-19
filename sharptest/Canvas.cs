@@ -7,7 +7,7 @@ namespace sharptest
 {
     class Canvas : Form
     {
-        private Control panel1;
+        public Control panel1;
 
         public Canvas()
         {

@@ -896,24 +896,27 @@ namespace cppProxy
             }
         }
 
-        public signals.IAttribute GetByName(string name)
+        public signals.IAttribute this[string name]
         {
-            if (name == null) throw new ArgumentNullException("name");
-            byte[] strName = System.Text.Encoding.UTF8.GetBytes(name);
-            IntPtr nameBuff = Marshal.AllocHGlobal(strName.Length+1);
-            try
+            get
             {
-                Marshal.Copy(strName, 0, nameBuff, strName.Length);
-                Marshal.WriteByte(nameBuff, strName.Length, 0);
-                IntPtr attrRef = m_native.GetByName(nameBuff);
-                if (attrRef == IntPtr.Zero) return null;
-                signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(attrRef);
-                if (newObj == null) newObj = new CppProxyAttribute(attrRef);
-                return newObj;
-            }
-            finally
-            {
-                Marshal.FreeHGlobal(nameBuff);
+                if (name == null) throw new ArgumentNullException("name");
+                byte[] strName = System.Text.Encoding.UTF8.GetBytes(name);
+                IntPtr nameBuff = Marshal.AllocHGlobal(strName.Length + 1);
+                try
+                {
+                    Marshal.Copy(strName, 0, nameBuff, strName.Length);
+                    Marshal.WriteByte(nameBuff, strName.Length, 0);
+                    IntPtr attrRef = m_native.GetByName(nameBuff);
+                    if (attrRef == IntPtr.Zero) return null;
+                    signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(attrRef);
+                    if (newObj == null) newObj = new CppProxyAttribute(attrRef);
+                    return newObj;
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(nameBuff);
+                }
             }
         }
 

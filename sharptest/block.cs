@@ -48,7 +48,7 @@ namespace signals
         public string[] outputNames;
     };
 
-    public interface IConnectible
+    public interface ICircuitConnectible
     {
         Fingerprint Fingerprint { get; }
     };
@@ -61,7 +61,7 @@ namespace signals
         IFunctionSpec[] Functions { get; }
     };
 
-    public interface IBlockDriver : IConnectible
+    public interface IBlockDriver : ICircuitConnectible
 	{
         IModule Module { get; }
 		string Name { get; }
@@ -72,7 +72,7 @@ namespace signals
 		IBlock Create();
 	};
 
-    public interface IBlock : IDisposable, IConnectible
+    public interface IBlock : IDisposable, ICircuitConnectible
 	{
         string Name { get; }
         string NodeId { get; }
@@ -132,7 +132,7 @@ namespace signals
     public interface IAttributes : System.Collections.Generic.IEnumerable<IAttribute>
 	{
 //		IAttribute[] Itemize();
-		IAttribute GetByName(string name);
+        IAttribute this[string name] { get; }
     };
 
 	public interface IAttribute : IDisposable
@@ -148,7 +148,7 @@ namespace signals
 
     public delegate void OnChanged(string name, EType type, object value);
 
-    public interface IFunctionSpec : IConnectible
+    public interface IFunctionSpec : ICircuitConnectible
 	{
         IModule Module { get; }
         string Name { get; }

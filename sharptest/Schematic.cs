@@ -17,9 +17,10 @@ namespace sharptest
         {
             public readonly string name;
             public string nodeId;
+            public int circuitId;
             public ElementType type;
             public bool explicitAvail;
-            public List<signals.IConnectible> availObjects;
+            public List<signals.ICircuitConnectible> availObjects;
 
             public Element(signals.IBlock realBlock)
             {
@@ -27,7 +28,8 @@ namespace sharptest
                 type = ElementType.Module;
                 name = realBlock.Name;
                 nodeId = realBlock.NodeId;
-                availObjects = new List<signals.IConnectible>();
+                circuitId = 0;
+                availObjects = new List<signals.ICircuitConnectible>();
                 availObjects.Add(realBlock);
                 explicitAvail = true;
             }
@@ -38,7 +40,8 @@ namespace sharptest
                 type = ElementType.Module;
                 name = realDriver.Name;
                 nodeId = null;
-                availObjects = new List<signals.IConnectible>();
+                circuitId = 0;
+                availObjects = new List<signals.ICircuitConnectible>();
                 availObjects.Add(realDriver);
                 explicitAvail = true;
             }
@@ -49,7 +52,8 @@ namespace sharptest
                 type = ElementType.Function;
                 name = realSpec.Name;
                 nodeId = null;
-                availObjects = new List<signals.IConnectible>();
+                circuitId = 0;
+                availObjects = new List<signals.ICircuitConnectible>();
                 availObjects.Add(realSpec);
                 explicitAvail = true;
             }
@@ -61,7 +65,8 @@ namespace sharptest
                 type = ElementType.Function;
                 name = spec.Name;
                 nodeId = null;
-                availObjects = new List<signals.IConnectible>();
+                circuitId = 0;
+                availObjects = new List<signals.ICircuitConnectible>();
                 availObjects.Add(spec);
                 explicitAvail = true;
             }
@@ -72,6 +77,7 @@ namespace sharptest
                 this.type = type;
                 this.name = name;
                 this.nodeId = null;
+                this.circuitId = 0;
                 this.availObjects = null;
                 this.explicitAvail = false;
             }
@@ -80,7 +86,7 @@ namespace sharptest
             {
                 if (library == null) throw new ArgumentNullException("library");
                 if (this.explicitAvail) return;
-                availObjects = new List<signals.IConnectible>();
+                availObjects = new List<signals.ICircuitConnectible>();
 
                 switch (this.type)
                 {
@@ -136,11 +142,12 @@ namespace sharptest
             {
                 Element newOb = new Element(this.type, this.name);
                 newOb.nodeId = this.nodeId;
+                newOb.circuitId = this.circuitId;
                 newOb.explicitAvail = this.explicitAvail;
                 if (this.availObjects != null)
                 {
-                    newOb.availObjects = new List<signals.IConnectible>();
-                    foreach (signals.IConnectible ob in this.availObjects)
+                    newOb.availObjects = new List<signals.ICircuitConnectible>();
+                    foreach (signals.ICircuitConnectible ob in this.availObjects)
                     {
                         newOb.availObjects.Add(ob);
                     }
@@ -149,13 +156,13 @@ namespace sharptest
             }
         }
 
-        public class UniqueElemKey : IEquatable<UniqueElemKey>
+        public class ElemKey : IEquatable<ElemKey>
         {
             public readonly ElementType type;
             public readonly string name;
             public readonly string nodeId;
 
-            public UniqueElemKey(ElementType type, string name, string nodeId)
+            public ElemKey(ElementType type, string name, string nodeId)
             {
                 if (name == null) throw new ArgumentNullException("name");
                 this.type = type;
@@ -163,7 +170,7 @@ namespace sharptest
                 this.nodeId = nodeId;
             }
 
-            public UniqueElemKey(Element elem)
+            public ElemKey(Element elem)
             {
                 if (elem == null) throw new ArgumentNullException("elem");
                 this.type = elem.type;
@@ -177,9 +184,9 @@ namespace sharptest
             }
             public override bool Equals(object obj)
             {
-                return Equals(obj as UniqueElemKey);
+                return Equals(obj as ElemKey);
             }
-            public bool Equals(UniqueElemKey obj)
+            public bool Equals(ElemKey obj)
             {
                 return type == obj.type && String.Equals(name, obj.name, StringComparison.CurrentCultureIgnoreCase)
                     && ((nodeId == null && obj.nodeId == null) || nodeId.Equals(obj.nodeId));
@@ -189,7 +196,7 @@ namespace sharptest
                 return String.Format("{0}[{1}]", name, nodeId);
             }
         }
-
+        
         private class EndpointKey : IEquatable<EndpointKey>
         {
             public readonly Element elem;
@@ -239,7 +246,7 @@ namespace sharptest
                 return String.Format("{0}[{1}]", elem, epString == null ? (object)epIdx : epString);
             }
 
-            public signals.EType InputType(signals.IConnectible conn)
+            public signals.EType InputType(signals.ICircuitConnectible conn)
             {
                 return InputType(conn.Fingerprint);
             }
@@ -295,7 +302,7 @@ namespace sharptest
                 throw new IndexOutOfRangeException();
             }
 
-            public signals.EType OutputType(signals.IConnectible conn)
+            public signals.EType OutputType(signals.ICircuitConnectible conn)
             {
                 return OutputType(conn.Fingerprint);
             }
@@ -354,54 +361,57 @@ namespace sharptest
         }
 
         private Dictionary<EndpointKey, EndpointKey> connections;
-        private Dictionary<UniqueElemKey, Element> contents;
+        private Dictionary<int, Element> contents;
+        private Dictionary<ElemKey, Element> uniqueElem;
         private int genericID;
 
         public Schematic()
         {
-            this.contents = new Dictionary<UniqueElemKey, Element>();
+            this.contents = new Dictionary<int, Element>();
+            this.uniqueElem = new Dictionary<ElemKey, Element>();
             this.connections = new Dictionary<EndpointKey, EndpointKey>();
             this.genericID = 0;
         }
 
-        public void addGeneric(signals.IBlockDriver realDriver)
+        public void add(signals.IBlockDriver realDriver)
         {
-            addGeneric(new Element(realDriver));
+            add(new Element(realDriver));
         }
 
-        public void addGeneric(signals.IFunctionSpec realSpec)
+        public void add(signals.IFunctionSpec realSpec)
         {
-            addGeneric(new Element(realSpec));
+            add(new Element(realSpec));
         }
 
-        public void addGeneric(signals.IFunction realFunc)
+        public void add(signals.IFunction realFunc)
         {
-            addGeneric(new Element(realFunc));
-        }
-
-        public void addGeneric(Element elem)
-        {
-            if (elem == null) throw new ArgumentNullException("elem");
-            if (elem.nodeId != null) throw new ArgumentException("Element should not have a unique ID", "elem");
-            elem.nodeId = String.Format("generic_{0}", ++this.genericID);
-            add(elem);
+            add(new Element(realFunc));
         }
 
         public void add(Element elem)
         {
             if (elem == null) throw new ArgumentNullException("elem");
 
-            UniqueElemKey key = new UniqueElemKey(elem);
-            if(contents.ContainsKey(key))
+            if (elem.circuitId == 0)
             {
-                Element storedElem = contents[key];
-                if (storedElem != elem)
+                elem.circuitId = ++this.genericID;
+            }
+            else if (contents.ContainsKey(elem.circuitId))
+            {
+                throw new ArgumentException("An element with this circuit ID has already been added", "elem");
+            }
+
+            if (elem.nodeId != null)
+            {
+                ElemKey key = new ElemKey(elem);
+                if (uniqueElem.ContainsKey(key))
                 {
                     throw new ArgumentException("A different element with this same unique ID is already in the schema", "elem");
                 }
-                return;
+                uniqueElem.Add(key, elem);
             }
-            contents.Add(key, elem);
+
+            contents.Add(elem.circuitId, elem);
         }
 
         public void connect(Element from, string ep1, Element to, string ep2)
@@ -446,6 +456,7 @@ namespace sharptest
         {
             Dictionary<Element, Element> elmMap = new Dictionary<Element, Element>();
             Schematic newOb = new Schematic();
+            newOb.genericID = this.genericID;
             foreach (Element elm in this.contents.Values)
             {
                 Element newElm = elm.Clone();
@@ -469,7 +480,7 @@ namespace sharptest
         {
             if (this.contents.Count == 0 || this.connections.Count == 0) return false;
             Dictionary<Element, bool> seen = new Dictionary<Element, bool>();
-            Dictionary<UniqueElemKey, Element>.Enumerator firstEnum = this.contents.GetEnumerator();
+            Dictionary<int, Element>.Enumerator firstEnum = this.contents.GetEnumerator();
             firstEnum.MoveNext();
             Element first = firstEnum.Current.Value;
             isFullyConnectedImpl(seen, first);
@@ -511,14 +522,14 @@ namespace sharptest
             }
 
             Schematic all = this.Clone();
-            Dictionary<UniqueElemKey, Element>.Enumerator firstEnum = all.contents.GetEnumerator();
+            Dictionary<int, Element>.Enumerator firstEnum = all.contents.GetEnumerator();
             firstEnum.MoveNext();
             Element first = firstEnum.Current.Value;
-            Dictionary<UniqueElemKey, bool> seen = new Dictionary<UniqueElemKey, bool>();
-            return resolveImpl(library, all, seen, new UniqueElemKey(first));
+            Dictionary<int, bool> seen = new Dictionary<int, bool>();
+            return resolveImpl(library, all, seen, first.circuitId);
         }
 
-        private static List<Schematic> resolveImpl(ModLibrary library, Schematic here, Dictionary<UniqueElemKey, bool> seen, UniqueElemKey elmKey)
+        private static List<Schematic> resolveImpl(ModLibrary library, Schematic here, Dictionary<int, bool> seen, int elmKey)
         {
             if (seen.ContainsKey(elmKey)) return new List<Schematic> { here };
             if(!here.contents.ContainsKey(elmKey)) throw new ApplicationException("couldn't kind elmKey in contents");
@@ -527,7 +538,7 @@ namespace sharptest
             try
             {
                 List<Schematic> answers = new List<Schematic>();
-                foreach (signals.IConnectible avail in elm.availObjects)
+                foreach (signals.ICircuitConnectible avail in elm.availObjects)
                 {
                     Schematic newSchem = here.Clone();
                     Element newElem = newSchem.contents[elmKey];
@@ -536,25 +547,23 @@ namespace sharptest
 
                     if (!newSchem.resolveNeighbors(library, newElem)) continue;
 
-                    Dictionary<UniqueElemKey, bool> recurseList = new Dictionary<UniqueElemKey, bool>();
+                    Dictionary<int, bool> recurseList = new Dictionary<int, bool>();
                     foreach (KeyValuePair<EndpointKey, EndpointKey> entry in newSchem.connections)
                     {
                         EndpointKey key = entry.Key;
                         EndpointKey value = entry.Value;
                         if (key.elem == newElem)
                         {
-                            UniqueElemKey newKey = new UniqueElemKey(value.elem);
-                            if (!seen.ContainsKey(newKey)) recurseList.Add(newKey, true);
+                            if (!seen.ContainsKey(value.elem.circuitId)) recurseList.Add(value.elem.circuitId, true);
                         }
                         else if (value.elem == newElem)
                         {
-                            UniqueElemKey newKey = new UniqueElemKey(key.elem);
-                            if (!seen.ContainsKey(newKey)) recurseList.Add(newKey, true);
+                            if (!seen.ContainsKey(key.elem.circuitId)) recurseList.Add(key.elem.circuitId, true);
                         }
                     }
                     List<Schematic> possibles = new List<Schematic>();
                     possibles.Add(newSchem);
-                    foreach (KeyValuePair<UniqueElemKey, bool> entry in recurseList)
+                    foreach (KeyValuePair<int, bool> entry in recurseList)
                     {
                         List<Schematic> prevPass = possibles;
                         possibles = new List<Schematic>();
@@ -576,7 +585,7 @@ namespace sharptest
         private bool resolveNeighbors(ModLibrary library, Element elm)
         {
             if (elm.availObjects.Count != 1) throw new ApplicationException("elm should contain a single availObject by this point");
-            signals.IConnectible avail = elm.availObjects[0];
+            signals.ICircuitConnectible avail = elm.availObjects[0];
             Dictionary<Element, bool> recurseList = new Dictionary<Element, bool>();
             List<KeyValuePair<EndpointKey, EndpointKey>> tempCollect = new List<KeyValuePair<EndpointKey,EndpointKey>>();
             tempCollect.AddRange(connections);
@@ -592,8 +601,8 @@ namespace sharptest
                     if (otherElm.availObjects.Count > 1)
                     {
                         // if we have more than one option here, just look for possible compatibility
-                        List<signals.IConnectible> newAvail = new List<signals.IConnectible>();
-                        foreach (signals.IConnectible otherAvail in otherElm.availObjects)
+                        List<signals.ICircuitConnectible> newAvail = new List<signals.ICircuitConnectible>();
+                        foreach (signals.ICircuitConnectible otherAvail in otherElm.availObjects)
                         {
                             signals.EType otherType = value.InputType(otherAvail);
                             if (ourType != otherType && findImplicitConversion(library, ourType, otherType) == null)
@@ -610,7 +619,7 @@ namespace sharptest
                     if (otherElm.availObjects.Count == 1)
                     {
                         // if we're on one-to-one terms, we might add compat connections
-                        signals.IConnectible otherAvail = otherElm.availObjects[0];
+                        signals.ICircuitConnectible otherAvail = otherElm.availObjects[0];
                         signals.EType otherType = value.InputType(otherAvail);
                         if (ourType != otherType)
                         {
@@ -641,8 +650,8 @@ namespace sharptest
                     if (otherElm.availObjects.Count > 1)
                     {
                         // if we have more than one option here, just look for possible compatibility
-                        List<signals.IConnectible> newAvail = new List<signals.IConnectible>();
-                        foreach (signals.IConnectible otherAvail in otherElm.availObjects)
+                        List<signals.ICircuitConnectible> newAvail = new List<signals.ICircuitConnectible>();
+                        foreach (signals.ICircuitConnectible otherAvail in otherElm.availObjects)
                         {
                             signals.EType otherType = key.OutputType(otherAvail);
                             if (ourType != otherType && findImplicitConversion(library, otherType, ourType) == null)
@@ -659,7 +668,7 @@ namespace sharptest
                     if (otherElm.availObjects.Count == 1)
                     {
                         // if we're on one-to-one terms, we might add compat connections
-                        signals.IConnectible otherAvail = otherElm.availObjects[0];
+                        signals.ICircuitConnectible otherAvail = otherElm.availObjects[0];
                         signals.EType otherType = key.OutputType(otherAvail);
                         if (ourType != otherType)
                         {
@@ -709,7 +718,7 @@ namespace sharptest
         private bool AddImplicitConversion(EndpointKey fromEP, EndpointKey toEP, signals.IFunctionSpec convFunc)
         {
             Element newElm = new Element(convFunc);
-            addGeneric(newElm);
+            add(newElm);
             this.connections[fromEP] = new EndpointKey(newElm, 0);
             this.connections[new EndpointKey(newElm, 0)] = toEP;
             return true;
@@ -717,13 +726,13 @@ namespace sharptest
 
         public Circuit construct()
         {
-            Dictionary<UniqueElemKey, object> result = new Dictionary<UniqueElemKey, object>();
+            Dictionary<int, Circuit.Element> result = new Dictionary<int, Circuit.Element>();
             Dictionary<Element, object> elmResult = new Dictionary<Element, object>();
-            foreach (KeyValuePair<UniqueElemKey, Element> here in contents)
+            foreach (KeyValuePair<int, Element> here in contents)
             {
                 Element elm = here.Value;
                 if (elm.availObjects.Count != 1) throw new ApplicationException("expecting all elements to have exactly one solution");
-                signals.IConnectible avail = elm.availObjects[0];
+                signals.ICircuitConnectible avail = elm.availObjects[0];
                 object newOb = null;
                 switch (elm.type)
                 {
@@ -744,7 +753,7 @@ namespace sharptest
                         newOb = ((signals.IFunctionSpec)avail).Create();
                         break;
                 }
-                result.Add(here.Key, newOb);
+                result.Add(elm.circuitId, new Circuit.Element(new ElemKey(elm), elm.circuitId, newOb));
                 elmResult.Add(elm, newOb);
             }
 
@@ -850,19 +859,40 @@ namespace sharptest
 
     public class Circuit
     {
-        protected Dictionary<Schematic.UniqueElemKey, object> radio;
+        public class Element
+        {
+            public readonly Schematic.ElemKey descr;
+            public readonly int circuitId;
+            public readonly object obj; // either IBlock or IFunction
 
-        public Circuit(Dictionary<Schematic.UniqueElemKey, object> r)
+            public Element(Schematic.ElemKey d, int c, object o)
+            {
+                descr = d;
+                circuitId = c;
+                obj = o;
+            }
+        }
+
+        protected Dictionary<int, Element> radio;
+
+        public Circuit(Dictionary<int, Element> r)
         {
             radio = r;
         }
 
-        public object Entry(Schematic.UniqueElemKey key)
+        public object Entry(Schematic.Element elem)
         {
-            object val;
-            if (radio.TryGetValue(key, out val))
+            if(elem == null) throw new ArgumentNullException("elem");
+            if(elem.circuitId == 0) throw new ArgumentException("Element has no circuit ID", "elem");
+            return Entry(elem.circuitId);
+        }
+
+        public object Entry(int circuitId)
+        {
+            Element val;
+            if (radio.TryGetValue(circuitId, out val))
             {
-                return val;
+                return val.obj;
             }
             else
             {
@@ -870,16 +900,24 @@ namespace sharptest
             }
         }
 
-        public object Entry(Schematic.Element elem)
+        public List<Element> Find(Schematic.ElemKey key)
         {
-            return Entry(new Schematic.UniqueElemKey(elem));
+            List<Element> results = new List<Element>();
+            foreach (KeyValuePair<int, Element> entry in radio)
+            {
+                if (entry.Value.descr.Equals(key))
+                {
+                    results.Add(entry.Value);
+                }
+            }
+            return results;
         }
 
         public void Start()
         {
-            foreach(KeyValuePair<Schematic.UniqueElemKey, object> entry in radio)
+            foreach(KeyValuePair<int, Element> entry in radio)
             {
-                signals.IBlock blk = entry.Value as signals.IBlock;
+                signals.IBlock blk = entry.Value.obj as signals.IBlock;
                 if(blk != null)
                 {
                     blk.Start();
@@ -889,9 +927,9 @@ namespace sharptest
 
         public void Stop()
         {
-            foreach(KeyValuePair<Schematic.UniqueElemKey, object> entry in radio)
+            foreach(KeyValuePair<int, Element> entry in radio)
             {
-                signals.IBlock blk = entry.Value as signals.IBlock;
+                signals.IBlock blk = entry.Value.obj as signals.IBlock;
                 if(blk != null)
                 {
                     blk.Stop();
