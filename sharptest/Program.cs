@@ -14,7 +14,7 @@ namespace sharptest
         private ModLibrary library;
         Canvas canvas;
         Thread canvasThread;
-        Circuit circuit;
+        Layout.Circuit circuit;
 
         void Run()
         {
@@ -25,11 +25,11 @@ namespace sharptest
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Release", library);
 #endif
 
-            Schematic schem = new Schematic();
-            Schematic.Element fftElem = new Schematic.Element(Schematic.ElementType.Module, "fft");
-            Schematic.Element radioElem = new Schematic.Element(Schematic.ElementType.Module, "radio");
-            Schematic.Element mag2Func = new Schematic.Element(Schematic.ElementType.Function, "mag2");
-            Schematic.Element waterfallElem = new Schematic.Element(Schematic.ElementType.Module, "waterfall");
+            Layout.Schematic schem = new Layout.Schematic();
+            Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "fft");
+            Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "radio");
+            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.Schematic.ElementType.Function, "mag2");
+            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "waterfall");
 
             schem.add(fftElem);
             schem.add(mag2Func);
@@ -38,7 +38,7 @@ namespace sharptest
             schem.connect(radioElem, "recv1", fftElem, 0);
             schem.connect(fftElem, 0, mag2Func, 0);
             schem.connect(mag2Func, 0, waterfallElem, 0);
-            List<Schematic> options = schem.resolve(library);
+            List<Layout.Schematic> options = schem.resolve(library);
             circuit = options[0].construct();
 
             signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
@@ -66,8 +66,8 @@ namespace sharptest
 
         void panel1_HandleCreated(object sender, EventArgs e)
         {
-            Schematic.ElemKey waterfallElem = new Schematic.ElemKey(Schematic.ElementType.Module, "waterfall");
-            List<Circuit.Element> lookup = circuit.Find(waterfallElem);
+            Layout.Schematic.ElemKey waterfallElem = new Layout.Schematic.ElemKey(Layout.Schematic.ElementType.Module, "waterfall");
+            List<Layout.Circuit.Element> lookup = circuit.Find(waterfallElem);
             signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
             waterfall.Attributes["targetWindow"].Value = canvas.panel1.Handle;
             circuit.Start();

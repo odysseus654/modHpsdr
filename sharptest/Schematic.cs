@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace sharptest
+namespace Layout
 {
     public class Schematic : ICloneable
     {
@@ -163,7 +163,7 @@ namespace sharptest
                 return result;
             }
 
-            public void populateAvail(ModLibrary library)
+            public void populateAvail(sharptest.ModLibrary library)
             {
                 if (library == null) throw new ArgumentNullException("library");
                 if (this.explicitAvail) return;
@@ -725,7 +725,7 @@ namespace sharptest
             }
         }
 
-        public List<Schematic> resolve(ModLibrary library)
+        public List<Schematic> resolve(sharptest.ModLibrary library)
         {
             if (library == null) throw new ArgumentNullException("library");
             if (this.contents.Count == 0 || this.connections.Count == 0) return null;
@@ -744,7 +744,7 @@ namespace sharptest
             return resolveImpl(library, all, seen, first.circuitId);
         }
 
-        private static List<Schematic> resolveImpl(ModLibrary library, Schematic here, Dictionary<int, bool> seen, int elmKey)
+        private static List<Schematic> resolveImpl(sharptest.ModLibrary library, Schematic here, Dictionary<int, bool> seen, int elmKey)
         {
             if (seen.ContainsKey(elmKey)) return new List<Schematic> { here };
             if(!here.contents.ContainsKey(elmKey)) throw new ApplicationException("couldn't kind elmKey in contents");
@@ -817,7 +817,7 @@ namespace sharptest
             }
         }
 
-        private void resolveNeighbors(ModLibrary library, Element elm)
+        private void resolveNeighbors(sharptest.ModLibrary library, Element elm)
         {
             if (elm.availObjects.Count != 1) throw new ApplicationException("elm should contain a single availObject by this point");
             signals.ICircuitConnectible avail = elm.availObjects[0];
@@ -933,7 +933,7 @@ namespace sharptest
             }
         }
 
-        private static signals.IFunctionSpec findImplicitConversion(ModLibrary library, signals.EType inpType, signals.EType outType)
+        private static signals.IFunctionSpec findImplicitConversion(sharptest.ModLibrary library, signals.EType inpType, signals.EType outType)
         {
             List<signals.IFunctionSpec> idents = library.func("=");
             if(idents == null) return null;
