@@ -42,7 +42,7 @@ public: // IInEndpoint implementaton
 
 public: // IEPRecvFrom implementaton
 //	virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout) = 0;
-	virtual signals::IAttributes* InputAttributes() { return m_readFrom ? m_readFrom->InputAttributes() : NULL; }
+	virtual signals::IAttributes* OutputAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
 	virtual void onSinkConnected(signals::IInEndpoint* src);
 	virtual void onSinkDisconnected(signals::IInEndpoint* src);
 };
@@ -73,7 +73,7 @@ public: // IEPSendTo implementaton
 //	virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout) = 0;
 	virtual unsigned AddRef(signals::IOutEndpoint* iep);
 	virtual unsigned Release(signals::IOutEndpoint* iep);
-	virtual signals::IAttributes* OutputAttributes() { return m_writeTo ? m_writeTo->OutputAttributes() : NULL; }
+	virtual signals::IAttributes* InputAttributes() { return m_writeTo ? m_writeTo->InputAttributes() : NULL; }
 };
 
 #pragma warning(disable: 4355)

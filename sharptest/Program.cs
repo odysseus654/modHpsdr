@@ -66,8 +66,9 @@ namespace sharptest
 
         void panel1_HandleCreated(object sender, EventArgs e)
         {
-            Schematic.Element waterfallElem = new Schematic.Element(Schematic.ElementType.Module, "waterfall");
-            signals.IBlock waterfall = (signals.IBlock)circuit.Entry(waterfallElem);
+            Schematic.ElemKey waterfallElem = new Schematic.ElemKey(Schematic.ElementType.Module, "waterfall");
+            List<Circuit.Element> lookup = circuit.Find(waterfallElem);
+            signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
             waterfall.Attributes["targetWindow"].Value = canvas.panel1.Handle;
             circuit.Start();
         }

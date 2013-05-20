@@ -251,6 +251,14 @@ namespace sharptest
                 this.nodeId = nodeId;
             }
 
+            public ElemKey(ElementType type, string name)
+            {
+                if (name == null) throw new ArgumentNullException("name");
+                this.type = type;
+                this.name = name;
+                this.nodeId = null;
+            }
+
             public ElemKey(Element elem)
             {
                 if (elem == null) throw new ArgumentNullException("elem");

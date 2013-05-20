@@ -54,6 +54,28 @@ static Function<signals::etypSingle,signals::etypCmplDbl,assign<float,std::compl
 static Function<signals::etypDouble,signals::etypCmplDbl,assign<double,std::complex<double> > > assignDE("=","double -> complex-double");
 static Function<signals::etypComplex,signals::etypCmplDbl,assign<std::complex<float>, std::complex<double> > > assignCE("=","complex-single -> complex-double");
 
+static Function<signals::etypVecByte,signals::etypVecShort,assign<unsigned char, short> > assignVBS("=","byte -> short");
+static Function<signals::etypVecByte,signals::etypVecLong,assign<unsigned char,long> > assignVBL("=","byte -> long");
+static Function<signals::etypVecByte,signals::etypVecInt64,assign<unsigned char,__int64> > assignVB6("=","byte -> int64");
+static Function<signals::etypVecByte,signals::etypVecSingle,assign<unsigned char,float> > assignVBF("=","byte -> single");
+static Function<signals::etypVecByte,signals::etypVecDouble,assign<unsigned char,double> > assignVBD("=","byte -> double");
+static Function<signals::etypVecByte,signals::etypVecComplex,assign<unsigned char,std::complex<float> > > assignVBC("=","byte -> complex-single");
+static Function<signals::etypVecByte,signals::etypVecCmplDbl,assign<unsigned char,std::complex<double> > > assignVBE("=","byte -> complex-double");
+static Function<signals::etypVecShort,signals::etypVecLong,assign<short,long> > assignVSL("=","short -> long");
+static Function<signals::etypVecShort,signals::etypVecInt64,assign<short,__int64> > assignVS6("=","short -> int64");
+static Function<signals::etypVecShort,signals::etypVecSingle,assign<short,float> > assignVSF("=","short -> single");
+static Function<signals::etypVecShort,signals::etypVecDouble,assign<short,double> > assignVSD("=","short -> double");
+static Function<signals::etypVecShort,signals::etypVecComplex,assign<short,std::complex<float> > > assignVSC("=","short -> complex-single");
+static Function<signals::etypVecShort,signals::etypVecCmplDbl,assign<short,std::complex<double> > > assignVSE("=","short -> complex-double");
+static Function<signals::etypVecLong,signals::etypVecInt64,assign<long,__int64> > assignVL6("=","long -> int64");
+static Function<signals::etypVecLong,signals::etypVecDouble,assign<long,double> > assignVLD("=","long -> double");
+static Function<signals::etypVecLong,signals::etypVecCmplDbl,assign<long,std::complex<double> > > assignVLE("=","long -> complex-double");
+static Function<signals::etypVecSingle,signals::etypVecDouble,assign<float,double> > assignVFD("=","single -> double");
+static Function<signals::etypVecSingle,signals::etypVecComplex,assign<float,std::complex<float> > > assignVFC("=","single -> complex-single");
+static Function<signals::etypVecSingle,signals::etypVecCmplDbl,assign<float,std::complex<double> > > assignVFE("=","single -> complex-double");
+static Function<signals::etypVecDouble,signals::etypVecCmplDbl,assign<double,std::complex<double> > > assignVDE("=","double -> complex-double");
+static Function<signals::etypVecComplex,signals::etypVecCmplDbl,assign<std::complex<float>, std::complex<double> > > assignVCE("=","complex-single -> complex-double");
+
 // lossy assignments
 static Function<signals::etypShort,signals::etypByte,assign<short, unsigned char> > assignSB("~","short -> byte");
 static Function<signals::etypLong,signals::etypByte,assign<long, unsigned char> > assignLB("~","long -> byte");
@@ -74,6 +96,26 @@ static Function<signals::etypDouble,signals::etypLong,assign<double, long> > ass
 static Function<signals::etypDouble,signals::etypSingle,assign<double, float> > assignDF("~","double -> single");
 static Function<signals::etypDouble,signals::etypComplex,assign<double, std::complex<float> > > assignCD("~","double -> complex-single");
 static Function<signals::etypCmplDbl,signals::etypComplex,assign<std::complex<double>, std::complex<float> > > assignEC("~","complex-single -> complex-double");
+
+static Function<signals::etypVecShort,signals::etypVecByte,assign<short, unsigned char> > assignVSB("~","short -> byte");
+static Function<signals::etypVecLong,signals::etypVecByte,assign<long, unsigned char> > assignVLB("~","long -> byte");
+static Function<signals::etypVecLong,signals::etypVecShort,assign<long, short> > assignVLS("~","long -> short");
+static Function<signals::etypVecLong,signals::etypVecSingle,assign<long, float> > assignVLF("~","long -> single");
+static Function<signals::etypVecLong,signals::etypVecComplex,assign<long, std::complex<float> > > assignVLC("~","long -> complex-single");
+static Function<signals::etypVecInt64,signals::etypVecByte,assign<__int64, unsigned char> > assignV6B("~","int64 -> byte");
+static Function<signals::etypVecInt64,signals::etypVecShort,assign<__int64, short> > assignV6S("~","int64 -> short");
+static Function<signals::etypVecInt64,signals::etypVecLong,assign<__int64, long> > assignV6L("~","int64 -> long");
+static Function<signals::etypVecInt64,signals::etypVecSingle,assign<__int64, float> > assignV6F("~","int64 -> single");
+static Function<signals::etypVecInt64,signals::etypVecComplex,assign<__int64, std::complex<float> > > assignV6C("~","int64 -> complex-single");
+static Function<signals::etypVecInt64,signals::etypVecCmplDbl,assign<__int64, std::complex<double> > > assignV6E("~","int64 -> complex-double");
+static Function<signals::etypVecSingle,signals::etypVecByte,assign<float, unsigned char> > assignVFB("~","single -> byte");
+static Function<signals::etypVecSingle,signals::etypVecShort,assign<float, short> > assignVFS("~","single -> short");
+static Function<signals::etypVecDouble,signals::etypVecByte,assign<double, unsigned char> > assignVDB("~","double -> byte");
+static Function<signals::etypVecDouble,signals::etypVecShort,assign<double, short> > assignVDS("~","double -> short");
+static Function<signals::etypVecDouble,signals::etypVecLong,assign<double, long> > assignVDL("~","double -> long");
+static Function<signals::etypVecDouble,signals::etypVecSingle,assign<double, float> > assignVDF("~","double -> single");
+static Function<signals::etypVecDouble,signals::etypVecComplex,assign<double, std::complex<float> > > assignVCD("~","double -> complex-single");
+static Function<signals::etypVecCmplDbl,signals::etypVecComplex,assign<std::complex<double>, std::complex<float> > > assignVEC("~","complex-single -> complex-double");
 
 template<class BASE>
 struct mag2 : public std::unary_function<std::complex<BASE>,double>
@@ -105,19 +147,33 @@ static Function<signals::etypCmplDbl,signals::etypDouble,mag2<double> > mag2D("m
 static Function<signals::etypComplex,signals::etypDouble,mag<float> > magS("mag","squared magnitude (complex-single)");
 static Function<signals::etypCmplDbl,signals::etypDouble,mag<double> > magD("mag","squared magnitude (complex-double)");
 
+static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag2","squared magnitude (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag2","squared magnitude (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecDouble,mag<float> > magVS("mag","squared magnitude (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag<double> > magVD("mag","squared magnitude (complex-double)");
+
 signals::IFunctionSpec* FUNCTIONS[] = {
 	// lossless assignments
 	&assignBS, &assignBL, &assignB6, &assignBF, &assignBD, &assignBC, &assignBE, &assignSL, &assignS6,
 	&assignSF, &assignSD, &assignSC, &assignSE, &assignL6, &assignLD, &assignLE, &assignFD, &assignFC,
 	&assignFE, &assignDE, &assignCE,
 	
+	&assignVBS, &assignVBL, &assignVB6, &assignVBF, &assignVBD, &assignVBC, &assignVBE, &assignVSL, &assignVS6,
+	&assignVSF, &assignVSD, &assignVSC, &assignVSE, &assignVL6, &assignVLD, &assignVLE, &assignVFD, &assignVFC,
+	&assignVFE, &assignVDE, &assignVCE,
+
 	// lossy assignments
 	&assignSB, &assignLB, &assignLS, &assignLF, &assignLC, &assign6B, &assign6S, &assign6L, &assign6F,
 	&assign6C, &assign6E, &assignFB, &assignFS, &assignDB, &assignDS, &assignDL, &assignDF, &assignCD,
 	&assignEC,
 
+	&assignVSB, &assignVLB, &assignVLS, &assignVLF, &assignVLC, &assignV6B, &assignV6S, &assignV6L, &assignV6F,
+	&assignV6C, &assignV6E, &assignVFB, &assignVFS, &assignVDB, &assignVDS, &assignVDL, &assignVDF, &assignVCD,
+	&assignVEC,
+
 	// complex transforms
-	&mag2S, &mag2D, &magS, &magD
+	&mag2S, &mag2D, &magS, &magD,
+	&magV2S, &magV2D, &magVS, &magVD
 };
 
 extern "C" unsigned QueryFunctions(signals::IFunctionSpec** funcs, unsigned availFuncs)

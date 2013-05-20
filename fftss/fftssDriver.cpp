@@ -34,7 +34,7 @@ const char* CFFTransform::CIncoming::EP_DESCR = "FFT Transform incoming endpoint
 const char* CFFTransform::COutgoing::EP_NAME = "out";
 const char* CFFTransform::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
 
-const unsigned char CFFTransformDriver::FINGERPRINT[] = { 1, (unsigned char)signals::etypCmplDbl, 1, (unsigned char)signals::etypCmplDbl };
+const unsigned char CFFTransformDriver::FINGERPRINT[] = { 1, (unsigned char)signals::etypCmplDbl, 1, (unsigned char)signals::etypVecCmplDbl };
 const char* CFFTransformDriver::NAME = "fft";
 const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 
@@ -178,6 +178,7 @@ bool CFFTransform::startPlan(bool bLockHeld)
 void CFFTransform::COutgoing::buildAttrs(const CFFTransform& parent)
 {
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
+	attrs.blockSize = addRemoteAttr("blockSize", parent.attrs.blockSize);
 //	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
 }
 
@@ -190,8 +191,7 @@ void CFFTransform::fft_process_thread(CFFTransform* owner)
 	unsigned inOffset = 0;
 	while(owner->m_bDataThreadEnabled)
 	{
-		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer,
-			IN_BUFFER_SIZE, TRUE, IN_BUFFER_TIMEOUT);
+		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer, IN_BUFFER_SIZE, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			Locker lock(owner->m_planLock);
@@ -218,7 +218,7 @@ void CFFTransform::fft_process_thread(CFFTransform* owner)
 				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
 				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
 
-				unsigned outSent = owner->m_outgoing.Write(signals::etypCmplDbl, owner->m_outBuffer, owner->m_bufSize, INFINITE);
+				unsigned outSent = owner->m_outgoing.Write(signals::etypVecCmplDbl, owner->m_outBuffer, owner->m_bufSize, INFINITE);
 				if(outSent == owner->m_bufSize)
 				{
 					owner->m_bFaulted = false;

@@ -92,6 +92,7 @@ public:
 	inline CAttr_height(CDirectxWaterfall& parent, const char* name, const char* descr, store_type deflt)
 		:base(name, descr, deflt), m_parent(parent)
 	{
+		m_parent.setHeight(this->nativeGetValue());
 	}
 
 protected:
@@ -157,10 +158,9 @@ static std::pair<float,float> rect2polar(float x, float y)
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):m_driver(driver),m_incoming(this),m_bDataThreadEnabled(true),
-	 m_dataThread(Thread<CDirectxWaterfall*>::delegate_type(&CDirectxWaterfall::process_thread)),m_bufSize(0),
+	 m_dataThread(Thread<CDirectxWaterfall*>::delegate_type(&CDirectxWaterfall::process_thread)),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
-	 m_screenWinHeight(0),m_dataTexWidth(0),m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_pOldWinProc(NULL),
-	 m_pWinprocDelgate(this, &CDirectxWaterfall::WindowProc)
+	 m_screenWinHeight(0),m_dataTexWidth(0),m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_pOldWinProc(NULL)
 {
 	buildAttrs();
 	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
@@ -195,16 +195,16 @@ void CDirectxWaterfall::process_thread(CDirectxWaterfall* owner)
 	while(owner->m_bDataThreadEnabled)
 	{
 		{
-			Locker lock(owner->m_buffLock);
-			if(owner->m_bufSize > buffer.capacity()) buffer.resize(owner->m_bufSize);
+			Locker lock(owner->m_refLock);
+			if(owner->m_dataTexWidth > buffer.capacity()) buffer.resize(owner->m_dataTexWidth);
 		}
 		if(!buffer.capacity()) buffer.resize(DEFAULT_CAPACITY);
-		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer,
+		unsigned recvCount = owner->m_incoming.Read(signals::etypVecDouble, buffer.data(),
 			buffer.capacity(), FALSE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
-			Locker lock(owner->m_buffLock);
-			unsigned bufSize = owner->m_bufSize;
+			Locker lock(owner->m_refLock);
+			unsigned bufSize = owner->m_dataTexWidth;
 			if(!bufSize) bufSize = recvCount;
 
 			double* buffPtr = buffer.data();
@@ -231,7 +231,7 @@ void CDirectxWaterfall::releaseDevice()
 	if(m_hOutputWin != NULL)
 	{
 		LONG_PTR pCurWnd = GetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC);
-		if((void*)pCurWnd == &m_pWinprocDelgate)
+		if((void*)pCurWnd == &WindowProcCatcher)
 		{
 			SetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC, (LONG)m_pOldWinProc);
 		}
@@ -261,7 +261,8 @@ void CDirectxWaterfall::setTargetWindow(HWND hWnd)
 	{
 		m_pOldWinProc = (WNDPROC)GetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC);
 		if(!m_pOldWinProc) ThrowLastError(GetLastError());
-		SetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC, (LONG)&m_pWinprocDelgate);
+		SetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC, (LONG)&WindowProcCatcher);
+		SetWindowLongPtr(m_hOutputWin, GWL_USERDATA, (LONG)this);
 
 		HRESULT hR = initDevice();
 		if(SUCCEEDED(hR)) hR = initTexture();
@@ -573,7 +574,7 @@ HRESULT CDirectxWaterfall::initTexture()
 HRESULT CDirectxWaterfall::initDataTexture()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_dataTexWidth || !m_dataTexHeight)
+	if(!m_dataTexWidth || !m_dataTexHeight || !m_pDevice)
 	{
 		return S_FALSE;
 	}
@@ -769,6 +770,13 @@ HRESULT CDirectxWaterfall::drawFrame()
 	return S_OK;
 }
 
+LRESULT CDirectxWaterfall::WindowProcCatcher(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	CDirectxWaterfall* waterfall = (CDirectxWaterfall*)::GetWindowLongPtr(hWnd, GWL_USERDATA);
+	ASSERT(waterfall);
+	return waterfall->WindowProc(hWnd, uMsg, wParam, lParam);
+}
+
 LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	if(hWnd == m_hOutputWin)
@@ -838,7 +846,7 @@ void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 		m_lastWidthAttr = NULL;
 	}
 	if(!conn) return;
-	signals::IAttributes* attrs = conn->InputAttributes();
+	signals::IAttributes* attrs = conn->OutputAttributes();
 	if(!attrs) return;
 	signals::IAttribute* attr = attrs->GetByName("blockSize");
 	if(!attr || attr->Type() != signals::etypShort) return;
@@ -877,7 +885,6 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 {
 	if(size && size != m_dataTexWidth)
 	{
-		Locker lock(m_refLock);
 		if(size && size != m_dataTexWidth)
 		{
 			m_dataTexWidth = size;
@@ -895,5 +902,5 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 		newLine[i] = dataTex_t(SHRT_MAX * frame[i]);
 	}
 
-	VERIFY(drawFrame());
+	VERIFY(SUCCEEDED(drawFrame()));
 }

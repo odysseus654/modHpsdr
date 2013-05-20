@@ -140,8 +140,6 @@ private:
 	CIncoming m_incoming;
 	Thread<CDirectxWaterfall*> m_dataThread;
 	bool m_bDataThreadEnabled;
-	Lock m_buffLock;
-	unsigned m_bufSize;
 
 private: // directx stuff
 	Lock m_refLock;
@@ -178,9 +176,6 @@ private: // directx stuff
 	ID3D10ShaderResourceViewPtr m_dataView;
 
 protected:
-	typedef fastdelegate::FastDelegate4<HWND,UINT,WPARAM,LPARAM,LRESULT> windowproc_delegate_type;
-	const windowproc_delegate_type m_pWinprocDelgate;
-
 	void buildAttrs();
 	void releaseDevice();
 	HRESULT initDevice();
@@ -193,4 +188,5 @@ protected:
 	void onReceivedFrame(double* frame, unsigned size);
 	static void process_thread(CDirectxWaterfall* owner);
 	LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+	static LRESULT WindowProcCatcher(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 };

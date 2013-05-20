@@ -71,6 +71,13 @@ namespace cppProxy
             void toNative(object src, IntPtr dest);
         };
 
+        private class Handle : ITypeMarshaller
+        {
+            public int size(object val) { return IntPtr.Size; }
+            public object fromNative(IntPtr val) { return Marshal.ReadIntPtr(val); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteIntPtr(dest, (IntPtr)src); }
+        };
+
         private class Boolean : ITypeMarshaller
         {
             public int size(object val) { return sizeof(byte); }
@@ -190,6 +197,8 @@ namespace cppProxy
             {
                 case signals.EType.String:
                     return new String();
+                case signals.EType.WinHdl:
+                    return new Handle();
                 case signals.EType.Boolean:
                 case signals.EType.VecBoolean:
                     return new Boolean();
@@ -306,7 +315,7 @@ namespace cppProxy
             uint Write(signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
             uint AddRef(IntPtr iep);
             uint Release(IntPtr iep);
-            IntPtr OutputAttributes();
+            IntPtr InputAttributes();
         };
 
         public interface IEPRecvFrom
@@ -314,7 +323,7 @@ namespace cppProxy
             uint Read(signals.EType type, IntPtr buffer, uint numAvail, [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
-            IntPtr InputAttributes();
+            IntPtr OutputAttributes();
         };
 
         public interface IEPBuffer : IEPSendTo, IEPRecvFrom
@@ -1373,13 +1382,13 @@ namespace cppProxy
 
         public IntPtr Native { get { return m_nativeRef; } }
 
-        public signals.IAttributes OutputAttributes
+        public signals.IAttributes InputAttributes
         {
             get
             {
                 if (m_attrs == null)
                 {
-                    IntPtr attrs = m_native.OutputAttributes();
+                    IntPtr attrs = m_native.InputAttributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
                     if (m_attrs == null) m_attrs = new CppProxyAttributes(attrs);
@@ -1474,13 +1483,13 @@ namespace cppProxy
             }
         }
 
-        public signals.IAttributes InputAttributes
+        public signals.IAttributes OutputAttributes
         {
             get
             {
                 if (m_attrs == null)
                 {
-                    IntPtr attrs = m_native.InputAttributes();
+                    IntPtr attrs = m_native.OutputAttributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
                     if (m_attrs == null) m_attrs = new CppProxyAttributes(attrs);
@@ -1807,13 +1816,13 @@ namespace cppProxy
             }
         }
 
-        public signals.IAttributes InputAttributes
+        public signals.IAttributes OutputAttributes
         {
             get
             {
                 if (m_attrs == null)
                 {
-                    IntPtr attrs = m_nativeRecv.InputAttributes();
+                    IntPtr attrs = m_nativeRecv.OutputAttributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
                     if (m_attrs == null) m_attrs = new CppProxyAttributes(attrs);
@@ -1886,13 +1895,13 @@ namespace cppProxy
             }
         }
 
-        public signals.IAttributes OutputAttributes
+        public signals.IAttributes InputAttributes
         {
             get
             {
                 if (m_attrs == null)
                 {
-                    IntPtr attrs = m_nativeSend.OutputAttributes();
+                    IntPtr attrs = m_nativeSend.InputAttributes();
                     if (attrs == IntPtr.Zero) return null;
                     m_attrs = (signals.IAttributes)Registration.retrieveObject(attrs);
                     if (m_attrs == null) m_attrs = new CppProxyAttributes(attrs);

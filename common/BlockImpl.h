@@ -594,9 +594,9 @@ public: // IEPSendTo
 		}
 	}
 
-	virtual signals::IAttributes* OutputAttributes()
+	virtual signals::IAttributes* InputAttributes()
 	{
-		return m_oep ? m_oep->Attributes() : NULL;
+		return m_oep ? m_iep->Attributes() : NULL;
 	}
 
 public: // IEPRecvFrom
@@ -617,9 +617,9 @@ public: // IEPRecvFrom
 		else return 0; // implicit translation not yet supported
 	}
 
-	virtual signals::IAttributes* InputAttributes()
+	virtual signals::IAttributes* OutputAttributes()
 	{
-		return m_iep ? m_iep->Attributes() : NULL;
+		return m_iep ? m_oep->Attributes() : NULL;
 	}
 
 //	virtual unsigned AddRef()							{ return CRefcountObject::AddRef(); }

@@ -117,6 +117,7 @@ public:
 		{
 			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
+			CAttributeBase* blockSize;
 		} attrs;
 
 	private:
@@ -126,14 +127,14 @@ public:
 		COutgoing& operator=(const COutgoing& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::EType Type()				{ return signals::etypCmplDbl; }
+		virtual signals::EType Type()				{ return signals::etypVecCmplDbl; }
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 		virtual signals::IAttributes* Attributes()	{ return this; }
 
 		virtual signals::IEPBuffer* CreateBuffer()
 		{
-			signals::IEPBuffer* buffer = new CEPBuffer<signals::etypCmplDbl>(DEFAULT_BUFSIZE);
+			signals::IEPBuffer* buffer = new CEPBuffer<signals::etypVecCmplDbl>(DEFAULT_BUFSIZE);
 			buffer->AddRef(NULL);
 			return buffer;
 		}
