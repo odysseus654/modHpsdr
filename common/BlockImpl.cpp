@@ -37,6 +37,7 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 	Locker lock(m_connRecvLock);
 	if(!m_connRecv)
 	{
+		if(!msTimeout) return 0;
 		if(!m_connRecvConnected.sleep(lock, msTimeout)) return 0;
 	}
 	ASSERT(m_connRecv);
@@ -64,6 +65,7 @@ unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned num
 	Locker lock(m_connSendLock);
 	if(!m_connSend)
 	{
+		if(!msTimeout) return 0;
 		if(!m_connSendConnected.sleep(lock, msTimeout)) return 0;
 	}
 	ASSERT(m_connSend);
