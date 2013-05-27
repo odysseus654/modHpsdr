@@ -9,6 +9,7 @@
 
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 waterfall.fx    RCDATA   ".\\waterfall.fx"
+waveform.fx     RCDATA   ".\\waveform.fx"
 
 //
 // Version Information resources

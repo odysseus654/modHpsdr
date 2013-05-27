@@ -34,15 +34,15 @@ namespace sharptest
             this.SuspendLayout();
 
             // panel1
-            this.panel1.Location = new Point(21, 129);
-            this.panel1.Size = new Size(200, 100);
+            this.panel1.Location = new Point(21, 20);
+            this.panel1.Size = new Size(600, 400);
             this.panel1.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
             this.panel1.TabIndex = 0;
 
             // Outer Form
             this.AutoScaleDimensions = new SizeF(6F, 13F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(284, 262);
+            this.ClientSize = new Size(700, 500);
             this.Controls.Add(this.panel1);
             this.Text = "Canvas";
 

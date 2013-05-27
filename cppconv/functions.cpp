@@ -141,16 +141,50 @@ struct mag : public std::unary_function<std::complex<BASE>,double>
 	}
 };
 
+template<class BASE>
+struct pick_real : public std::unary_function<std::complex<BASE>,BASE>
+{
+	typedef std::complex<BASE> argument_type;
+	typedef BASE result_type;
+
+	inline BASE operator()(const std::complex<BASE>& parm)
+	{
+		return parm.real();
+	}
+};
+
+template<class BASE>
+struct pick_imag : public std::unary_function<std::complex<BASE>,BASE>
+{
+	typedef std::complex<BASE> argument_type;
+	typedef BASE result_type;
+
+	inline BASE operator()(const std::complex<BASE>& parm)
+	{
+		return parm.imag();
+	}
+};
+
 // complex transforms
 static Function<signals::etypComplex,signals::etypDouble,mag2<float> > mag2S("mag2","squared magnitude (complex-single)");
 static Function<signals::etypCmplDbl,signals::etypDouble,mag2<double> > mag2D("mag2","squared magnitude (complex-double)");
-static Function<signals::etypComplex,signals::etypDouble,mag<float> > magS("mag","squared magnitude (complex-single)");
-static Function<signals::etypCmplDbl,signals::etypDouble,mag<double> > magD("mag","squared magnitude (complex-double)");
+static Function<signals::etypComplex,signals::etypDouble,mag<float> > magS("mag","magnitude (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,mag<double> > magD("mag","magnitude (complex-double)");
+
+static Function<signals::etypComplex,signals::etypSingle,pick_real<float> > prS("pick_real","real component (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,pick_real<double> > prD("pick_real","real component (complex-double)");
+static Function<signals::etypComplex,signals::etypSingle,pick_imag<float> > piS("pick_imag","imaginary component (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,pick_imag<double> > piD("pick_imag","imaginary component (complex-double)");
 
 static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag2","squared magnitude (complex-single)");
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag2","squared magnitude (complex-double)");
-static Function<signals::etypVecComplex,signals::etypVecDouble,mag<float> > magVS("mag","squared magnitude (complex-single)");
-static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag<double> > magVD("mag","squared magnitude (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecDouble,mag<float> > magVS("mag","magnitude (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag<double> > magVD("mag","magnitude (complex-double)");
+
+static Function<signals::etypVecComplex,signals::etypVecSingle,pick_real<float> > prVS("pick_real","real component (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_real<double> > prVD("pick_real","real component (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecSingle,pick_imag<float> > piVS("pick_imag","imaginary component (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_imag<double> > piVD("pick_imag","imaginary component (complex-double)");
 
 signals::IFunctionSpec* FUNCTIONS[] = {
 	// lossless assignments
@@ -172,8 +206,8 @@ signals::IFunctionSpec* FUNCTIONS[] = {
 	&assignVEC,
 
 	// complex transforms
-	&mag2S, &mag2D, &magS, &magD,
-	&magV2S, &magV2D, &magVS, &magVD
+	&mag2S, &mag2D, &magS, &magD, &prS, &prD, &piS, &piD,
+	&magV2S, &magV2D, &magVS, &magVD, &prVS, &prVD, &piVS, &piVD
 };
 
 extern "C" unsigned QueryFunctions(signals::IFunctionSpec** funcs, unsigned availFuncs)

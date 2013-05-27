@@ -83,6 +83,7 @@
   <ItemGroup>
     <None Include="waterfall.def" />
     <None Include="waterfall.fx" />
+    <None Include="waveform.fx" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\block.h" />

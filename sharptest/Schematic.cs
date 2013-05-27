@@ -3,16 +3,67 @@ using System.Collections.Generic;
 
 namespace Layout
 {
-    public class Schematic : ICloneable
+    public enum ElementType
     {
-        public enum ElementType
+        Module,
+        Function,
+        FunctionOnOut,
+        FunctionOnIn
+    }
+
+    public class ElemKey : IEquatable<ElemKey>
+    {
+        public readonly ElementType type;
+        public readonly string name;
+        public readonly string nodeId;
+
+        public ElemKey(ElementType type, string name, string nodeId)
         {
-            Module,
-            Function,
-            FunctionOnOut,
-            FunctionOnIn
+            if (name == null) throw new ArgumentNullException("name");
+            this.type = type;
+            this.name = name;
+            this.nodeId = nodeId;
         }
 
+        public ElemKey(ElementType type, string name)
+        {
+            if (name == null) throw new ArgumentNullException("name");
+            this.type = type;
+            this.name = name;
+            this.nodeId = null;
+        }
+
+        public ElemKey(Schematic.Element elem)
+        {
+            if (elem == null) throw new ArgumentNullException("elem");
+            this.type = elem.type;
+            this.name = elem.name;
+            this.nodeId = elem.nodeId;
+        }
+
+        public override int GetHashCode()
+        {
+            return type.GetHashCode() ^ name.GetHashCode() ^ (nodeId == null ? 0 : nodeId.GetHashCode());
+        }
+        public override bool Equals(object obj)
+        {
+            return Equals(obj as ElemKey);
+        }
+        public bool Equals(ElemKey obj)
+        {
+            return type == obj.type && String.Equals(name, obj.name, StringComparison.CurrentCultureIgnoreCase)
+                && ((nodeId == null && obj.nodeId == null) || nodeId.Equals(obj.nodeId));
+        }
+        public override string ToString()
+        {
+            string result = String.Format("{0} {1}", Utilities.ElementTypeName(this.type), this.name);
+            if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
+            return result;
+        }
+    }
+
+    public static class Utilities
+    {
         public static string TypeName(signals.EType typ)
         {
             switch (typ)
@@ -86,7 +137,10 @@ namespace Layout
                     return String.Format("unknown({0})", typ);
             }
         }
+    }
 
+    public class Schematic : ICloneable
+    {
         public class Element : ICloneable
         {
             public readonly string name;
@@ -158,7 +212,7 @@ namespace Layout
 
             public override string ToString()
             {
-                string result = String.Format("{0} {1}", ElementTypeName(this.type), this.name);
+                string result = String.Format("{0} {1}", Utilities.ElementTypeName(this.type), this.name);
                 if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
                 return result;
             }
@@ -237,57 +291,6 @@ namespace Layout
             }
         }
 
-        public class ElemKey : IEquatable<ElemKey>
-        {
-            public readonly ElementType type;
-            public readonly string name;
-            public readonly string nodeId;
-
-            public ElemKey(ElementType type, string name, string nodeId)
-            {
-                if (name == null) throw new ArgumentNullException("name");
-                this.type = type;
-                this.name = name;
-                this.nodeId = nodeId;
-            }
-
-            public ElemKey(ElementType type, string name)
-            {
-                if (name == null) throw new ArgumentNullException("name");
-                this.type = type;
-                this.name = name;
-                this.nodeId = null;
-            }
-
-            public ElemKey(Element elem)
-            {
-                if (elem == null) throw new ArgumentNullException("elem");
-                this.type = elem.type;
-                this.name = elem.name;
-                this.nodeId = elem.nodeId;
-            }
-
-            public override int GetHashCode()
-            {
-                return type.GetHashCode() ^ name.GetHashCode() ^ (nodeId == null ? 0 : nodeId.GetHashCode());
-            }
-            public override bool Equals(object obj)
-            {
-                return Equals(obj as ElemKey);
-            }
-            public bool Equals(ElemKey obj)
-            {
-                return type == obj.type && String.Equals(name, obj.name, StringComparison.CurrentCultureIgnoreCase)
-                    && ((nodeId == null && obj.nodeId == null) || nodeId.Equals(obj.nodeId));
-            }
-            public override string ToString()
-            {
-                string result = String.Format("{0} {1}", ElementTypeName(this.type), this.name);
-                if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
-                return result;
-            }
-        }
-        
         public class EndpointKey : IEquatable<EndpointKey>
         {
             public readonly Element elem;
@@ -495,7 +498,7 @@ namespace Layout
                 get
                 {
                     return String.Format("Cannot connect {0} (type {1}) to {2} (type {3})",
-                        fromEP.ToString(), TypeName(fromType), toEP.ToString(), TypeName(toType));
+                        fromEP.ToString(), Utilities.TypeName(fromType), toEP.ToString(), Utilities.TypeName(toType));
                 }
             }
         }
@@ -1095,11 +1098,11 @@ namespace Layout
     {
         public class Element
         {
-            public readonly Schematic.ElemKey descr;
+            public readonly ElemKey descr;
             public readonly int circuitId;
             public readonly object obj; // either IBlock or IFunction
 
-            public Element(Schematic.ElemKey d, int c, object o)
+            public Element(ElemKey d, int c, object o)
             {
                 descr = d;
                 circuitId = c;
@@ -1134,7 +1137,7 @@ namespace Layout
             }
         }
 
-        public List<Element> Find(Schematic.ElemKey key)
+        public List<Element> Find(ElemKey key)
         {
             List<Element> results = new List<Element>();
             foreach (KeyValuePair<int, Element> entry in radio)

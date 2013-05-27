@@ -12,20 +12,20 @@ typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 
 HMODULE gl_DllModule;
 
-const char* CDirectxWaterfallDriver::NAME = "waterfall";
-const char* CDirectxWaterfallDriver::DESCR = "DirectX waterfall display";
-const unsigned char CDirectxWaterfallDriver::FINGERPRINT[] = { 1, signals::etypVecDouble, 0 };
+const char* CDirectxDriver<CDirectxWaterfall>::NAME = "waterfall";
+const char* CDirectxDriver<CDirectxWaterfall>::DESCR = "DirectX waterfall display";
+
+const char* CDirectxDriver<CDirectxWaveform>::NAME = "waveform";
+const char* CDirectxDriver<CDirectxWaveform>::DESCR = "DirectX waterfall display";
+
+const char* CDirectxBase::CIncoming::EP_NAME = "in";
+const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
+
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
-const char* CDirectxWaterfall::CIncoming::EP_NAME = "in";
-const char* CDirectxWaterfall::CIncoming::EP_DESCR = "Waterfall incoming endpoint";
 const unsigned long CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 static const float PI = std::atan(1.0f)*4;
 
-struct TLVERTEX
-{
-	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
-};
+char const * CDirectxWaveform::NAME = "DirectX waveform display";
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
 {
@@ -44,21 +44,14 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID)
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
-	static CDirectxWaterfallDriver DRIVER_waterfall;
+	static CDirectxDriver<CDirectxWaterfall> DRIVER_waterfall;
+	static CDirectxDriver<CDirectxWaveform> DRIVER_waveform;
 	if(drivers && availDrivers)
 	{
 		drivers[0] = &DRIVER_waterfall;
+		if(availDrivers > 1) drivers[1] = &DRIVER_waveform;
 	}
-	return 1;
-}
-
-// ---------------------------------------------------------------------------- class CDirectxWaterfallDriver
-
-signals::IBlock* CDirectxWaterfallDriver::Create()
-{
-	signals::IBlock* blk = new CDirectxWaterfall(this);
-	blk->AddRef();
-	return blk;
+	return 2;
 }
 
 // ---------------------------------------------------------------------------- class CAttr_target_hwnd
@@ -68,13 +61,13 @@ class CAttr_target_hwnd : public CRWAttribute<signals::etypWinHdl>
 private:
 	typedef CRWAttribute<signals::etypWinHdl> base;
 public:
-	inline CAttr_target_hwnd(CDirectxWaterfall& parent, const char* name, const char* descr)
+	inline CAttr_target_hwnd(CDirectxBase& parent, const char* name, const char* descr)
 		:base(name, descr, NULL), m_parent(parent)
 	{
 	}
 
 protected:
-	CDirectxWaterfall& m_parent;
+	CDirectxBase& m_parent;
 
 protected:
 	virtual void onSetValue(const store_type& newVal)
@@ -153,32 +146,26 @@ static std::pair<float,float> rect2polar(float x, float y)
 	}
 }
 
-// ---------------------------------------------------------------------------- class CDirectxWaterfall
+// ---------------------------------------------------------------------------- class CDirectxBase
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
-CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):m_driver(driver),m_incoming(this),m_bDataThreadEnabled(true),
-	 m_dataThread(Thread<CDirectxWaterfall*>::delegate_type(&CDirectxWaterfall::process_thread)),
+CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):m_driver(driver),m_incoming(this),m_bDataThreadEnabled(true),
+	 m_dataThread(Thread<CDirectxBase*>::delegate_type(&CDirectxBase::process_thread)),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
-	 m_screenWinHeight(0),m_dataTexWidth(0),m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_pOldWinProc(NULL)
+	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0)
 {
-	buildAttrs();
 	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
 }
 #pragma warning(pop)
 
-CDirectxWaterfall::~CDirectxWaterfall()
+CDirectxBase::~CDirectxBase()
 {
 	Locker lock(m_refLock);
 	releaseDevice();
-	if(m_dataTexData)
-	{
-		delete [] m_dataTexData;
-		m_dataTexData = NULL;
-	}
 }
 
-unsigned CDirectxWaterfall::Incoming(signals::IInEndpoint** ep, unsigned availEP)
+unsigned CDirectxBase::Incoming(signals::IInEndpoint** ep, unsigned availEP)
 {
 	if(ep && availEP)
 	{
@@ -187,7 +174,7 @@ unsigned CDirectxWaterfall::Incoming(signals::IInEndpoint** ep, unsigned availEP
 	return 1;
 }
 
-void CDirectxWaterfall::process_thread(CDirectxWaterfall* owner)
+void CDirectxBase::process_thread(CDirectxBase* owner)
 {
 	ThreadBase::SetThreadName("Waterfall Display Thread");
 
@@ -218,14 +205,13 @@ void CDirectxWaterfall::process_thread(CDirectxWaterfall* owner)
 	}
 }
 
-void CDirectxWaterfall::buildAttrs()
+void CDirectxBase::buildAttrs()
 {
 	attrs.targetWindow = addLocalAttr(true, new CAttr_target_hwnd(*this, "targetWindow", "Window to display waterfall on"));
 	attrs.enableVsync = addLocalAttr(true, new CRWAttribute<signals::etypBoolean>("enableVsync", "Use monitor vsync on display", false));
-	attrs.height = addLocalAttr(true, new CAttr_height(*this, "height", "Rows of history to display", 512));
 }
 
-void CDirectxWaterfall::releaseDevice()
+void CDirectxBase::releaseDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
 	if(m_hOutputWin != NULL)
@@ -239,20 +225,13 @@ void CDirectxWaterfall::releaseDevice()
 	}
 	if(m_pDevice) m_pDevice->ClearState();
 	m_pSwapChain.Release();
-	m_dataTex.Release();
-	m_pEffect.Release();
 	m_pDepthView.Release();
-	m_pVertexBuffer.Release();
-	m_pVertexIndexBuffer.Release();
-	m_pInputLayout.Release();
 	m_pDepthStencilState.Release();
 	m_pRenderTargetView.Release();
-	m_waterfallView.Release();
-	m_dataView.Release();
 	m_pDevice.Release();
 }
 
-void CDirectxWaterfall::setTargetWindow(HWND hWnd)
+void CDirectxBase::setTargetWindow(HWND hWnd)
 {
 	Locker lock(m_refLock);
 	releaseDevice();
@@ -270,7 +249,7 @@ void CDirectxWaterfall::setTargetWindow(HWND hWnd)
 	}
 }
 
-HRESULT CDirectxWaterfall::initDevice()
+HRESULT CDirectxBase::initDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
 	{
@@ -386,6 +365,242 @@ HRESULT CDirectxWaterfall::initDevice()
 	return S_OK;
 }
 
+HRESULT CDirectxBase::resizeDevice()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	if(!m_pDevice || !m_pSwapChain || !m_hOutputWin)
+	{
+		return S_FALSE;
+	}
+
+	{
+		RECT rect;
+		if(!GetClientRect(m_hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
+		m_screenCliHeight = rect.bottom - rect.top;
+		m_screenCliWidth = rect.right - rect.left;
+	}
+
+	// Release all outstanding references to the swap chain's buffers.
+	m_pDevice->OMSetRenderTargets(0, NULL, NULL);
+	m_pRenderTargetView.Release();
+	m_pDepthView.Release();
+
+	// Preserve the existing buffer count and format.
+	// Automatically choose the width and height to match the client rect for HWNDs.
+	HRESULT hR = m_pSwapChain->ResizeBuffers(0, m_screenCliWidth, m_screenCliHeight, DXGI_FORMAT_UNKNOWN, 0);
+	if(FAILED(hR)) return hR;
+
+	// Get buffer and create a render-target-view.
+	ID3D10Texture2DPtr backBuffer;
+	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
+	if(FAILED(hR)) return hR;
+
+	D3D10_TEXTURE2D_DESC depthBufferDesc;
+	memset(&depthBufferDesc, 0, sizeof(depthBufferDesc));
+	depthBufferDesc.ArraySize = 1;
+	depthBufferDesc.BindFlags = D3D10_BIND_DEPTH_STENCIL;
+	depthBufferDesc.CPUAccessFlags = 0;
+	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+	depthBufferDesc.Height = m_screenCliHeight;
+	depthBufferDesc.MipLevels = 1;
+	depthBufferDesc.SampleDesc.Count = 1;
+	depthBufferDesc.SampleDesc.Quality = 0;
+	depthBufferDesc.Usage = D3D10_USAGE_DEFAULT;
+	depthBufferDesc.Width = m_screenCliWidth;
+
+	ID3D10Texture2DPtr depthBuffer;
+	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, depthBuffer.inref());
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
+	if(FAILED(hR)) return hR;
+
+	ID3D10RenderTargetView* targs = m_pRenderTargetView;
+	m_pDevice->OMSetRenderTargets(1, &targs, m_pDepthView);
+
+	// Setup the viewport for rendering.
+	D3D10_VIEWPORT viewport;
+	memset(&viewport, 0, sizeof(viewport));
+	viewport.Width = m_screenCliWidth;
+	viewport.Height = m_screenCliHeight;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+//	viewport.TopLeftX = 0;
+//	viewport.TopLeftY = 0;
+	m_pDevice->RSSetViewports(1, &viewport);
+
+	return S_OK;
+}
+
+CDirectxBase::CIncoming::~CIncoming()
+{
+	if(m_lastWidthAttr)
+	{
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+}
+
+void CDirectxBase::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
+{
+	if(m_lastWidthAttr)
+	{
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+	if(!conn) return;
+	signals::IAttributes* attrs = conn->OutputAttributes();
+	if(!attrs) return;
+	signals::IAttribute* attr = attrs->GetByName("blockSize");
+	if(!attr || attr->Type() != signals::etypShort) return;
+	m_lastWidthAttr = attr;
+	m_lastWidthAttr->Observe(this);
+	m_bAttached = true;
+	OnChanged(attr->Name(), attr->Type(), attr->getValue());
+}
+
+void CDirectxBase::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
+{
+	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
+	{
+		short width = *(short*)value;
+		if(width != m_parent->m_dataTexWidth && width > 0)
+		{
+			Locker lock(m_parent->m_refLock);
+			if(width != m_parent->m_dataTexWidth && width > 0)
+			{
+				m_parent->m_dataTexWidth = width;
+				m_parent->initDataTexture();
+			}
+		}
+	}
+}
+
+void CDirectxBase::CIncoming::OnDetached(const char* name)
+{
+	if(_stricmp(name, "blockSize") == 0)
+	{
+		m_bAttached = false;
+	}
+}
+
+LRESULT CDirectxBase::WindowProcCatcher(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	CDirectxWaterfall* waterfall = (CDirectxWaterfall*)::GetWindowLongPtr(hWnd, GWL_USERDATA);
+	ASSERT(waterfall);
+	return waterfall->WindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT CDirectxBase::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	if(hWnd == m_hOutputWin)
+	{
+		switch(uMsg)
+		{
+		case WM_SIZE:
+			switch(wParam)
+			{
+			case SIZE_MAXIMIZED:
+			case SIZE_RESTORED:
+				if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
+				{
+					Locker lock(m_refLock);
+					if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
+					{
+						m_screenWinWidth = LOWORD(lParam);
+						m_screenWinHeight = HIWORD(lParam);
+						VERIFY(SUCCEEDED(resizeDevice()));
+					}
+				}
+				break;
+			}
+			break;
+		case WM_WINDOWPOSCHANGED:
+			{
+				LPWINDOWPOS winPos = (LPWINDOWPOS)lParam;
+				if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
+				{
+					Locker lock(m_refLock);
+					if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
+					{
+						m_screenWinWidth = winPos->cx;
+						m_screenWinHeight = winPos->cy;
+						VERIFY(SUCCEEDED(resizeDevice()));
+					}
+				}
+				break;
+			}
+		}
+	}
+	return CallWindowProc(m_pOldWinProc, hWnd, uMsg, wParam, lParam);
+}
+
+HRESULT CDirectxBase::drawFrame()
+{
+	Locker lock(m_refLock);
+	if(!m_pDevice || !m_pSwapChain)
+	{
+		return E_POINTER;
+	}
+
+	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+
+	HRESULT hR = drawFrameContents();
+	if(FAILED(hR)) return hR;
+
+	hR = m_pSwapChain->Present(attrs.enableVsync && attrs.enableVsync->nativeGetValue() ? 1 : 0, 0);
+	if(FAILED(hR)) return hR;
+
+	return S_OK;
+}
+
+// ---------------------------------------------------------------------------- class CDirectxWaterfall
+
+CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
+	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL)
+{
+	buildAttrs();
+}
+
+CDirectxWaterfall::~CDirectxWaterfall()
+{
+	Locker lock(m_refLock);
+	releaseDevice();
+	if(m_dataTexData)
+	{
+		delete [] m_dataTexData;
+		m_dataTexData = NULL;
+	}
+}
+
+struct TL_FALL_VERTEX
+{
+	D3DXVECTOR3 pos;
+	D3DXVECTOR2 tex;
+};
+
+void CDirectxWaterfall::buildAttrs()
+{
+	CDirectxBase::buildAttrs();
+	attrs.height = addLocalAttr(true, new CAttr_height(*this, "height", "Rows of history to display", 512));
+}
+
+void CDirectxWaterfall::releaseDevice()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	CDirectxBase::releaseDevice();
+	m_dataTex.Release();
+	m_pEffect.Release();
+	m_pVertexBuffer.Release();
+	m_pVertexIndexBuffer.Release();
+	m_pInputLayout.Release();
+	m_dataView.Release();
+	m_waterfallView.Release();
+}
+
 HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10Texture1DPtr& waterfallTex)
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
@@ -488,8 +703,8 @@ HRESULT CDirectxWaterfall::initTexture()
 
 	D3D10_INPUT_ELEMENT_DESC vdesc[] =
 	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TLVERTEX, pos), D3D10_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TLVERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TL_FALL_VERTEX, pos), D3D10_INPUT_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TL_FALL_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
 	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, m_pInputLayout.inref());
@@ -502,7 +717,7 @@ HRESULT CDirectxWaterfall::initTexture()
 	float texBottom = texTop - (float)m_screenCliHeight;
 
 	// Now create the vertex buffer.
-	TLVERTEX vertices[4];
+	TL_FALL_VERTEX vertices[4];
 	vertices[0].pos = D3DXVECTOR3(texLeft, texTop, 0.0f);
 	vertices[0].tex = D3DXVECTOR2(0.0f, 0.0f);
 	vertices[1].pos = D3DXVECTOR3(texRight, texTop, 0.0f);
@@ -619,69 +834,8 @@ HRESULT CDirectxWaterfall::initDataTexture()
 HRESULT CDirectxWaterfall::resizeDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_pSwapChain || !m_hOutputWin)
-	{
-		return S_FALSE;
-	}
-
-	{
-		RECT rect;
-		if(!GetClientRect(m_hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
-		m_screenCliHeight = rect.bottom - rect.top;
-		m_screenCliWidth = rect.right - rect.left;
-	}
-
-	// Release all outstanding references to the swap chain's buffers.
-	m_pDevice->OMSetRenderTargets(0, NULL, NULL);
-	m_pRenderTargetView.Release();
-	m_pDepthView.Release();
-
-	// Preserve the existing buffer count and format.
-	// Automatically choose the width and height to match the client rect for HWNDs.
-	HRESULT hR = m_pSwapChain->ResizeBuffers(0, m_screenCliWidth, m_screenCliHeight, DXGI_FORMAT_UNKNOWN, 0);
-	if(FAILED(hR)) return hR;
-
-	// Get buffer and create a render-target-view.
-	ID3D10Texture2DPtr backBuffer;
-	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
-	if(FAILED(hR)) return hR;
-
-	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
-	if(FAILED(hR)) return hR;
-
-	D3D10_TEXTURE2D_DESC depthBufferDesc;
-	memset(&depthBufferDesc, 0, sizeof(depthBufferDesc));
-	depthBufferDesc.ArraySize = 1;
-	depthBufferDesc.BindFlags = D3D10_BIND_DEPTH_STENCIL;
-	depthBufferDesc.CPUAccessFlags = 0;
-	depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-	depthBufferDesc.Height = m_screenCliHeight;
-	depthBufferDesc.MipLevels = 1;
-	depthBufferDesc.SampleDesc.Count = 1;
-	depthBufferDesc.SampleDesc.Quality = 0;
-	depthBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-	depthBufferDesc.Width = m_screenCliWidth;
-
-	ID3D10Texture2DPtr depthBuffer;
-	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, depthBuffer.inref());
-	if(FAILED(hR)) return hR;
-
-	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
-	if(FAILED(hR)) return hR;
-
-	ID3D10RenderTargetView* targs = m_pRenderTargetView;
-	m_pDevice->OMSetRenderTargets(1, &targs, m_pDepthView);
-
-	// Setup the viewport for rendering.
-	D3D10_VIEWPORT viewport;
-	memset(&viewport, 0, sizeof(viewport));
-	viewport.Width = m_screenCliWidth;
-	viewport.Height = m_screenCliHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-//	viewport.TopLeftX = 0;
-//	viewport.TopLeftY = 0;
-	m_pDevice->RSSetViewports(1, &viewport);
+	HRESULT hR = CDirectxBase::resizeDevice();
+	if(hR != S_OK) return hR;
 
 	if(m_pVertexBuffer)
 	{
@@ -692,7 +846,7 @@ HRESULT CDirectxWaterfall::resizeDevice()
 		float texBottom = texTop - (float)m_screenCliHeight;
 
 		// Now create the vertex buffer.
-		TLVERTEX vertices[4];
+		TL_FALL_VERTEX vertices[4];
 		vertices[0].pos = D3DXVECTOR3(texLeft, texTop, 0.0f);
 		vertices[0].tex = D3DXVECTOR2(0.0f, 0.0f);
 		vertices[1].pos = D3DXVECTOR3(texRight, texTop, 0.0f);
@@ -722,10 +876,10 @@ HRESULT CDirectxWaterfall::resizeDevice()
 	return S_OK;
 }
 
-HRESULT CDirectxWaterfall::drawFrame()
+HRESULT CDirectxWaterfall::drawFrameContents()
 {
-	Locker lock(m_refLock);
-	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pTechnique || !m_pSwapChain)
+	// ASSUMES m_refLock IS HELD BY CALLER
+	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pTechnique)
 	{
 		return E_POINTER;
 	}
@@ -738,10 +892,8 @@ HRESULT CDirectxWaterfall::drawFrame()
 	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
 	m_dataTex->Unmap(subr);
 
-	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
-
 	// setup the input assembler.
-	UINT stride = sizeof(TLVERTEX); 
+	UINT stride = sizeof(TL_FALL_VERTEX); 
 	UINT offset = 0;
 	ID3D10Buffer* buf = m_pVertexBuffer;
 	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
@@ -764,61 +916,7 @@ HRESULT CDirectxWaterfall::drawFrame()
 		m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
 	}
 
-	hR = m_pSwapChain->Present(attrs.enableVsync && attrs.enableVsync->nativeGetValue() ? 1 : 0, 0);
-	if(FAILED(hR)) return hR;
-
 	return S_OK;
-}
-
-LRESULT CDirectxWaterfall::WindowProcCatcher(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-	CDirectxWaterfall* waterfall = (CDirectxWaterfall*)::GetWindowLongPtr(hWnd, GWL_USERDATA);
-	ASSERT(waterfall);
-	return waterfall->WindowProc(hWnd, uMsg, wParam, lParam);
-}
-
-LRESULT CDirectxWaterfall::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-{
-	if(hWnd == m_hOutputWin)
-	{
-		switch(uMsg)
-		{
-		case WM_SIZE:
-			switch(wParam)
-			{
-			case SIZE_MAXIMIZED:
-			case SIZE_RESTORED:
-				if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
-				{
-					Locker lock(m_refLock);
-					if(m_screenWinWidth != LOWORD(lParam) || m_screenWinHeight != HIWORD(lParam))
-					{
-						m_screenWinWidth = LOWORD(lParam);
-						m_screenWinHeight = HIWORD(lParam);
-						VERIFY(SUCCEEDED(resizeDevice()));
-					}
-				}
-				break;
-			}
-			break;
-		case WM_WINDOWPOSCHANGED:
-			{
-				LPWINDOWPOS winPos = (LPWINDOWPOS)lParam;
-				if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
-				{
-					Locker lock(m_refLock);
-					if((winPos->flags & SWP_NOSIZE) == 0 && (winPos->cx != m_screenWinWidth || winPos->cy != m_screenWinHeight))
-					{
-						m_screenWinWidth = winPos->cx;
-						m_screenWinHeight = winPos->cy;
-						VERIFY(SUCCEEDED(resizeDevice()));
-					}
-				}
-				break;
-			}
-		}
-	}
-	return CallWindowProc(m_pOldWinProc, hWnd, uMsg, wParam, lParam);
 }
 
 void CDirectxWaterfall::setHeight(short newHeight)
@@ -827,58 +925,6 @@ void CDirectxWaterfall::setHeight(short newHeight)
 	Locker lock(m_refLock);
 	m_dataTexHeight = newHeight;
 	initDataTexture();
-}
-
-CDirectxWaterfall::CIncoming::~CIncoming()
-{
-	if(m_lastWidthAttr)
-	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
-		m_lastWidthAttr = NULL;
-	}
-}
-
-void CDirectxWaterfall::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
-{
-	if(m_lastWidthAttr)
-	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
-		m_lastWidthAttr = NULL;
-	}
-	if(!conn) return;
-	signals::IAttributes* attrs = conn->OutputAttributes();
-	if(!attrs) return;
-	signals::IAttribute* attr = attrs->GetByName("blockSize");
-	if(!attr || attr->Type() != signals::etypShort) return;
-	m_lastWidthAttr = attr;
-	m_lastWidthAttr->Observe(this);
-	m_bAttached = true;
-	OnChanged(attr->Name(), attr->Type(), attr->getValue());
-}
-
-void CDirectxWaterfall::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
-{
-	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
-	{
-		short width = *(short*)value;
-		if(width != m_parent->m_dataTexWidth && width > 0)
-		{
-			Locker lock(m_parent->m_refLock);
-			if(width != m_parent->m_dataTexWidth && width > 0)
-			{
-				m_parent->m_dataTexWidth = width;
-				m_parent->initDataTexture();
-			}
-		}
-	}
-}
-
-void CDirectxWaterfall::CIncoming::OnDetached(const char* name)
-{
-	if(_stricmp(name, "blockSize") == 0)
-	{
-		m_bAttached = false;
-	}
 }
 
 void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
@@ -900,6 +946,340 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 	for(unsigned i = 0; i < m_dataTexWidth; i++)
 	{
 		newLine[i] = dataTex_t(SHRT_MAX * frame[i]);
+	}
+
+	VERIFY(SUCCEEDED(drawFrame()));
+}
+
+// ---------------------------------------------------------------------------- class CDirectxWaveform
+
+CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxBase(driver),
+	m_dataTexData(NULL),m_pTechnique(NULL)
+{
+	buildAttrs();
+}
+
+CDirectxWaveform::~CDirectxWaveform()
+{
+	Locker lock(m_refLock);
+	releaseDevice();
+	if(m_dataTexData)
+	{
+		delete [] m_dataTexData;
+		m_dataTexData = NULL;
+	}
+}
+
+struct TL_FORM_VERTEX
+{
+	D3DXVECTOR3 pos;
+	float mag;
+	float tex;
+};
+
+void CDirectxWaveform::releaseDevice()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	CDirectxBase::releaseDevice();
+	m_dataTex.Release();
+	m_pEffect.Release();
+	m_pVertexBuffer.Release();
+	m_pVertexIndexBuffer.Release();
+	m_pInputLayout.Release();
+	m_dataView.Release();
+}
+
+HRESULT CDirectxWaveform::initTexture()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	// Load the shader in from the file.
+	static LPCTSTR filename = _T("waveform.fx");
+	ID3D10BlobPtr errorMessage;
+#ifdef _DEBUG
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
+#else
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
+#endif
+	HRESULT hR = D3DX10CreateEffectFromResource(gl_DllModule, filename, filename, NULL, NULL,
+		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, m_pEffect.inref(), errorMessage.inref(), NULL);
+	if(FAILED(hR))
+	{
+		// If the shader failed to compile it should have writen something to the error message.
+		if(errorMessage)
+		{
+			std::string compileErrors(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
+//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
+			int _i = 0;
+		}
+		return hR;
+	}
+
+	m_pTechnique = m_pEffect->GetTechniqueByName("WaterfallTechnique");
+	D3D10_PASS_DESC PassDesc;
+	m_pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
+
+	D3D10_INPUT_ELEMENT_DESC vdesc[] =
+	{
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TL_FORM_VERTEX, pos), D3D10_INPUT_PER_VERTEX_DATA, 0},
+		{"RANGE", 0, DXGI_FORMAT_R32_FLOAT, 0, offsetof(TL_FORM_VERTEX, mag), D3D10_INPUT_PER_VERTEX_DATA, 0},
+		{"TEXCOORD", 0, DXGI_FORMAT_R32_FLOAT, 0, offsetof(TL_FORM_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
+	};
+
+	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, m_pInputLayout.inref());
+	if(FAILED(hR)) return hR;
+
+	// calculate texture coordinates
+	float texLeft = (float)(int(m_screenCliWidth / 2) * -1);// + (float)positionX;
+	float mag = float(m_screenCliHeight) / 2.0f;
+
+	TL_FORM_VERTEX* vertices = new TL_FORM_VERTEX[m_screenCliWidth];
+	unsigned long* indices = new unsigned long[m_screenCliWidth];
+
+	for(unsigned idx=0; idx < m_screenCliWidth; idx++)
+	{
+		vertices[idx].pos = D3DXVECTOR3(idx - texLeft, 0.0f, 0.0f);
+		vertices[idx].tex = idx / float(m_screenCliWidth);
+		vertices[idx].mag = mag;
+		indices[idx] = idx;
+	}
+
+	D3D10_BUFFER_DESC vertexBufferDesc;
+	memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
+	vertexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+	vertexBufferDesc.ByteWidth = sizeof(TL_FORM_VERTEX) * m_screenCliWidth;
+	vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+//	vertexBufferDesc.CPUAccessFlags = 0;
+//	vertexBufferDesc.MiscFlags = 0;
+
+	D3D10_SUBRESOURCE_DATA vertexData;
+	memset(&vertexData, 0, sizeof(vertexData));
+	vertexData.pSysMem = vertices;
+
+	hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
+	delete [] vertices;
+	if(FAILED(hR))
+	{
+		delete [] indices;
+		return hR;
+	}
+
+	// Now create the index buffer.
+	D3D10_BUFFER_DESC indexBufferDesc;
+	memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
+	indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+	indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_screenCliWidth;
+	indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+//	indexBufferDesc.CPUAccessFlags = 0;
+//	indexBufferDesc.MiscFlags = 0;
+
+	D3D10_SUBRESOURCE_DATA indexData;
+	memset(&indexData, 0, sizeof(indexData));
+	vertexData.pSysMem = indices;
+
+	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, m_pVertexIndexBuffer.inref());
+	delete [] indices;
+	if(FAILED(hR)) return hR;
+
+	// Create an orthographic projection matrix for 2D rendering.
+	D3DXMATRIX orthoMatrix;
+	D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
+
+	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("orthoMatrix");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
+	if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
+	hR = pVarMat->SetMatrix(orthoMatrix);
+	if(FAILED(hR)) return hR;
+
+	return initDataTexture();
+}
+
+HRESULT CDirectxWaveform::initDataTexture()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	if(!m_dataTexWidth || !m_pDevice)
+	{
+		return S_FALSE;
+	}
+	m_dataView.Release();
+	m_dataTex.Release();
+	if(m_dataTexData) delete [] m_dataTexData;
+
+//	m_dataTexWidth = 1024;
+	m_dataTexData = new dataTex_t[m_dataTexWidth];
+	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth);
+
+	D3D10_TEXTURE1D_DESC dataDesc;
+	memset(&dataDesc, 0, sizeof(dataDesc));
+	dataDesc.Width = m_dataTexWidth;
+	dataDesc.MipLevels = 1;
+	dataDesc.ArraySize = 1;
+	dataDesc.Format = DXGI_FORMAT_R16_SNORM;
+	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
+	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+
+	HRESULT hR = m_pDevice->CreateTexture1D(&dataDesc, NULL, m_dataTex.inref());
+	if(FAILED(hR)) return hR;
+
+	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
+	if(FAILED(hR)) return hR;
+
+	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("waveformValues");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectShaderResourceVariable* pVarRes = pVar->AsShaderResource();
+	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
+	hR = pVarRes->SetResource(m_dataView);
+	if(FAILED(hR)) return hR;
+
+	pVar = m_pEffect->GetVariableByName("waveformColor");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
+	hR = pVarScal->SetFloatArray(m_waveformColor, 0, _countof(m_waveformColor));
+	if(FAILED(hR)) return hR;
+
+	return S_OK;
+}
+
+HRESULT CDirectxWaveform::resizeDevice()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	HRESULT hR = CDirectxBase::resizeDevice();
+	if(hR != S_OK) return hR;
+
+	if(m_pVertexBuffer)
+	{
+		// calculate texture coordinates
+		float texLeft = (float)(int(m_screenCliWidth / 2) * -1);// + (float)positionX;
+		float mag = float(m_screenCliHeight) / 2.0f;
+
+		TL_FORM_VERTEX* vertices = new TL_FORM_VERTEX[m_screenCliWidth];
+		unsigned long* indices = new unsigned long[m_screenCliWidth];
+
+		for(unsigned idx=0; idx < m_screenCliWidth; idx++)
+		{
+			vertices[idx].pos = D3DXVECTOR3(idx - texLeft, 0.0f, 0.0f);
+			vertices[idx].tex = idx / float(m_screenCliWidth);
+			vertices[idx].mag = mag;
+			indices[idx] = idx;
+		}
+
+		D3D10_BUFFER_DESC vertexBufferDesc;
+		memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
+		vertexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+		vertexBufferDesc.ByteWidth = sizeof(TL_FORM_VERTEX) * m_screenCliWidth;
+		vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+	//	vertexBufferDesc.CPUAccessFlags = 0;
+	//	vertexBufferDesc.MiscFlags = 0;
+
+		D3D10_SUBRESOURCE_DATA vertexData;
+		memset(&vertexData, 0, sizeof(vertexData));
+		vertexData.pSysMem = vertices;
+
+		m_pVertexBuffer.Release();
+		m_pVertexIndexBuffer.Release();
+		hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
+		delete [] vertices;
+		if(FAILED(hR))
+		{
+			delete [] indices;
+			return hR;
+		}
+
+		// Now create the index buffer.
+		D3D10_BUFFER_DESC indexBufferDesc;
+		memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
+		indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+		indexBufferDesc.ByteWidth = sizeof(unsigned long) * m_screenCliWidth;
+		indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+	//	indexBufferDesc.CPUAccessFlags = 0;
+	//	indexBufferDesc.MiscFlags = 0;
+
+		D3D10_SUBRESOURCE_DATA indexData;
+		memset(&indexData, 0, sizeof(indexData));
+		vertexData.pSysMem = indices;
+
+		hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, m_pVertexIndexBuffer.inref());
+		delete [] indices;
+		if(FAILED(hR)) return hR;
+	}
+
+	if(m_pEffect)
+	{
+		// Create an orthographic projection matrix for 2D rendering.
+		D3DXMATRIX orthoMatrix;
+		D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
+
+		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("orthoMatrix");
+		if(!pVar) return E_FAIL;
+		ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
+		if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
+		hR = pVarMat->SetMatrix(orthoMatrix);
+		if(FAILED(hR)) return hR;
+	}
+
+	return S_OK;
+}
+
+HRESULT CDirectxWaveform::drawFrameContents()
+{
+	// ASSUMES m_refLock IS HELD BY CALLER
+	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pTechnique)
+	{
+		return E_POINTER;
+	}
+
+	void* mappedDataTex;
+	memset(&mappedDataTex, 0, sizeof(mappedDataTex));
+	UINT subr = D3D10CalcSubresource(0, 0, 0);
+	HRESULT hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
+	if(FAILED(hR)) return hR;
+	memcpy(mappedDataTex, m_dataTexData, sizeof(dataTex_t)*m_dataTexWidth);
+	m_dataTex->Unmap(subr);
+
+	// setup the input assembler.
+	UINT stride = sizeof(TL_FORM_VERTEX); 
+	UINT offset = 0;
+	ID3D10Buffer* buf = m_pVertexBuffer;
+	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
+	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
+	m_pDevice->IASetInputLayout(m_pInputLayout);
+
+	// Get the description structure of the technique from inside the shader so it can be used for rendering.
+	D3D10_TECHNIQUE_DESC techniqueDesc;
+	memset(&techniqueDesc, 0, sizeof(techniqueDesc));
+	hR = m_pTechnique->GetDesc(&techniqueDesc);
+	if(FAILED(hR)) return hR;
+
+	// Go through each pass in the technique (should be just one currently) and render the triangles.
+	for(UINT i=0; i<techniqueDesc.Passes; ++i)
+	{
+		hR = m_pTechnique->GetPassByIndex(i)->Apply(0);
+		if(FAILED(hR)) return hR;
+
+		m_pDevice->DrawIndexed(m_screenCliWidth, 0, 0);
+	}
+
+	return S_OK;
+}
+
+void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
+{
+	if(size && size != m_dataTexWidth)
+	{
+		if(size && size != m_dataTexWidth)
+		{
+			m_dataTexWidth = size;
+			initDataTexture();
+		}
+	}
+
+	// write the new line out
+	for(unsigned i = 0; i < m_dataTexWidth; i++)
+	{
+		m_dataTexData[i] = dataTex_t(SHRT_MAX * frame[i]);
 	}
 
 	VERIFY(SUCCEEDED(drawFrame()));

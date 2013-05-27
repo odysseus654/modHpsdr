@@ -22,6 +22,9 @@
     <None Include="waterfall.fx">
       <Filter>Implementation</Filter>
     </None>
+    <None Include="waveform.fx">
+      <Filter>Implementation</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\block.h">

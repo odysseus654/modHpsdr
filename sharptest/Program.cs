@@ -26,10 +26,10 @@ namespace sharptest
 #endif
 
             Layout.Schematic schem = new Layout.Schematic();
-            Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "fft");
-            Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "radio");
-            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.Schematic.ElementType.Function, "mag2");
-            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.Schematic.ElementType.Module, "waterfall");
+            Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
+            Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.ElementType.Module, "radio");
+            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag");
+            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
 
             schem.add(fftElem);
             schem.add(mag2Func);
@@ -46,6 +46,7 @@ namespace sharptest
             signals.OnChanged evt = new signals.OnChanged(OnChanged);
             foreach(signals.IAttribute attr in attrs) attr.changed += evt;
             attrs["recvRate"].Value = 48000;
+            attrs["Recv1Freq"].Value = 10000000;
 /*
             signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
             signals.IOutEndpoint fftOut = fft.Outgoing[0];
@@ -66,7 +67,7 @@ namespace sharptest
 
         void panel1_HandleCreated(object sender, EventArgs e)
         {
-            Layout.Schematic.ElemKey waterfallElem = new Layout.Schematic.ElemKey(Layout.Schematic.ElementType.Module, "waterfall");
+            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waterfall");
             List<Layout.Circuit.Element> lookup = circuit.Find(waterfallElem);
             signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
             waterfall.Attributes["targetWindow"].Value = canvas.panel1.Handle;
