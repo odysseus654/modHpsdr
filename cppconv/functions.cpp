@@ -165,6 +165,28 @@ struct pick_imag : public std::unary_function<std::complex<BASE>,BASE>
 	}
 };
 
+struct func_log10 : public std::unary_function<double,double>
+{
+	typedef double argument_type;
+	typedef double result_type;
+
+	inline double operator()(double parm)
+	{
+		return parm <= 0 ? -1023.0 : log10(parm);
+	}
+};
+
+struct func_db : public std::unary_function<double,double>
+{
+	typedef double argument_type;
+	typedef double result_type;
+
+	inline double operator()(double parm)
+	{
+		return parm <= 0 ? -3100.0 : 10.0 * log10(parm);
+	}
+};
+
 // complex transforms
 static Function<signals::etypComplex,signals::etypDouble,mag2<float> > mag2S("mag2","squared magnitude (complex-single)");
 static Function<signals::etypCmplDbl,signals::etypDouble,mag2<double> > mag2D("mag2","squared magnitude (complex-double)");
@@ -176,6 +198,9 @@ static Function<signals::etypCmplDbl,signals::etypDouble,pick_real<double> > prD
 static Function<signals::etypComplex,signals::etypSingle,pick_imag<float> > piS("pick_imag","imaginary component (complex-single)");
 static Function<signals::etypCmplDbl,signals::etypDouble,pick_imag<double> > piD("pick_imag","imaginary component (complex-double)");
 
+static Function<signals::etypDouble,signals::etypDouble,func_log10> log10D("log10","common logarithm");
+static Function<signals::etypDouble,signals::etypDouble,func_db> decibelD("db","decibels");
+
 static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag2","squared magnitude (complex-single)");
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag2","squared magnitude (complex-double)");
 static Function<signals::etypVecComplex,signals::etypVecDouble,mag<float> > magVS("mag","magnitude (complex-single)");
@@ -185,6 +210,9 @@ static Function<signals::etypVecComplex,signals::etypVecSingle,pick_real<float> 
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_real<double> > prVD("pick_real","real component (complex-double)");
 static Function<signals::etypVecComplex,signals::etypVecSingle,pick_imag<float> > piVS("pick_imag","imaginary component (complex-single)");
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_imag<double> > piVD("pick_imag","imaginary component (complex-double)");
+
+static Function<signals::etypVecDouble,signals::etypVecDouble,func_log10> log10VD("log10","common logarithm");
+static Function<signals::etypVecDouble,signals::etypVecDouble,func_db> decibelVD("db","decibels");
 
 signals::IFunctionSpec* FUNCTIONS[] = {
 	// lossless assignments
@@ -207,7 +235,10 @@ signals::IFunctionSpec* FUNCTIONS[] = {
 
 	// complex transforms
 	&mag2S, &mag2D, &magS, &magD, &prS, &prD, &piS, &piD,
-	&magV2S, &magV2D, &magVS, &magVD, &prVS, &prVD, &piVS, &piVD
+	&magV2S, &magV2D, &magVS, &magVD, &prVS, &prVD, &piVS, &piVD,
+
+	// logarithms
+	&log10D, &log10VD, &decibelD, &decibelVD
 };
 
 extern "C" unsigned QueryFunctions(signals::IFunctionSpec** funcs, unsigned availFuncs)

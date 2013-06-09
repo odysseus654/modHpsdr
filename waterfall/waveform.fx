@@ -17,7 +17,7 @@ struct VertexInputType
 {
 	float4 position : POSITION;
 	float mag : RANGE;
-	float tex : TEXCOORD;
+	unorm float tex : TEXCOORD;
 };
 struct PixelInputType
 {

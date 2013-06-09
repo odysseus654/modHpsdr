@@ -208,6 +208,7 @@ private: // directx stuff
 	typedef unsigned short dataTex_t;
 	UINT m_dataTexHeight;
 	dataTex_t *m_dataTexData;
+	float* m_floatStaging;
 
 	// Direct3d references we use
 	ID3D10Texture2DPtr m_dataTex;

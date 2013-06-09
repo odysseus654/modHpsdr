@@ -2,7 +2,7 @@
 
 // globals
 matrix orthoMatrix;
-Texture2D waterfallValues; // DXGI_FORMAT_R16_UNORM, 0 >= x => 1
+Texture2D waterfallValues; // DXGI_FORMAT_R16_FLOAT
 Texture1D waterfallColors; // DXGI_FORMAT_R32G32B32_FLOAT
 
 SamplerState ValueSampleType
@@ -23,11 +23,11 @@ SamplerState ColorSampleType
 struct VertexInputType
 {
 	float4 position : POSITION;
-	float2 tex : TEXCOORD;
+	unorm float2 tex : TEXCOORD;
 };
 struct PixelInputType
 {
-	float2 tex : TEXCOORD;
+	unorm float2 tex : TEXCOORD;
 	float4 position : SV_POSITION;
 };
 

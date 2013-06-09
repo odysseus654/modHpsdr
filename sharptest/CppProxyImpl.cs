@@ -59,7 +59,7 @@ namespace cppProxy
 
             string typeName = "proxy_" + ifaceType.Name;
             TypeBuilder typeBuilder = modBuilder.DefineType(typeName,
-                TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AnsiClass | TypeAttributes.AutoClass |
+                TypeAttributes.Public | TypeAttributes.Class | TypeAttributes.AutoClass |
                 TypeAttributes.BeforeFieldInit | TypeAttributes.AutoLayout,
                 typeof(CppNativeProxy), new Type[] { ifaceType });
 
@@ -331,7 +331,7 @@ namespace cppProxy
                 {
                     TypeBuilder typeBuilder = modBuilder.DefineType(String.Format("delegate_{0}", nextDelegate++),
                         TypeAttributes.Public | TypeAttributes.Sealed | TypeAttributes.Class |
-                        TypeAttributes.AnsiClass | TypeAttributes.AutoClass, typeof(MulticastDelegate));
+                        TypeAttributes.AutoClass, typeof(MulticastDelegate));
 
                     ConstructorBuilder constructorBuilder = typeBuilder.DefineConstructor(
                         MethodAttributes.RTSpecialName | MethodAttributes.HideBySig | MethodAttributes.Public,

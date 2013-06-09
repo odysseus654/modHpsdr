@@ -28,16 +28,19 @@ namespace sharptest
             Layout.Schematic schem = new Layout.Schematic();
             Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
             Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.ElementType.Module, "radio");
-            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag");
+            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag2");
+            Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "db");
             Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
 
             schem.add(fftElem);
             schem.add(mag2Func);
+            schem.add(dbFunc);
             schem.add(waterfallElem);
             schem.add(radioElem);
             schem.connect(radioElem, "recv1", fftElem, 0);
             schem.connect(fftElem, 0, mag2Func, 0);
-            schem.connect(mag2Func, 0, waterfallElem, 0);
+            schem.connect(mag2Func, 0, dbFunc, 0);
+            schem.connect(dbFunc, 0, waterfallElem, 0);
             List<Layout.Schematic> options = schem.resolve(library);
             circuit = options[0].construct();
 
@@ -47,14 +50,14 @@ namespace sharptest
             foreach(signals.IAttribute attr in attrs) attr.changed += evt;
             attrs["recvRate"].Value = 48000;
             attrs["Recv1Freq"].Value = 10000000;
-/*
-            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
-            signals.IOutEndpoint fftOut = fft.Outgoing[0];
-            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
-            fftOut.Connect(outBuff);
-            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
-            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
-            */
+
+//            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
+//            signals.IOutEndpoint fftOut = fft.Outgoing[0];
+//            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
+//            fftOut.Connect(outBuff);
+//            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
+//            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
+            
             canvas = new Canvas();
             canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
             canvasThread = canvas.Start();

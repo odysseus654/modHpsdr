@@ -560,7 +560,7 @@ HRESULT CDirectxBase::drawFrame()
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL)
+	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_floatStaging(NULL)
 {
 	buildAttrs();
 }
@@ -573,6 +573,11 @@ CDirectxWaterfall::~CDirectxWaterfall()
 	{
 		delete [] m_dataTexData;
 		m_dataTexData = NULL;
+	}
+	if(m_floatStaging)
+	{
+		delete [] m_floatStaging;
+		m_floatStaging = NULL;
 	}
 }
 
@@ -796,10 +801,12 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	m_dataView.Release();
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
+	if(m_floatStaging) delete [] m_floatStaging;
 
 //	m_dataTexWidth = 1024;
 //	m_dataTexHeight = 512;
 	m_dataTexData = new dataTex_t[m_dataTexWidth*m_dataTexHeight];
+	m_floatStaging = new float[m_dataTexWidth];
 	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
 
 	D3D10_TEXTURE2D_DESC dataDesc;
@@ -808,7 +815,7 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	dataDesc.Height = m_dataTexHeight;
 	dataDesc.MipLevels = 1;
 	dataDesc.ArraySize = 1;
-	dataDesc.Format = DXGI_FORMAT_R16_SNORM;
+	dataDesc.Format = DXGI_FORMAT_R16_FLOAT;
 	dataDesc.SampleDesc.Count = 1;
 	dataDesc.SampleDesc.Quality = 0;
 	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
@@ -941,13 +948,12 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 	// shift the data up one row
 	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(dataTex_t)*m_dataTexWidth*(m_dataTexHeight-1));
 
+	// convert to float
+	for(unsigned i = 0; i < m_dataTexWidth; i++) m_floatStaging[i] = float(frame[i]);
+
 	// write a new bottom line
 	dataTex_t* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
-	for(unsigned i = 0; i < m_dataTexWidth; i++)
-	{
-		newLine[i] = dataTex_t(SHRT_MAX * frame[i]);
-	}
-
+	D3DXFloat32To16Array((D3DXFLOAT16*)(newLine), m_floatStaging, m_dataTexWidth);
 	VERIFY(SUCCEEDED(drawFrame()));
 }
 
