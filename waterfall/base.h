@@ -6,6 +6,7 @@
 struct ID3D10DepthStencilState;
 struct ID3D10DepthStencilView;
 struct ID3D10Device;
+struct ID3D10Effect;
 struct ID3D10RenderTargetView;
 struct ID3D10Texture2D;
 struct IDXGISwapChain;
@@ -13,6 +14,7 @@ struct IDXGISwapChain;
 typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
 typedef unk_ref_t<ID3D10DepthStencilView> ID3D10DepthStencilViewPtr;
 typedef unk_ref_t<ID3D10Device> ID3D10DevicePtr;
+typedef unk_ref_t<ID3D10Effect> ID3D10EffectPtr;
 typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
 typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
 typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
@@ -46,7 +48,7 @@ public: // IBlock implementation
 		CRWAttribute<signals::etypBoolean>* enableVsync;
 	} attrs;
 
-	void setTargetWindow(HWND hWnd);
+	void setTargetWindow(void* const & hWnd);
 
 public:
 	class CIncoming : public CInEndpointBase, public CAttributesBase, public signals::IAttributeObserver
@@ -122,6 +124,7 @@ private:	// Direct3d references we use
 	ID3D10RenderTargetViewPtr m_pRenderTargetView;
 
 protected:
+	HRESULT compileResource(LPCTSTR fileName, ID3D10EffectPtr& pEffect, std::string& errors);
 	virtual void buildAttrs();
 	virtual void releaseDevice();
 	virtual HRESULT initTexture() PURE;
@@ -136,4 +139,32 @@ private:
 	static void process_thread(CDirectxBase* owner);
 	LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	static LRESULT WindowProcCatcher(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
+};
+
+// ---------------------------------------------------------------------------- class CAttr_callback
+
+template<signals::EType ET, class CBASE>
+class CAttr_callback : public CRWAttribute<ET>
+{
+private:
+	typedef CRWAttribute<ET> base;
+public:
+	typedef void (CBASE::*TCallback)(const store_type& newVal);
+public:
+	inline CAttr_callback(CBASE& parent, const char* name, const char* descr, TCallback cb, store_type deflt)
+		:base(name, descr, deflt), m_parent(parent), m_callback(cb)
+	{
+		(m_parent.*m_callback)(this->nativeGetValue());
+	}
+
+protected:
+	CBASE& m_parent;
+	TCallback m_callback;
+
+protected:
+	virtual void onSetValue(const store_type& newVal)
+	{
+		(m_parent.*m_callback)(newVal);
+		base::onSetValue(newVal);
+	}
 };

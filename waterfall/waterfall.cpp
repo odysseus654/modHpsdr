@@ -8,38 +8,10 @@
 #pragma comment(lib, "d3d10.lib")
 #pragma comment(lib, "d3dx10.lib")
 
-typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
-
-extern HMODULE gl_DllModule;
-
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
 const unsigned long CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 
 static const float PI = std::atan(1.0f)*4;
-
-// ---------------------------------------------------------------------------- class CAttr_height
-
-class CAttr_height : public CRWAttribute<signals::etypShort>
-{
-private:
-	typedef CRWAttribute<signals::etypShort> base;
-public:
-	inline CAttr_height(CDirectxWaterfall& parent, const char* name, const char* descr, store_type deflt)
-		:base(name, descr, deflt), m_parent(parent)
-	{
-		m_parent.setHeight(this->nativeGetValue());
-	}
-
-protected:
-	CDirectxWaterfall& m_parent;
-
-protected:
-	virtual void onSetValue(const store_type& newVal)
-	{
-		m_parent.setHeight(newVal);
-		base::onSetValue(newVal);
-	}
-};
 
 // ---------------------------------------------------------------------------- DirectX utilities
 
@@ -91,7 +63,7 @@ static std::pair<float,float> rect2polar(float x, float y)
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_floatStaging(NULL)
+	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_floatStaging(NULL),m_minRange(0.0f),m_maxRange(0.0f)
 {
 	buildAttrs();
 }
@@ -121,7 +93,12 @@ struct TL_FALL_VERTEX
 void CDirectxWaterfall::buildAttrs()
 {
 	CDirectxBase::buildAttrs();
-	attrs.height = addLocalAttr(true, new CAttr_height(*this, "height", "Rows of history to display", 512));
+	attrs.height = addLocalAttr(true, new CAttr_callback<signals::etypShort,CDirectxWaterfall>
+		(*this, "height", "Rows of history to display", &CDirectxWaterfall::setHeight, 512));
+	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
+		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -200.0f));
+	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
+		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -150.0f));
 }
 
 void CDirectxWaterfall::releaseDevice()
@@ -213,25 +190,9 @@ HRESULT CDirectxWaterfall::initTexture()
 	// ASSUMES m_refLock IS HELD BY CALLER
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waterfall.fx");
-	ID3D10BlobPtr errorMessage;
-#ifdef _DEBUG
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
-#else
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
-#endif
-	HRESULT hR = D3DX10CreateEffectFromResource(gl_DllModule, filename, filename, NULL, NULL,
-		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, m_pEffect.inref(), errorMessage.inref(), NULL);
-	if(FAILED(hR))
-	{
-		// If the shader failed to compile it should have writen something to the error message.
-		if(errorMessage)
-		{
-			std::string compileErrors(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
-//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
-			int _i = 0;
-		}
-		return hR;
-	}
+	std::string errors;
+	HRESULT hR = compileResource(filename, m_pEffect, errors);
+	if(FAILED(hR)) return hR;
 
 	m_pTechnique = m_pEffect->GetTechniqueByName("WaterfallTechnique");
 	D3D10_PASS_DESC PassDesc;
@@ -366,7 +327,49 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	hR = pVarRes->SetResource(m_dataView);
 	if(FAILED(hR)) return hR;
 
+	pVar = m_pEffect->GetVariableByName("minRange");
+	if(!pVar) return E_FAIL;
+	ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
+	hR = pVarScal->SetFloat(m_minRange);
+	if(FAILED(hR)) return hR;
+
+	pVar = m_pEffect->GetVariableByName("maxRange");
+	if(!pVar) return E_FAIL;
+	pVarScal = pVar->AsScalar();
+	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
+	hR = pVarScal->SetFloat(m_maxRange);
+	if(FAILED(hR)) return hR;
+
 	return S_OK;
+}
+
+void CDirectxWaterfall::setMinRange(const float& newMin)
+{
+	if(newMin != m_minRange)
+	{
+		m_minRange = newMin;
+		if(!m_pEffect) return;
+		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("minRange");
+		if(!pVar) return;
+		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+		if(!pVarScal || !pVarScal->IsValid()) return;
+		pVarScal->SetFloat(m_minRange);
+	}
+}
+
+void CDirectxWaterfall::setMaxRange(const float& newMax)
+{
+	if(newMax != m_maxRange)
+	{
+		m_maxRange = newMax;
+		if(!m_pEffect) return;
+		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("maxRange");
+		if(!pVar) return;
+		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+		if(!pVarScal || !pVarScal->IsValid()) return;
+		pVarScal->SetFloat(m_maxRange);
+	}
 }
 
 HRESULT CDirectxWaterfall::resizeDevice()
@@ -457,7 +460,7 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	return S_OK;
 }
 
-void CDirectxWaterfall::setHeight(short newHeight)
+void CDirectxWaterfall::setHeight(const short& newHeight)
 {
 	if(newHeight == m_dataTexHeight || newHeight <= 0) return;
 	Locker lock(m_refLock);

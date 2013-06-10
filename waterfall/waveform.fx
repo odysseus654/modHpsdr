@@ -2,8 +2,10 @@
 
 // globals
 matrix orthoMatrix;
-Texture1D waveformValues; // DXGI_FORMAT_R16_UNORM, 0 >= x => 1
+Texture1D waveformValues; // DXGI_FORMAT_R16_FLOAT
 float4 waveformColor;
+float minRange;
+float maxRange;
 
 SamplerState WaveSampleType
 {
@@ -33,7 +35,8 @@ PixelInputType VS(VertexInputType input)
 
 	float4 newPos = input.position;
 	float val = waveformValues.Sample(WaveSampleType, input.tex);
-	newPos.y = val * input.mag;
+	float newVal = (val - minRange) / (maxRange - minRange);
+	newPos.y = newVal * input.mag;
 	
 	// Calculate the position of the vertex against the world, view, and projection matrices.
 	output.position = mul(newPos, orthoMatrix);

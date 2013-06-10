@@ -8,16 +8,12 @@
 #pragma comment(lib, "d3d10.lib")
 #pragma comment(lib, "d3dx10.lib")
 
-typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
-
-extern HMODULE gl_DllModule;
-
 char const * CDirectxWaveform::NAME = "DirectX waveform display";
 
 // ---------------------------------------------------------------------------- class CDirectxWaveform
 
 CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexData(NULL),m_pTechnique(NULL)
+	m_dataTexData(NULL),m_pTechnique(NULL),m_minRange(0.0f),m_maxRange(0.0f)
 {
 	buildAttrs();
 }
@@ -31,6 +27,11 @@ CDirectxWaveform::~CDirectxWaveform()
 		delete [] m_dataTexData;
 		m_dataTexData = NULL;
 	}
+	if(m_floatStaging)
+	{
+		delete [] m_floatStaging;
+		m_floatStaging = NULL;
+	}
 }
 
 struct TL_FORM_VERTEX
@@ -39,6 +40,15 @@ struct TL_FORM_VERTEX
 	float mag;
 	float tex;
 };
+
+void CDirectxWaveform::buildAttrs()
+{
+	CDirectxBase::buildAttrs();
+	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaveform>
+		(*this, "minRange", "Weakest signal to display", &CDirectxWaveform::setMinRange, -200.0f));
+	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaveform>
+		(*this, "maxRange", "Strongest signal to display", &CDirectxWaveform::setMaxRange, -150.0f));
+}
 
 void CDirectxWaveform::releaseDevice()
 {
@@ -57,27 +67,11 @@ HRESULT CDirectxWaveform::initTexture()
 	// ASSUMES m_refLock IS HELD BY CALLER
 	// Load the shader in from the file.
 	static LPCTSTR filename = _T("waveform.fx");
-	ID3D10BlobPtr errorMessage;
-#ifdef _DEBUG
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
-#else
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
-#endif
-	HRESULT hR = D3DX10CreateEffectFromResource(gl_DllModule, filename, filename, NULL, NULL,
-		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, m_pEffect.inref(), errorMessage.inref(), NULL);
-	if(FAILED(hR))
-	{
-		// If the shader failed to compile it should have writen something to the error message.
-		if(errorMessage)
-		{
-			std::string compileErrors(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
-//			MessageBox(hOutputWin, filename, L"Missing Shader File", MB_OK);
-			int _i = 0;
-		}
-		return hR;
-	}
+	std::string errors;
+	HRESULT hR = compileResource(filename, m_pEffect, errors);
+	if(FAILED(hR)) return hR;
 
-	m_pTechnique = m_pEffect->GetTechniqueByName("WaterfallTechnique");
+	m_pTechnique = m_pEffect->GetTechniqueByName("WaveformTechnique");
 	D3D10_PASS_DESC PassDesc;
 	m_pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
 
@@ -167,9 +161,11 @@ HRESULT CDirectxWaveform::initDataTexture()
 	m_dataView.Release();
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
+	if(m_floatStaging) delete [] m_floatStaging;
 
 //	m_dataTexWidth = 1024;
 	m_dataTexData = new dataTex_t[m_dataTexWidth];
+	m_floatStaging = new float[m_dataTexWidth];
 	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth);
 
 	D3D10_TEXTURE1D_DESC dataDesc;
@@ -177,7 +173,7 @@ HRESULT CDirectxWaveform::initDataTexture()
 	dataDesc.Width = m_dataTexWidth;
 	dataDesc.MipLevels = 1;
 	dataDesc.ArraySize = 1;
-	dataDesc.Format = DXGI_FORMAT_R16_SNORM;
+	dataDesc.Format = DXGI_FORMAT_R16_FLOAT;
 	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
 	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
@@ -202,7 +198,49 @@ HRESULT CDirectxWaveform::initDataTexture()
 	hR = pVarScal->SetFloatArray(m_waveformColor, 0, _countof(m_waveformColor));
 	if(FAILED(hR)) return hR;
 
+	pVar = m_pEffect->GetVariableByName("minRange");
+	if(!pVar) return E_FAIL;
+	pVarScal = pVar->AsScalar();
+	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
+	hR = pVarScal->SetFloat(m_minRange);
+	if(FAILED(hR)) return hR;
+
+	pVar = m_pEffect->GetVariableByName("maxRange");
+	if(!pVar) return E_FAIL;
+	pVarScal = pVar->AsScalar();
+	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
+	hR = pVarScal->SetFloat(m_maxRange);
+	if(FAILED(hR)) return hR;
+
 	return S_OK;
+}
+
+void CDirectxWaveform::setMinRange(const float& newMin)
+{
+	if(newMin != m_minRange)
+	{
+		m_minRange = newMin;
+		if(!m_pEffect) return;
+		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("minRange");
+		if(!pVar) return;
+		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+		if(!pVarScal || !pVarScal->IsValid()) return;
+		pVarScal->SetFloat(m_minRange);
+	}
+}
+
+void CDirectxWaveform::setMaxRange(const float& newMax)
+{
+	if(newMax != m_maxRange)
+	{
+		m_maxRange = newMax;
+		if(!m_pEffect) return;
+		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("maxRange");
+		if(!pVar) return;
+		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
+		if(!pVarScal || !pVarScal->IsValid()) return;
+		pVarScal->SetFloat(m_maxRange);
+	}
 }
 
 HRESULT CDirectxWaveform::resizeDevice()
@@ -339,11 +377,11 @@ void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
 		}
 	}
 
+	// convert to float
+	for(unsigned i = 0; i < m_dataTexWidth; i++) m_floatStaging[i] = float(frame[i]);
+
 	// write the new line out
-	for(unsigned i = 0; i < m_dataTexWidth; i++)
-	{
-		m_dataTexData[i] = dataTex_t(SHRT_MAX * frame[i]);
-	}
+	D3DXFloat32To16Array((D3DXFLOAT16*)(m_dataTexData), m_floatStaging, m_dataTexWidth);
 
 	VERIFY(SUCCEEDED(drawFrame()));
 }

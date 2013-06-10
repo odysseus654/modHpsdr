@@ -4,6 +4,8 @@
 matrix orthoMatrix;
 Texture2D waterfallValues; // DXGI_FORMAT_R16_FLOAT
 Texture1D waterfallColors; // DXGI_FORMAT_R32G32B32_FLOAT
+float minRange;
+float maxRange;
 
 SamplerState ValueSampleType
 {
@@ -49,8 +51,9 @@ PixelInputType VS(VertexInputType input)
 
 float4 PS(PixelInputType input) : SV_Target
 {
-	unorm float val = waterfallValues.Sample(ValueSampleType, input.tex);
-	float4 texColor = waterfallColors.Sample(ColorSampleType, val);
+	float val = waterfallValues.Sample(ValueSampleType, input.tex);
+	float newVal = (val - minRange) / (maxRange - minRange);
+	float4 texColor = waterfallColors.Sample(ColorSampleType, newVal);
 	return texColor;
 }
 

@@ -8,33 +8,12 @@
 #pragma comment(lib, "d3d10.lib")
 #pragma comment(lib, "d3dx10.lib")
 
+extern HMODULE gl_DllModule;
+
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
 
 const char* CDirectxBase::CIncoming::EP_NAME = "in";
 const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
-
-// ---------------------------------------------------------------------------- class CAttr_target_hwnd
-
-class CAttr_target_hwnd : public CRWAttribute<signals::etypWinHdl>
-{
-private:
-	typedef CRWAttribute<signals::etypWinHdl> base;
-public:
-	inline CAttr_target_hwnd(CDirectxBase& parent, const char* name, const char* descr)
-		:base(name, descr, NULL), m_parent(parent)
-	{
-	}
-
-protected:
-	CDirectxBase& m_parent;
-
-protected:
-	virtual void onSetValue(const store_type& newVal)
-	{
-		m_parent.setTargetWindow((HWND)newVal);
-		base::onSetValue(newVal);
-	}
-};
 
 // ---------------------------------------------------------------------------- class CDirectxBase
 
@@ -97,8 +76,10 @@ void CDirectxBase::process_thread(CDirectxBase* owner)
 
 void CDirectxBase::buildAttrs()
 {
-	attrs.targetWindow = addLocalAttr(true, new CAttr_target_hwnd(*this, "targetWindow", "Window to display waterfall on"));
-	attrs.enableVsync = addLocalAttr(true, new CRWAttribute<signals::etypBoolean>("enableVsync", "Use monitor vsync on display", false));
+	attrs.targetWindow = addLocalAttr(true, new CAttr_callback<signals::etypWinHdl,CDirectxBase>
+		(*this, "targetWindow", "Window to display waterfall on", &CDirectxBase::setTargetWindow, NULL));
+	attrs.enableVsync = addLocalAttr(true, new CRWAttribute<signals::etypBoolean>
+		("enableVsync", "Use monitor vsync on display", false));
 }
 
 void CDirectxBase::releaseDevice()
@@ -121,8 +102,9 @@ void CDirectxBase::releaseDevice()
 	m_pDevice.Release();
 }
 
-void CDirectxBase::setTargetWindow(HWND hWnd)
+void CDirectxBase::setTargetWindow(void* const & newTarg)
 {
+	HWND hWnd = HWND(newTarg);
 	Locker lock(m_refLock);
 	releaseDevice();
 	m_hOutputWin = hWnd;
@@ -137,6 +119,28 @@ void CDirectxBase::setTargetWindow(HWND hWnd)
 		if(SUCCEEDED(hR)) hR = initTexture();
 		if(FAILED(hR)) ThrowLastError(hR);
 	}
+}
+
+HRESULT CDirectxBase::compileResource(LPCTSTR fileName, ID3D10EffectPtr& pEffect, std::string& errors)
+{
+	// Load the shader in from the file.
+	ID3D10BlobPtr errorMessage;
+#ifdef _DEBUG
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
+#else
+	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
+#endif
+	HRESULT hR = D3DX10CreateEffectFromResource(gl_DllModule, fileName, fileName, NULL, NULL,
+		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, pEffect.inref(), errorMessage.inref(), NULL);
+	if(FAILED(hR))
+	{
+		// If the shader failed to compile it should have writen something to the error message.
+		if(errorMessage)
+		{
+			errors = std::string(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
+		}
+	}
+	return hR;
 }
 
 HRESULT CDirectxBase::initDevice()
