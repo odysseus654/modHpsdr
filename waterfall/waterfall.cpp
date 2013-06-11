@@ -98,7 +98,7 @@ void CDirectxWaterfall::buildAttrs()
 	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
 		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -200.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
-		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -150.0f));
+		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -100.0f));
 }
 
 void CDirectxWaterfall::releaseDevice()

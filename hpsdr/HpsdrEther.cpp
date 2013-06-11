@@ -370,17 +370,11 @@ void CHpsdrEthernet::thread_recv()
 							numSamples += receive_frame(message+520);
 							if(!m_iqStarting && m_lastIQSeq+1 != seq)
 							{
-								if(!m_iqSyncFault)
-								{
-									m_iqSyncFault = true;
-									attrs.sync_fault->fire();
-								}
-							}
-							else
-							{
+								attrs.sync_fault->fire();
+							} else {
 								m_iqStarting = false;
-								m_lastIQSeq = seq;
 							}
+							m_lastIQSeq = seq;
 							m_recvSamples += numSamples * MIC_RATE;
 							if(m_recvSamples > m_recvSpeed*128)
 							{

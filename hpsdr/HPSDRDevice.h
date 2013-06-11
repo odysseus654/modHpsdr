@@ -362,9 +362,6 @@ protected:
 	unsigned int m_recvSpeed;
 	const EBoardId m_controllerType;
 
-	bool m_iqSyncFault;
-	bool m_micSyncFault;
-
 	std::vector<Receiver*> m_receivers;				// protected by m_recvListLock
 	Lock m_recvListLock;
 

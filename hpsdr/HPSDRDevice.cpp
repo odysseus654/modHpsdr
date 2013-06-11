@@ -32,8 +32,7 @@ CHpsdrDevice::CHpsdrDevice(EBoardId boardId)
 	:m_controllerType(boardId),m_CCoutSet(0),m_CCoutPending(0),m_micSample(0),m_lastCCout(MAX_CC_OUT),m_CC0in(0),
 	 m_receiver1(this, 0),m_receiver2(this, 1),m_receiver3(this, 2),m_receiver4(this, 3),m_wideRecv(this),
 	 m_microphone(this),m_speaker(this),m_transmit(this),m_recvSpeed(0),m_attrThreadEnabled(true),
-	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr)), m_CCinDirty(0), m_iqSyncFault(false),
-	 m_micSyncFault(false)
+	 m_attrThread(Thread<>::delegate_type(this, &CHpsdrDevice::thread_attr)), m_CCinDirty(0)
 {
 	memset(m_CCout, 0, sizeof(m_CCout));
 	memset(m_CCin, 0, sizeof(m_CCin));
@@ -107,13 +106,8 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 			{
 				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
 				ASSERT(m_receivers[recv]->isConnected());
-				if(m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0))
+				if(!m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0) && m_receivers[recv]->isConnected())
 				{
-					m_iqSyncFault = false;
-				}
-				else if(!m_iqSyncFault && m_receivers[recv]->isConnected())
-				{
-					m_iqSyncFault = true;
 					attrs.sync_fault->fire();
 				}
 			}
@@ -129,13 +123,8 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 			// force the 16bit number to be signed and convert to float
 			short MicAmpl = (short(frame[0]) << 8) | frame[1];
 			float sample = MicAmpl / SCALE_16;
-			if(m_microphone.Write(signals::etypSingle, &sample, 1, 0))
+			if(!m_microphone.Write(signals::etypSingle, &sample, 1, 0) && m_microphone.isConnected())
 			{
-				m_micSyncFault = false;
-			}
-			else if(!m_micSyncFault && m_microphone.isConnected())
-			{
-				m_micSyncFault = true;
 				attrs.sync_mic_fault->fire();
 			}
 		}
