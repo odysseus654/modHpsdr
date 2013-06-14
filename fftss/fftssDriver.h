@@ -79,7 +79,7 @@ public:
 		CAttributeBase* blockSize;
 	} attrs;
 
-	void setBlockSize(long blockSize);
+	void setBlockSize(const short& blockSize);
 
 private:
 	enum
@@ -100,16 +100,14 @@ private:
 	void refreshPlan();
 
 public:
-	class COutgoing : public COutEndpointBase, public CAttributesBase
+	class COutgoing : public CSimpleOutgoingChild<signals::etypVecCmplDbl>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		typedef TComplexDbl store_type;
 		inline COutgoing(CFFTransform* parent):m_parent(parent) { }
-		virtual ~COutgoing() {}
 		void buildAttrs(const CFFTransform& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
 		CFFTransform* m_parent;
 
 	public:
@@ -127,50 +125,22 @@ public:
 		COutgoing& operator=(const COutgoing& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::EType Type()				{ return signals::etypVecCmplDbl; }
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-
-		virtual signals::IEPBuffer* CreateBuffer()
-		{
-			signals::IEPBuffer* buffer = new CEPBuffer<signals::etypVecCmplDbl>(DEFAULT_BUFSIZE);
-			buffer->AddRef(NULL);
-			return buffer;
-		}
 	};
 
-	class CIncoming : public CInEndpointBase, public CAttributesBase
+	class CIncoming : public CSimpleIncomingChild<signals::etypCmplDbl>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		typedef std::complex<double> store_type;
-		inline CIncoming(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~CIncoming() {}
-
-	protected:
-		enum { DEFAULT_BUFSIZE = 4096 };
-		signals::IBlock* m_parent;
+		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
+		virtual const char* EPName()				{ return EP_NAME; }
+		virtual const char* EPDescr()				{ return EP_DESCR; }
 
 	private:
 		const static char* EP_NAME;
 		const static char* EP_DESCR;
 		CIncoming(const CIncoming& other);
 		CIncoming& operator=(const CIncoming& other);
-
-	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_NAME; }
-		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::EType Type()				{ return signals::etypCmplDbl; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-
-		virtual signals::IEPBuffer* CreateBuffer()
-		{
-			signals::IEPBuffer* buff = new CEPBuffer<signals::etypCmplDbl>(DEFAULT_BUFSIZE);
-			buff->AddRef(NULL);
-			return buff;
-		}
 	};
 
 private:

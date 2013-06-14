@@ -51,15 +51,11 @@ public: // IBlock implementation
 	void setTargetWindow(void* const & hWnd);
 
 public:
-	class CIncoming : public CInEndpointBase, public CAttributesBase, public signals::IAttributeObserver
+	class CIncoming : public CSimpleIncomingChild<signals::etypVecDouble>, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxBase* parent):m_parent(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
+		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
 		virtual ~CIncoming();
-
-	private:
-		enum { DEFAULT_BUFSIZE = 4096 };
-		CDirectxBase* m_parent;
 
 	private:
 		const static char* EP_NAME;
@@ -70,19 +66,8 @@ public:
 	public: // CInEndpointBase interface
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::EType Type()				{ return signals::etypVecDouble; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
 		virtual void OnChanged(const char* name, signals::EType type, const void* value);
 		virtual void OnDetached(const char* name);
-
-		virtual signals::IEPBuffer* CreateBuffer()
-		{
-			signals::IEPBuffer* buff = new CEPBuffer<signals::etypVecDouble>(DEFAULT_BUFSIZE);
-			buff->AddRef(NULL);
-			return buff;
-		}
 
 	private:
 		virtual void OnConnection(signals::IEPRecvFrom* recv);
@@ -139,32 +124,4 @@ private:
 	static void process_thread(CDirectxBase* owner);
 	LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	static LRESULT WindowProcCatcher(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-};
-
-// ---------------------------------------------------------------------------- class CAttr_callback
-
-template<signals::EType ET, class CBASE>
-class CAttr_callback : public CRWAttribute<ET>
-{
-private:
-	typedef CRWAttribute<ET> base;
-public:
-	typedef void (CBASE::*TCallback)(const store_type& newVal);
-public:
-	inline CAttr_callback(CBASE& parent, const char* name, const char* descr, TCallback cb, store_type deflt)
-		:base(name, descr, deflt), m_parent(parent), m_callback(cb)
-	{
-		(m_parent.*m_callback)(this->nativeGetValue());
-	}
-
-protected:
-	CBASE& m_parent;
-	TCallback m_callback;
-
-protected:
-	virtual void onSetValue(const store_type& newVal)
-	{
-		(m_parent.*m_callback)(newVal);
-		base::onSetValue(newVal);
-	}
 };

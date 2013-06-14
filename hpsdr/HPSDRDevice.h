@@ -126,11 +126,10 @@ protected:
 	} attrs;
 
 public:
-	class Receiver : public COutEndpointBase, public CAttributesBase
+	class Receiver : public CSimpleOutgoingChild<signals::etypComplex, 192000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline Receiver(CHpsdrDevice* parent, short recvNum):m_parent(parent),m_recvNum(recvNum),m_attachedRecv(-1) { }
-		virtual ~Receiver() {}
 		void buildAttrs(const CHpsdrDevice& parent);
 		void setProxy(CHpsdrDevice& parent, short attachedRecv);
 
@@ -143,7 +142,6 @@ public:
 		};
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 192000 };
 		CHpsdrDevice* m_parent;
 		const short m_recvNum;
 		short m_attachedRecv;
@@ -165,24 +163,19 @@ public:
 		Receiver& operator=(const Receiver& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::EType Type()				{ return signals::etypComplex; }
 		virtual const char* EPName()				{ return EP_NAME[m_recvNum]; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer();
 		virtual BOOL Connect(signals::IEPSendTo* send);
 		virtual BOOL Disconnect();
 	};
 
-	class Microphone : public COutEndpointBase, public CAttributesBase
+	class Microphone : public CSimpleOutgoingChild<signals::etypSingle, 48000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline Microphone(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~Microphone() {}
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct
@@ -199,22 +192,17 @@ public:
 		Microphone& operator=(const Microphone& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::EType Type()				{ return signals::etypSingle; }
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer();
-		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
-	class WideReceiver : public COutEndpointBase, public CAttributesBase
+	class WideReceiver : public CSimpleOutgoingChild<signals::etypSingle, 48000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline WideReceiver(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~WideReceiver() {}
 		void buildAttrs(const CHpsdrDevice& parent);
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 48000 };
 		signals::IBlock* m_parent;
 
 		struct
@@ -230,24 +218,19 @@ public:
 		WideReceiver& operator=(const Receiver& other);
 
 	public: // COutEndpointBase interface
-		virtual signals::EType Type()				{ return signals::etypSingle; }
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual signals::IEPBuffer* CreateBuffer();
-		virtual signals::IAttributes* Attributes()	{ return this; }
 	};
 
-	class Transmitter : public CInEndpointBase, public CAttributesBase
+	class Transmitter : public CSimpleIncomingChild<signals::etypComplex, 48000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Transmitter(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~Transmitter() {}
+		inline Transmitter(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
 		void buildAttrs(const CHpsdrDevice& parent);
+		virtual const char* EPName()	{ return EP_NAME; }
+		virtual const char* EPDescr()	{ return EP_DESCR; }
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 48000 };
-		signals::IBlock* m_parent;
-
 		struct
 		{
 			CAttributeBase* rate;
@@ -259,28 +242,17 @@ public:
 		const static char* EP_DESCR;
 		Transmitter(const Transmitter& other);
 		Transmitter& operator=(const Transmitter& other);
-
-	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_NAME; }
-		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::EType Type()				{ return signals::etypComplex; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer();
 	};
 
-	class Speaker : public CInEndpointBase, public CAttributesBase
+	class Speaker : public CSimpleIncomingChild<signals::etypLRSingle, 48000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Speaker(signals::IBlock* parent):m_parent(parent) { }
-		virtual ~Speaker() {}
+		inline Speaker(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
 		void buildAttrs(const CHpsdrDevice& parent);
+		virtual const char* EPName()	{ return EP_NAME; }
+		virtual const char* EPDescr()	{ return EP_DESCR; }
 
 	protected:
-		enum { DEFAULT_BUFSIZE = 48000 };
-		signals::IBlock* m_parent;
-
 		struct
 		{
 			CAttributeBase* rate;
@@ -291,15 +263,6 @@ public:
 		const static char* EP_DESCR;
 		Speaker(const Speaker& other);
 		Speaker& operator=(const Speaker& other);
-
-	public: // CInEndpointBase interface
-		virtual const char* EPName()				{ return EP_NAME; }
-		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual unsigned AddRef()					{ return m_parent->AddRef(); }
-		virtual unsigned Release()					{ return m_parent->Release(); }
-		virtual signals::EType Type()				{ return signals::etypLRSingle; }
-		virtual signals::IAttributes* Attributes()	{ return this; }
-		virtual signals::IEPBuffer* CreateBuffer();
 	};
 
 public:

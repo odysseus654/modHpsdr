@@ -330,13 +330,6 @@ void CHpsdrDevice::Receiver::buildAttrs(const CHpsdrDevice& parent)
 	attrs.version = addLocalAttr(true, new CAttr_inProxy("version", "Software version", *parent.attrs.recvX_version[0]));
 }
 
-signals::IEPBuffer* CHpsdrDevice::Receiver::CreateBuffer()
-{
-	signals::IEPBuffer* buff = new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE);
-	buff->AddRef(NULL);
-	return buff;
-}
-
 BOOL CHpsdrDevice::Receiver::Connect(signals::IEPSendTo* send)
 {
 	if(!COutEndpointBase::Connect(send)) return false;
@@ -383,13 +376,6 @@ void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypLong>("rate", "Data rate", 48000));
 }
 
-signals::IEPBuffer* CHpsdrDevice::WideReceiver::CreateBuffer()
-{
-	signals::IEPBuffer* buff = new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE);
-	buff->AddRef(NULL);
-	return buff;
-}
-
 // ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
 
 const char* CHpsdrDevice::Transmitter::EP_NAME = "send";
@@ -399,13 +385,6 @@ void CHpsdrDevice::Transmitter::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypLong>("rate", "Data rate", 48000));
 	attrs.version = addRemoteAttr("version", parent.m_controllerType == Hermes ? parent.attrs.merc_software : parent.attrs.penny_software);
-}
-
-signals::IEPBuffer* CHpsdrDevice::Transmitter::CreateBuffer()
-{
-	signals::IEPBuffer* buff = new CEPBuffer<signals::etypComplex>(DEFAULT_BUFSIZE);
-	buff->AddRef(NULL);
-	return buff;
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Microphone
@@ -420,13 +399,6 @@ void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
 	attrs.source = addRemoteAttr("source", parent.attrs.src_mic);
 }
 
-signals::IEPBuffer* CHpsdrDevice::Microphone::CreateBuffer()
-{
-	signals::IEPBuffer* buff = new CEPBuffer<signals::etypSingle>(DEFAULT_BUFSIZE);
-	buff->AddRef(NULL);
-	return buff;
-}
-
 // ------------------------------------------------------------------ class CHpsdrDevice::Speaker
 
 const char* CHpsdrDevice::Speaker::EP_NAME = "speak";
@@ -436,13 +408,6 @@ void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)
 {
 	UNUSED_ALWAYS(parent);
 	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypLong>("rate", "Data rate", 48000));
-}
-
-signals::IEPBuffer* CHpsdrDevice::Speaker::CreateBuffer()
-{
-	signals::IEPBuffer* buff = new CEPBuffer<signals::etypLRSingle>(DEFAULT_BUFSIZE);
-	buff->AddRef(NULL);
-	return buff;
 }
 
 // ------------------------------------------------------------------ main attributes

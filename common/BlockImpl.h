@@ -153,6 +153,61 @@ private:
 	TAttrSet         m_visibleAttrs;
 };
 
+template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
+class CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+public:
+	inline CSimpleIncomingChild(signals::IBlock* parent):m_parent(parent) { }
+	virtual ~CSimpleIncomingChild() {}
+
+protected:
+	signals::IBlock* m_parent;
+
+private:
+	CSimpleIncomingChild(const CSimpleIncomingChild& other);
+	CSimpleIncomingChild& operator=(const CSimpleIncomingChild& other);
+
+public: // CInEndpointBase interface
+//	virtual const char* EPName()				{ return EP_NAME; }
+//	virtual const char* EPDescr()				{ return EP_DESCR; }
+	virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+	virtual unsigned Release()					{ return m_parent->Release(); }
+	virtual signals::EType Type()				{ return ET; }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+
+	virtual signals::IEPBuffer* CreateBuffer()
+	{
+		signals::IEPBuffer* buff = new CEPBuffer<ET>(DEFAULT_BUFSIZE);
+		buff->AddRef(NULL);
+		return buff;
+	}
+};
+
+template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
+class CSimpleOutgoingChild : public COutEndpointBase, public CAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+public:
+	inline CSimpleOutgoingChild() { }
+	virtual ~CSimpleOutgoingChild() {}
+
+private:
+	CSimpleOutgoingChild(const CSimpleOutgoingChild& other);
+	CSimpleOutgoingChild& operator=(const CSimpleOutgoingChild& other);
+
+public: // COutEndpointBase interface
+	virtual signals::EType Type()				{ return ET; }
+//	virtual const char* EPName()				{ return EP_NAME; }
+//	virtual const char* EPDescr()				{ return EP_DESCR; }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+
+	virtual signals::IEPBuffer* CreateBuffer()
+	{
+		signals::IEPBuffer* buffer = new CEPBuffer<ET>(DEFAULT_BUFSIZE);
+		buffer->AddRef(NULL);
+		return buffer;
+	}
+};
+
 template<signals::EType ET> struct StoreType;
 template<> struct StoreType<signals::etypEvent>
 {
@@ -634,6 +689,33 @@ public: // IEPRecvFrom
 	{
 		if(oep && oep == m_oep) m_oep = NULL;
 		return CRefcountObject::Release();
+	}
+};
+
+
+template<signals::EType ET, class CBASE>
+class CAttr_callback : public CRWAttribute<ET>
+{
+private:
+	typedef CRWAttribute<ET> base;
+public:
+	typedef void (CBASE::*TCallback)(const store_type& newVal);
+public:
+	inline CAttr_callback(CBASE& parent, const char* name, const char* descr, TCallback cb, store_type deflt)
+		:base(name, descr, deflt), m_parent(parent), m_callback(cb)
+	{
+		(m_parent.*m_callback)(this->nativeGetValue());
+	}
+
+protected:
+	CBASE& m_parent;
+	TCallback m_callback;
+
+protected:
+	virtual void onSetValue(const store_type& newVal)
+	{
+		(m_parent.*m_callback)(newVal);
+		base::onSetValue(newVal);
 	}
 };
 

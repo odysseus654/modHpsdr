@@ -360,14 +360,15 @@ void CDirectxBase::CIncoming::OnChanged(const char* name, signals::EType type, c
 {
 	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
 	{
+		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
 		short width = *(short*)value;
-		if(width != m_parent->m_dataTexWidth && width > 0)
+		if(width != base->m_dataTexWidth && width > 0)
 		{
-			Locker lock(m_parent->m_refLock);
-			if(width != m_parent->m_dataTexWidth && width > 0)
+			Locker lock(base->m_refLock);
+			if(width != base->m_dataTexWidth && width > 0)
 			{
-				m_parent->m_dataTexWidth = width;
-				m_parent->initDataTexture();
+				base->m_dataTexWidth = width;
+				base->initDataTexture();
 			}
 		}
 	}

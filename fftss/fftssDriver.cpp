@@ -40,28 +40,6 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 
 // ------------------------------------------------------------------ class CFFTransform
 
-class CAttr_block_size : public CRWAttribute<signals::etypShort>
-{
-private:
-	typedef CRWAttribute<signals::etypShort> base;
-public:
-	inline CAttr_block_size(CFFTransform& parent, const char* name, const char* descr, short deflt)
-		:base(name, descr, deflt), m_parent(parent)
-	{
-		m_parent.setBlockSize(deflt);
-	}
-
-protected:
-	CFFTransform& m_parent;
-
-protected:
-	virtual void onSetValue(const store_type& newVal)
-	{
-		m_parent.setBlockSize(newVal);
-		base::onSetValue(newVal);
-	}
-};
-
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CFFTransform::CFFTransform(signals::IBlockDriver* driver)
@@ -123,12 +101,14 @@ unsigned CFFTransform::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
 
 void CFFTransform::buildAttrs()
 {
-	attrs.blockSize = addLocalAttr(true, new CAttr_block_size(*this, "blockSize", "Number of samples to process in each block", DEFAULT_BLOCK_SIZE));
+	attrs.blockSize = addLocalAttr(true, new CAttr_callback<signals::etypShort,CFFTransform>
+		(*this, "blockSize", "Number of samples to process in each block", &CFFTransform::setBlockSize, DEFAULT_BLOCK_SIZE));
 	m_outgoing.buildAttrs(*this);
 }
 
-void CFFTransform::setBlockSize(long blockSize)
+void CFFTransform::setBlockSize(const short& newBs)
 {
+	long blockSize(newBs);
 	long prevValue = InterlockedExchange(&m_requestSize, blockSize);
 	if(blockSize != prevValue)
 	{
