@@ -19,7 +19,7 @@ typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
 typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
 typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
 
-class CDirectxBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+class CDirectxBase : public CBlockBase
 {
 public:
 	CDirectxBase(signals::IBlockDriver* driver);
@@ -30,17 +30,7 @@ private:
 	CDirectxBase& operator=(const CDirectxBase& other);
 
 public: // IBlock implementation
-	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
-	virtual unsigned Release()				{ return CRefcountObject::Release(); }
-	virtual unsigned NodeId(char* /* buff */ , unsigned /* availChar */) { return 0; }
-	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
-	virtual signals::IBlock* Parent()		{ return NULL; }
-	virtual signals::IAttributes* Attributes() { return this; }
-	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
-	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
-	virtual unsigned Outgoing(signals::IOutEndpoint** /* ep */ , unsigned /* availEP */) { return 0; }
-	virtual void Start()					{ }
-	virtual void Stop()						{ }
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return singleIncoming(&m_incoming, ep, availEP); }
 
 	struct
 	{
@@ -82,7 +72,6 @@ private:
 		IN_BUFFER_TIMEOUT = 1000
 	};
 
-	signals::IBlockDriver* m_driver;
 	CIncoming m_incoming;
 	Thread<CDirectxBase*> m_dataThread;
 	bool m_bDataThreadEnabled;

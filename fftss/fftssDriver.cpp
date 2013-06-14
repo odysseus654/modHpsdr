@@ -43,7 +43,7 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CFFTransform::CFFTransform(signals::IBlockDriver* driver)
-	:m_driver(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
+	:CBlockBase(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
 	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),m_bFaulted(false),
 	 m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
 	 m_dataThread(Thread<CFFTransform*>::delegate_type(&fft_process_thread))
@@ -79,24 +79,6 @@ void CFFTransform::clearPlan()
 	}
 	m_bufSize = 0;
 
-}
-
-unsigned CFFTransform::Incoming(signals::IInEndpoint** ep, unsigned availEP)
-{
-	if(ep && availEP)
-	{
-		ep[0] = &m_incoming;
-	}
-	return 1;
-}
-
-unsigned CFFTransform::Outgoing(signals::IOutEndpoint** ep, unsigned availEP)
-{
-	if(ep && availEP)
-	{
-		ep[0] = &m_outgoing;
-	}
-	return 1;
 }
 
 void CFFTransform::buildAttrs()

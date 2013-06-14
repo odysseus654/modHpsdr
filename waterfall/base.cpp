@@ -19,7 +19,7 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
-CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):m_driver(driver),m_incoming(this),m_bDataThreadEnabled(true),
+CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CBlockBase(driver),m_incoming(this),m_bDataThreadEnabled(true),
 	 m_dataThread(Thread<CDirectxBase*>::delegate_type(&CDirectxBase::process_thread)),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
 	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0)
@@ -32,15 +32,6 @@ CDirectxBase::~CDirectxBase()
 {
 	Locker lock(m_refLock);
 	releaseDevice();
-}
-
-unsigned CDirectxBase::Incoming(signals::IInEndpoint** ep, unsigned availEP)
-{
-	if(ep && availEP)
-	{
-		ep[0] = &m_incoming;
-	}
-	return 1;
 }
 
 void CDirectxBase::process_thread(CDirectxBase* owner)

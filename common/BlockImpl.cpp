@@ -155,6 +155,20 @@ void CAttributesBase::Unobserve(signals::IAttributeObserver* obs)
 	}
 }
 
+// ------------------------------------------------------------------ class CBlockBase
+
+unsigned CBlockBase::singleIncoming(signals::IInEndpoint* ep, signals::IInEndpoint** pEp, unsigned pAvailEP)
+{
+	if(pEp && pAvailEP) pEp[0] = ep;
+	return 1;
+}
+
+unsigned CBlockBase::singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndpoint** pEp, unsigned pAvailEP)
+{
+	if(pEp && pAvailEP) pEp[0] = ep;
+	return 1;
+}
+
 // ------------------------------------------------------------------ class CAttribute<etypString>
 
 void CAttribute<signals::etypString>::onSetValue(const store_type& value)

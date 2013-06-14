@@ -208,6 +208,37 @@ public: // COutEndpointBase interface
 	}
 };
 
+class CBlockBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+{
+public:
+	inline CBlockBase(signals::IBlockDriver* driver):m_driver(driver) {};
+	virtual ~CBlockBase() {}
+
+private:
+	CBlockBase(const CBlockBase& other);
+	CBlockBase& operator=(const CBlockBase& other);
+
+public: // IBlock implementation
+	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
+	virtual unsigned Release()				{ return CRefcountObject::Release(); }
+//	virtual const char* Name()				{ return NAME; }
+	virtual unsigned NodeId(char* /* buff */ , unsigned /* availChar */) { return 0; }
+	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
+	virtual signals::IBlock* Parent()		{ return NULL; }
+	virtual signals::IAttributes* Attributes() { return this; }
+	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
+	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
+	virtual void Start()					{}
+	virtual void Stop()						{}
+
+protected:
+	signals::IBlockDriver* m_driver;
+
+	static unsigned singleIncoming(signals::IInEndpoint* ep, signals::IInEndpoint** pEp, unsigned pAvailEP);
+	static unsigned singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndpoint** pEp, unsigned pAvailEP);
+};
+
 template<signals::EType ET> struct StoreType;
 template<> struct StoreType<signals::etypEvent>
 {

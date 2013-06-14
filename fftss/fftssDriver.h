@@ -49,7 +49,7 @@ protected:
 	static const unsigned char FINGERPRINT[];
 };
 
-class CFFTransform : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+class CFFTransform : public CBlockBase
 {
 public:
 	CFFTransform(signals::IBlockDriver* driver);
@@ -60,18 +60,10 @@ private:
 	CFFTransform& operator=(const CFFTransform& other);
 
 public: // IBlock implementation
-	virtual unsigned AddRef()				{ return CRefcountObject::AddRef(); }
-	virtual unsigned Release()				{ return CRefcountObject::Release(); }
 	virtual const char* Name()				{ return NAME; }
-	virtual unsigned NodeId(char* /* buff */ , unsigned /* availChar */) { return 0; }
-	virtual signals::IBlockDriver* Driver()	{ return m_driver; }
-	virtual signals::IBlock* Parent()		{ return NULL; }
-	virtual signals::IAttributes* Attributes() { return this; }
-	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
-	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP);
-	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
+	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return singleIncoming(&m_incoming, ep, availEP); }
+	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return singleOutgoing(&m_outgoing, ep, availEP); }
 	virtual void Start()					{ startPlan(false); }
-	virtual void Stop()						{}
 
 public:
 	struct
@@ -94,7 +86,6 @@ private:
 
 	volatile long m_requestSize;
 	AsyncDelegate<> m_refreshPlanEvent;
-	signals::IBlockDriver* m_driver;
 
 	void clearPlan();
 	void refreshPlan();
