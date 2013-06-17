@@ -239,6 +239,31 @@ protected:
 	static unsigned singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndpoint** pEp, unsigned pAvailEP);
 };
 
+class CThreadBlockBase : public CBlockBase
+{
+public:
+	inline CThreadBlockBase(signals::IBlockDriver* driver):CBlockBase(driver),m_bThreadEnabled(false),
+		 m_thread(Thread<CThreadBlockBase*>::delegate_type(&process_thread))
+	{};
+
+	virtual ~CThreadBlockBase() { stopThread(); }
+
+private:
+	CThreadBlockBase(const CThreadBlockBase& other);
+	CThreadBlockBase& operator=(const CThreadBlockBase& other);
+
+protected:
+	virtual void thread_run() = 0;
+	void startThread(int priority = THREAD_PRIORITY_NORMAL);
+	void stopThread();
+	inline bool threadRunning() const { return m_bThreadEnabled; }
+
+private:
+	Thread<CThreadBlockBase*> m_thread;
+	bool m_bThreadEnabled;
+	static void process_thread(CThreadBlockBase* owner);
+};
+
 template<signals::EType ET> struct StoreType;
 template<> struct StoreType<signals::etypEvent>
 {

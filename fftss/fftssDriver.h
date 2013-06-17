@@ -49,7 +49,7 @@ protected:
 	static const unsigned char FINGERPRINT[];
 };
 
-class CFFTransform : public CBlockBase
+class CFFTransform : public CThreadBlockBase
 {
 public:
 	CFFTransform(signals::IBlockDriver* driver);
@@ -135,9 +135,6 @@ public:
 	};
 
 private:
-	Thread<CFFTransform*> m_dataThread;
-	bool m_bDataThreadEnabled;
-
 	CIncoming m_incoming;
 	COutgoing m_outgoing;
 
@@ -150,7 +147,7 @@ private:
 
 	void buildAttrs();
 	bool startPlan(bool bLockHeld);
-	static void fft_process_thread(CFFTransform* owner);
+	virtual void thread_run();
 };
 
 }

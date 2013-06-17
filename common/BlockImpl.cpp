@@ -169,6 +169,31 @@ unsigned CBlockBase::singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndp
 	return 1;
 }
 
+// ------------------------------------------------------------------ class CThreadBlockBase
+
+void CThreadBlockBase::startThread(int priority)
+{
+	if(!m_bThreadEnabled)
+	{
+		m_bThreadEnabled = true;
+		m_thread.launch(this, priority);
+	}
+}
+
+void CThreadBlockBase::stopThread()
+{
+	if(m_bThreadEnabled)
+	{
+		m_bThreadEnabled = false;
+		m_thread.close();
+	}
+}
+
+void CThreadBlockBase::process_thread(CThreadBlockBase* owner)
+{
+	owner->thread_run();
+}
+
 // ------------------------------------------------------------------ class CAttribute<etypString>
 
 void CAttribute<signals::etypString>::onSetValue(const store_type& value)

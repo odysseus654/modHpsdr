@@ -19,7 +19,7 @@ typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
 typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
 typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
 
-class CDirectxBase : public CBlockBase
+class CDirectxBase : public CThreadBlockBase
 {
 public:
 	CDirectxBase(signals::IBlockDriver* driver);
@@ -73,8 +73,6 @@ private:
 	};
 
 	CIncoming m_incoming;
-	Thread<CDirectxBase*> m_dataThread;
-	bool m_bDataThreadEnabled;
 
 protected: // directx stuff
 	Lock m_refLock;
@@ -110,7 +108,7 @@ protected:
 private:
 	HRESULT initDevice();
 
-	static void process_thread(CDirectxBase* owner);
+	virtual void thread_run();
 	LRESULT WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 	static LRESULT WindowProcCatcher(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 };

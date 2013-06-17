@@ -43,20 +43,18 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CFFTransform::CFFTransform(signals::IBlockDriver* driver)
-	:CBlockBase(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
+	:CThreadBlockBase(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
 	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),m_bFaulted(false),
-	 m_incoming(this),m_outgoing(this),m_bDataThreadEnabled(true),
-	 m_dataThread(Thread<CFFTransform*>::delegate_type(&fft_process_thread))
+	 m_incoming(this),m_outgoing(this)
 {
 	buildAttrs();
-	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
+	startThread();
 }
 #pragma warning(pop)
 
 CFFTransform::~CFFTransform()
 {
-	m_bDataThreadEnabled = false;
-	m_dataThread.close();
+	stopThread();
 	clearPlan();
 }
 
@@ -144,14 +142,14 @@ void CFFTransform::COutgoing::buildAttrs(const CFFTransform& parent)
 //	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
 }
 
-void CFFTransform::fft_process_thread(CFFTransform* owner)
+void CFFTransform::thread_run()
 {
 	ThreadBase::SetThreadName("FFTSS Transform Thread");
 
 	TComplexDbl buffer[IN_BUFFER_SIZE];
 
 	unsigned inOffset = 0;
-	while(owner->m_bDataThreadEnabled)
+	while(threadRunning())
 	{
 		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer, IN_BUFFER_SIZE, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)

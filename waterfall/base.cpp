@@ -19,12 +19,11 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
-CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CBlockBase(driver),m_incoming(this),m_bDataThreadEnabled(true),
-	 m_dataThread(Thread<CDirectxBase*>::delegate_type(&CDirectxBase::process_thread)),
+CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CThreadBlockBase(driver),m_incoming(this),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
 	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0)
 {
-	m_dataThread.launch(this, THREAD_PRIORITY_NORMAL);
+	startThread();
 }
 #pragma warning(pop)
 
@@ -34,30 +33,30 @@ CDirectxBase::~CDirectxBase()
 	releaseDevice();
 }
 
-void CDirectxBase::process_thread(CDirectxBase* owner)
+void CDirectxBase::thread_run()
 {
 	ThreadBase::SetThreadName("Waterfall Display Thread");
 
 	std::vector<double> buffer;
-	while(owner->m_bDataThreadEnabled)
+	while(threadRunning())
 	{
 		{
-			Locker lock(owner->m_refLock);
-			if(owner->m_dataTexWidth > buffer.capacity()) buffer.resize(owner->m_dataTexWidth);
+			Locker lock(m_refLock);
+			if(m_dataTexWidth > buffer.capacity()) buffer.resize(m_dataTexWidth);
 		}
 		if(!buffer.capacity()) buffer.resize(DEFAULT_CAPACITY);
-		unsigned recvCount = owner->m_incoming.Read(signals::etypVecDouble, buffer.data(),
+		unsigned recvCount = m_incoming.Read(signals::etypVecDouble, buffer.data(),
 			buffer.capacity(), FALSE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
-			Locker lock(owner->m_refLock);
-			unsigned bufSize = owner->m_dataTexWidth;
+			Locker lock(m_refLock);
+			unsigned bufSize = m_dataTexWidth;
 			if(!bufSize) bufSize = recvCount;
 
 			double* buffPtr = buffer.data();
 			while(recvCount)
 			{
-				owner->onReceivedFrame(buffer.data(), bufSize);
+				onReceivedFrame(buffer.data(), bufSize);
 				buffPtr += bufSize;
 				recvCount -= min(recvCount, bufSize);
 			}
