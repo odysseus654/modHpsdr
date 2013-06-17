@@ -2,3 +2,4 @@ LIBRARY cppconv
 
 EXPORTS
 	QueryFunctions
+	QueryDrivers

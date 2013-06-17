@@ -34,7 +34,7 @@ const char* CFFTransform::CIncoming::EP_DESCR = "FFT Transform incoming endpoint
 const char* CFFTransform::COutgoing::EP_NAME = "out";
 const char* CFFTransform::COutgoing::EP_DESCR = "FFT Transform outgoing endpoint";
 
-const unsigned char CFFTransformDriver::FINGERPRINT[] = { 1, (unsigned char)signals::etypCmplDbl, 1, (unsigned char)signals::etypVecCmplDbl };
+const unsigned char CFFTransformDriver::FINGERPRINT[] = { 1, (unsigned char)signals::etypVecCmplDbl, 1, (unsigned char)signals::etypVecCmplDbl };
 const char* CFFTransformDriver::NAME = "fft";
 const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 
@@ -44,7 +44,7 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 #pragma warning(disable: 4355)
 CFFTransform::CFFTransform(signals::IBlockDriver* driver)
 	:CThreadBlockBase(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
-	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),m_bFaulted(false),
+	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),
 	 m_incoming(this),m_outgoing(this)
 {
 	buildAttrs();
@@ -98,15 +98,14 @@ void CFFTransform::setBlockSize(const short& newBs)
 
 void CFFTransform::refreshPlan()
 {
-	{
-		Locker lock(m_planLock);
-		if(m_requestSize == m_bufSize) return;
-	}
-	startPlan(false);
+	Locker lock(m_planLock);
+	if(m_requestSize == m_bufSize) return;
+	startPlan();
 }
 
-bool CFFTransform::startPlan(bool bLockHeld)
+bool CFFTransform::startPlan()
 {
+	// ASSUMES m_planLock IS HELD
 	long reqSize = m_requestSize;
 	if(!reqSize) return false;
 
@@ -114,9 +113,7 @@ bool CFFTransform::startPlan(bool bLockHeld)
 	TComplexDbl* tempOut = (TComplexDbl*)::fftss_malloc(sizeof(TComplexDbl)*reqSize);
 
 	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, FFTSS_FORWARD, FFTSS_MEASURE);
-//	fftss_plan newPlan = ::fftss_plan_dft_1d(reqSize, (double*)tempIn, (double*)tempOut, -1, 0);
 
-	Locker lock(m_planLock, !bLockHeld);
 	if(m_bufSize != reqSize && reqSize == m_requestSize)
 	{
 		clearPlan();
@@ -146,56 +143,34 @@ void CFFTransform::thread_run()
 {
 	ThreadBase::SetThreadName("FFTSS Transform Thread");
 
-	TComplexDbl buffer[IN_BUFFER_SIZE];
-
-	unsigned inOffset = 0;
 	while(threadRunning())
 	{
-		unsigned recvCount = owner->m_incoming.Read(signals::etypCmplDbl, &buffer, IN_BUFFER_SIZE, TRUE, IN_BUFFER_TIMEOUT);
+		Locker lock(m_planLock);
+		if(!m_currPlan && m_requestSize)
+		{
+			if(!startPlan())
+			{
+				Sleep(IN_BUFFER_TIMEOUT);		// no plan!
+				continue;
+			}
+		}
+		ASSERT(m_inBuffer && m_bufSize);
+		unsigned recvCount = m_incoming.Read(signals::etypCmplDbl, &m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
-			Locker lock(owner->m_planLock);
-			if(!owner->m_currPlan)
+			if(recvCount != m_bufSize)
 			{
-				if(!owner->startPlan(true))
-				{
-					inOffset = 0;		// no plan!
-					continue;
-				}
+				ASSERT(FALSE); // huh? did the buffer size just change?
+				continue;
 			}
 
-			ASSERT(owner->m_inBuffer && owner->m_bufSize);
-			unsigned numXfer = min(owner->m_bufSize - inOffset, recvCount);
-			if(numXfer)
-			{
-				memcpy(&owner->m_inBuffer[inOffset], buffer, sizeof(buffer[0]) * numXfer);
-			}
-			inOffset += numXfer;
-			recvCount -= numXfer;
-			unsigned outOffset = numXfer;
-			while(owner->m_bufSize <= inOffset)
-			{
-				ASSERT(owner->m_inBuffer && owner->m_outBuffer && owner->m_bufSize && owner->m_currPlan);
-				::fftss_execute_dft(owner->m_currPlan, (double*)owner->m_inBuffer, (double*)owner->m_outBuffer);
+			ASSERT(m_inBuffer && m_outBuffer && m_bufSize && m_currPlan);
+			::fftss_execute_dft(m_currPlan, (double*)m_inBuffer, (double*)m_outBuffer);
 
-				unsigned outSent = owner->m_outgoing.Write(signals::etypVecCmplDbl, owner->m_outBuffer, owner->m_bufSize, INFINITE);
-				if(outSent == owner->m_bufSize)
-				{
-					owner->m_bFaulted = false;
-				}
-				else if(!owner->m_bFaulted && owner->m_outgoing.isConnected())
-				{
-					owner->m_bFaulted = true;
-					owner->m_outgoing.attrs.sync_fault->fire();
-				}
-
-				numXfer = min(recvCount, owner->m_bufSize);
-				if(numXfer)
-				{
-					memcpy(owner->m_inBuffer, &buffer[outOffset], sizeof(buffer[0]) * numXfer);
-				}
-				outOffset += numXfer;
-				inOffset = recvCount;
+			unsigned outSent = m_outgoing.Write(signals::etypVecCmplDbl, m_outBuffer, m_bufSize, INFINITE);
+			if(outSent != m_bufSize && m_outgoing.isConnected())
+			{
+				m_outgoing.attrs.sync_fault->fire();
 			}
 		}
 	}

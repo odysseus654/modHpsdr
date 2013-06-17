@@ -81,12 +81,17 @@
   <ItemGroup>
     <ClInclude Include="..\common\block.h" />
     <ClInclude Include="..\common\BlockImpl.h" />
+    <ClInclude Include="..\common\buffer.h" />
+    <ClInclude Include="..\common\error.h" />
+    <ClInclude Include="..\common\mt.h" />
+    <ClInclude Include="..\ext\FastDelegate.h" />
     <ClInclude Include="cppconv.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cppconv.cpp" />
+    <ClCompile Include="frame.cpp" />
     <ClCompile Include="functions.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -95,6 +100,11 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="cppconv32.def" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\common\common.vcxproj">
+      <Project>{1dcce8f0-edb3-4ae7-b2e0-6013cb682e22}</Project>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

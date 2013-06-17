@@ -27,6 +27,18 @@
     <ClInclude Include="cppconv.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="..\common\buffer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\error.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\mt.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\FastDelegate.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -36,6 +48,9 @@
       <Filter>Implementation</Filter>
     </ClCompile>
     <ClCompile Include="functions.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+    <ClCompile Include="frame.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>

@@ -63,7 +63,7 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return singleIncoming(&m_incoming, ep, availEP); }
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return singleOutgoing(&m_outgoing, ep, availEP); }
-	virtual void Start()					{ startPlan(false); }
+	virtual void Start()					{ refreshPlan(); }
 
 public:
 	struct
@@ -76,7 +76,6 @@ public:
 private:
 	enum
 	{
-		IN_BUFFER_SIZE = 1000,
 		IN_BUFFER_TIMEOUT = 1000,
 		DEFAULT_BLOCK_SIZE = 1024
 	};
@@ -105,7 +104,7 @@ public:
 		struct
 		{
 			CEventAttribute* sync_fault;
-			CAttributeBase* rate;
+//			CAttributeBase* rate;
 			CAttributeBase* blockSize;
 		} attrs;
 
@@ -120,7 +119,7 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class CIncoming : public CSimpleIncomingChild<signals::etypCmplDbl>
+	class CIncoming : public CSimpleIncomingChild<signals::etypVecCmplDbl>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
@@ -143,10 +142,9 @@ private:
 	TComplexDbl* m_inBuffer;
 	TComplexDbl* m_outBuffer;
 	unsigned m_bufSize;
-	bool m_bFaulted;
 
 	void buildAttrs();
-	bool startPlan(bool bLockHeld);
+	bool startPlan();
 	virtual void thread_run();
 };
 
