@@ -40,6 +40,13 @@ namespace signals
         VecLRSingle = 0x4C
     };
 
+    [Flags]
+    public enum EAttrEnumFlags : int
+    {
+        flgLocalOnly = 1,
+        flgIncludeHidden = 2
+    };
+
     public class Fingerprint
     {
         public EType[] inputs;
@@ -49,8 +56,12 @@ namespace signals
     };
 
     public interface ICircuitConnectible
-    {
+    {   // Indicates this element can be part of a circuit diagram
         Fingerprint Fingerprint { get; }
+    };
+
+    public interface ICircuitElement : IDisposable
+    {   // Indicates this element can be part of a running circuit
     };
 
     public interface IModule
@@ -72,7 +83,7 @@ namespace signals
 		IBlock Create();
 	};
 
-    public interface IBlock : IDisposable, ICircuitConnectible
+    public interface IBlock : IDisposable, ICircuitConnectible, ICircuitElement
 	{
         string Name { get; }
         string NodeId { get; }
@@ -131,7 +142,7 @@ namespace signals
 
     public interface IAttributes : System.Collections.Generic.IEnumerable<IAttribute>
 	{
-//		IAttribute[] Itemize();
+        System.Collections.Generic.IEnumerator<IAttribute> Itemize(EAttrEnumFlags flags);
         IAttribute this[string name] { get; }
     };
 
@@ -156,7 +167,7 @@ namespace signals
 		IFunction Create();
     };
 
-	public interface IFunction : IDisposable
+    public interface IFunction : IDisposable, ICircuitElement
 	{
 		IFunctionSpec Spec { get; }
 		IInputFunction Input { get; }

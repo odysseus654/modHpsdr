@@ -137,9 +137,15 @@ namespace signals
 		IEPBuffer* CreateBuffer();
 	};
 
+	enum EAttrEnumFlags
+	{
+		flgLocalOnly = 1,
+		flgIncludeHidden = 2
+	};
+
 	__interface IAttributes
 	{
-		unsigned Itemize(IAttribute** attrs, unsigned availElem);
+		unsigned Itemize(IAttribute** attrs, unsigned availElem, unsigned flags);
 		IAttribute* GetByName(const char* name);
 		void Observe(IAttributeObserver* obs);
 		void Unobserve(IAttributeObserver* obs);

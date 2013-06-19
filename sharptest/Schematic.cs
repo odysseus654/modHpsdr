@@ -970,7 +970,7 @@ namespace Layout
                 Element elm = here.Value;
                 if (elm.availObjects.Count != 1) throw new ApplicationException("expecting all elements to have exactly one solution");
                 signals.ICircuitConnectible avail = elm.availObjects[0];
-                object newOb = null;
+                signals.ICircuitElement newOb = null;
                 switch (elm.type)
                 {
                     case ElementType.Module:
@@ -1094,15 +1094,15 @@ namespace Layout
         }
     }
 
-    public class Circuit
+    public class Circuit : IDisposable
     {
         public class Element
         {
             public readonly ElemKey descr;
             public readonly int circuitId;
-            public readonly object obj; // either IBlock or IFunction
+            public readonly signals.ICircuitElement obj;
 
-            public Element(ElemKey d, int c, object o)
+            public Element(ElemKey d, int c, signals.ICircuitElement o)
             {
                 descr = d;
                 circuitId = c;
@@ -1171,6 +1171,14 @@ namespace Layout
                 {
                     blk.Stop();
                 }
+            }
+        }
+
+        public void Dispose()
+        {
+            foreach (KeyValuePair<int, Element> entry in radio)
+            {
+                entry.Value.obj.Dispose();
             }
         }
     }

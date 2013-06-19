@@ -90,11 +90,11 @@ private:
 	void refreshPlan();
 
 public:
-	class COutgoing : public CSimpleOutgoingChild<signals::etypVecCmplDbl>
+	class COutgoing : public CSimpleCascadeOutgoingChild<signals::etypVecCmplDbl>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		typedef TComplexDbl store_type;
-		inline COutgoing(CFFTransform* parent):m_parent(parent) { }
+		inline COutgoing(CFFTransform* parent):CSimpleCascadeOutgoingChild(parent->m_incoming),m_parent(parent) { }
 		void buildAttrs(const CFFTransform& parent);
 
 	protected:

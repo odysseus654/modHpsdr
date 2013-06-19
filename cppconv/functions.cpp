@@ -188,31 +188,31 @@ struct func_db : public std::unary_function<double,double>
 };
 
 // complex transforms
-static Function<signals::etypComplex,signals::etypDouble,mag2<float> > mag2S("mag2","squared magnitude (complex-single)");
-static Function<signals::etypCmplDbl,signals::etypDouble,mag2<double> > mag2D("mag2","squared magnitude (complex-double)");
+static Function<signals::etypComplex,signals::etypDouble,mag2<float> > mag2S("mag^2","squared magnitude (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,mag2<double> > mag2D("mag^2","squared magnitude (complex-double)");
 static Function<signals::etypComplex,signals::etypDouble,mag<float> > magS("mag","magnitude (complex-single)");
 static Function<signals::etypCmplDbl,signals::etypDouble,mag<double> > magD("mag","magnitude (complex-double)");
 
-static Function<signals::etypComplex,signals::etypSingle,pick_real<float> > prS("pick_real","real component (complex-single)");
-static Function<signals::etypCmplDbl,signals::etypDouble,pick_real<double> > prD("pick_real","real component (complex-double)");
-static Function<signals::etypComplex,signals::etypSingle,pick_imag<float> > piS("pick_imag","imaginary component (complex-single)");
-static Function<signals::etypCmplDbl,signals::etypDouble,pick_imag<double> > piD("pick_imag","imaginary component (complex-double)");
+static Function<signals::etypComplex,signals::etypSingle,pick_real<float> > prS("pick real","real component (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,pick_real<double> > prD("pick real","real component (complex-double)");
+static Function<signals::etypComplex,signals::etypSingle,pick_imag<float> > piS("pick imag","imaginary component (complex-single)");
+static Function<signals::etypCmplDbl,signals::etypDouble,pick_imag<double> > piD("pick imag","imaginary component (complex-double)");
 
 static Function<signals::etypDouble,signals::etypDouble,func_log10> log10D("log10","common logarithm");
 static Function<signals::etypDouble,signals::etypDouble,func_db> decibelD("db","decibels");
 
-static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag2","squared magnitude (complex-single)");
-static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag2","squared magnitude (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag^2","squared magnitude (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag^2","squared magnitude (complex-double)");
 static Function<signals::etypVecComplex,signals::etypVecDouble,mag<float> > magVS("mag","magnitude (complex-single)");
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag<double> > magVD("mag","magnitude (complex-double)");
 
-static Function<signals::etypVecComplex,signals::etypVecSingle,pick_real<float> > prVS("pick_real","real component (complex-single)");
-static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_real<double> > prVD("pick_real","real component (complex-double)");
-static Function<signals::etypVecComplex,signals::etypVecSingle,pick_imag<float> > piVS("pick_imag","imaginary component (complex-single)");
-static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_imag<double> > piVD("pick_imag","imaginary component (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecSingle,pick_real<float> > prVS("pick real","real component (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_real<double> > prVD("pick real","real component (complex-double)");
+static Function<signals::etypVecComplex,signals::etypVecSingle,pick_imag<float> > piVS("pick imag","imaginary component (complex-single)");
+static Function<signals::etypVecCmplDbl,signals::etypVecDouble,pick_imag<double> > piVD("pick imag","imaginary component (complex-double)");
 
 static Function<signals::etypVecDouble,signals::etypVecDouble,func_log10> log10VD("log10","common logarithm");
-static Function<signals::etypVecDouble,signals::etypVecDouble,func_db> decibelVD("db","decibels");
+static Function<signals::etypVecDouble,signals::etypVecDouble,func_db> decibelVD("dB","decibels");
 
 signals::IFunctionSpec* FUNCTIONS[] = {
 	// lossless assignments

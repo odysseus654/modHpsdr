@@ -44,6 +44,36 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 	return m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout);
 }
 
+void CInEndpointBase::MergeRemoteAttrs(std::map<std::string,signals::IAttribute*>& attrs, unsigned flags)
+{
+	Locker lock(m_connRecvLock);
+	if(!m_connRecv) return;
+	signals::IAttributes* rattrs = m_connRecv->OutputAttributes();
+	if(!rattrs) return;
+
+	unsigned count = rattrs->Itemize(NULL, 0, flags);
+	signals::IAttribute** attrList = new signals::IAttribute*[count];
+	rattrs->Itemize(attrList, count, flags);
+	for(unsigned idx=0; idx < count; idx++)
+	{
+		signals::IAttribute* attr = attrList[idx];
+		std::string name = attr->Name();
+		if(attrs.find(name) == attrs.end())
+		{
+			attrs.insert(std::map<std::string,signals::IAttribute*>::value_type(name, attr));
+		}
+	}
+	delete [] attrList;
+}
+
+signals::IAttribute* CInEndpointBase::RemoteGetByName(const char* name)
+{
+	Locker lock(m_connRecvLock);
+	if(!m_connRecv) return NULL;
+	signals::IAttributes* attrs = m_connRecv->OutputAttributes();
+	return attrs ? attrs->GetByName(name) : NULL;
+}
+
 // ------------------------------------------------------------------ class COutEndpointBase
 
 BOOL COutEndpointBase::Connect(signals::IEPSendTo* send)
@@ -107,7 +137,7 @@ CAttributesBase::~CAttributesBase()
 	m_ownedAttrs.clear();
 }
 
-CAttributeBase* CAttributesBase::GetByName2(const char* name)
+signals::IAttribute* CAttributesBase::GetByName(const char* name)
 {
 	// try a fast lookup first
 	TVoidMapToAttr::const_iterator lookup1 = m_attributes.find((void*)name);
@@ -124,19 +154,36 @@ CAttributeBase* CAttributesBase::GetByName2(const char* name)
 	return NULL;
 }
 
-unsigned CAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem)
+unsigned CAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags)
 {
-	if(attrs && availElem)
+	if(flags & signals::flgIncludeHidden)
 	{
-		unsigned i;
-		TAttrSet::const_iterator trans;
-		for(i=0, trans=m_visibleAttrs.begin(); i < availElem && trans != m_visibleAttrs.end(); i++, trans++)
+		if(attrs && availElem)
 		{
-			CAttributeBase* attr = *trans;
-			attrs[i] = attr;
+			unsigned i;
+			TVoidMapToAttr::const_iterator trans;
+			for(i=0, trans=m_attributes.begin(); i < availElem && trans != m_attributes.end(); i++, trans++)
+			{
+				CAttributeBase* attr = trans->second;
+				attrs[i] = attr;
+			}
 		}
+		return m_attributes.size();
 	}
-	return m_visibleAttrs.size();
+	else
+	{
+		if(attrs && availElem)
+		{
+			unsigned i;
+			TAttrSet::const_iterator trans;
+			for(i=0, trans=m_visibleAttrs.begin(); i < availElem && trans != m_visibleAttrs.end(); i++, trans++)
+			{
+				CAttributeBase* attr = *trans;
+				attrs[i] = attr;
+			}
+		}
+		return m_visibleAttrs.size();
+	}
 }
 
 void CAttributesBase::Observe(signals::IAttributeObserver* obs)
@@ -153,6 +200,55 @@ void CAttributesBase::Unobserve(signals::IAttributeObserver* obs)
 	{
 		(*trans)->Unobserve(obs);
 	}
+}
+
+// ------------------------------------------------------------------ class CCascadedAttributesBase
+
+unsigned CCascadedAttributesBase::Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags)
+{
+	if(flags & signals::flgLocalOnly)
+	{
+		return CAttributesBase::Itemize(attrs, availElem, flags);
+	}
+	else
+	{
+		typedef std::map<std::string,signals::IAttribute*> TStringMapToAttr;
+		TStringMapToAttr foundAttrs;
+
+		if(flags & signals::flgIncludeHidden)
+		{
+			for(TVoidMapToAttr::const_iterator trans=m_attributes.begin(); trans != m_attributes.end(); trans++)
+			{
+				foundAttrs.insert(TStringMapToAttr::value_type(trans->second->Name(), trans->second));
+			}
+		}
+		else
+		{
+			for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
+			{
+				foundAttrs.insert(TStringMapToAttr::value_type((*trans)->Name(), *trans));
+			}
+		}
+		m_src.MergeRemoteAttrs(foundAttrs, flags);
+
+		if(attrs && availElem)
+		{
+			unsigned i;
+			TStringMapToAttr::const_iterator trans;
+			for(i=0, trans=foundAttrs.begin(); i < availElem && trans != foundAttrs.end(); i++, trans++)
+			{
+				signals::IAttribute* attr = trans->second;
+				attrs[i] = attr;
+			}
+		}
+		return foundAttrs.size();
+	}
+}
+
+signals::IAttribute* CCascadedAttributesBase::GetByName(const char* name)
+{
+	signals::IAttribute* attr = CAttributesBase::GetByName(name);
+	return attr ? attr : m_src.RemoteGetByName(name);
 }
 
 // ------------------------------------------------------------------ class CBlockBase

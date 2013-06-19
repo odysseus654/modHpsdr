@@ -49,10 +49,10 @@ private:
 	static const char* NAME;
 
 public:
-	class COutgoing : public CSimpleOutgoingChild<OUT_TYPE>
+	class COutgoing : public CSimpleCascadeOutgoingChild<OUT_TYPE>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline COutgoing(CFrameBuilder* parent):m_parent(parent) { }
+		inline COutgoing(CFrameBuilder* parent):CSimpleCascadeOutgoingChild(parent->m_incoming),m_parent(parent) { }
 		void buildAttrs(const CFrameBuilder& parent);
 
 	protected:
@@ -165,7 +165,7 @@ signals::IBlock * CFrameBuilderDriver<IN_TYPE,OUT_TYPE>::Create()
 	return blk;
 }
 
-// ------------------------------------------------------------------ class CFFTransform
+// ------------------------------------------------------------------ class CFrameBuilder
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
@@ -204,7 +204,7 @@ void CFrameBuilder<IN_TYPE,OUT_TYPE>::COutgoing::buildAttrs(const CFrameBuilder&
 template<signals::EType IN_TYPE, signals::EType OUT_TYPE>
 void CFrameBuilder<IN_TYPE,OUT_TYPE>::thread_run()
 {
-	ThreadBase::SetThreadName("FFTSS Transform Thread");
+	ThreadBase::SetThreadName("Frame Construction Thread");
 
 	typedef StoreType<IN_TYPE>::type store_type;
 	std::vector<store_type> buffer;

@@ -265,7 +265,7 @@ namespace cppProxy
 
         public interface IAttributes
         {
-            uint Itemize(IntPtr attrs, uint availElem);
+            uint Itemize(IntPtr attrs, uint availElem, uint flags);
             IntPtr GetByName(IntPtr name);
             void Observe(IntPtr obs);
             void Unobserve(IntPtr obs);
@@ -275,7 +275,7 @@ namespace cppProxy
         {
             IntPtr Name();
             IntPtr Description();
-            signals.EType Type();
+            [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
             void Observe(IntPtr obs);
             void Unobserve(IntPtr obs);
             [return: MarshalAs(UnmanagedType.Bool)] bool isReadOnly();
@@ -290,7 +290,7 @@ namespace cppProxy
             uint Release();
             IntPtr EPName();
             IntPtr EPDescr();
-            signals.EType Type();
+            [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
             IntPtr Attributes();
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr recv);
             [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
@@ -302,7 +302,7 @@ namespace cppProxy
         {
             IntPtr EPName();
             IntPtr EPDescr();
-            signals.EType Type();
+            [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
             IntPtr Attributes();
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr send);
             [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
@@ -312,7 +312,7 @@ namespace cppProxy
 
         public interface IEPSendTo
         {
-            uint Write(signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
+            uint Write([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
             uint AddRef(IntPtr iep);
             uint Release(IntPtr iep);
             IntPtr InputAttributes();
@@ -320,7 +320,8 @@ namespace cppProxy
 
         public interface IEPRecvFrom
         {
-            uint Read(signals.EType type, IntPtr buffer, uint numAvail, [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
+            uint Read([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numAvail,
+                [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
             IntPtr OutputAttributes();
@@ -328,14 +329,14 @@ namespace cppProxy
 
         public interface IEPBuffer : IEPSendTo, IEPRecvFrom
         {
-            signals.EType Type();
+            [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
             uint Capacity();
             uint Used();
         };
 
         public interface IAttributeObserver
         {
-            void OnChanged(IntPtr name, signals.EType type, IntPtr value);
+            void OnChanged(IntPtr name, [MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr value);
             void OnDetached(IntPtr name);
         };
 
@@ -931,12 +932,40 @@ namespace cppProxy
 
         public IEnumerator<signals.IAttribute> GetEnumerator()
         {
-            uint numAttr = m_native.Itemize(IntPtr.Zero, 0);
+            uint numAttr = m_native.Itemize(IntPtr.Zero, 0, 0);
             if (numAttr == 0) return ((IList<signals.IAttribute>)new signals.IAttribute[0]).GetEnumerator();
             IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
             try
             {
-                uint numObj = m_native.Itemize(attrBuff, numAttr);
+                uint numObj = m_native.Itemize(attrBuff, numAttr, 0);
+                IntPtr[] ptrArr = new IntPtr[numObj];
+                Marshal.Copy(attrBuff, ptrArr, 0, (int)numObj);
+                signals.IAttribute[] attrArray = new signals.IAttribute[numObj];
+                for (int idx = 0; idx < numObj; idx++)
+                {
+                    if (ptrArr[idx] != IntPtr.Zero)
+                    {
+                        signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
+                        if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
+                        attrArray[idx] = newObj;
+                    }
+                }
+                return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(attrBuff);
+            }
+        }
+
+        public IEnumerator<signals.IAttribute> Itemize(signals.EAttrEnumFlags flags)
+        {
+            uint numAttr = m_native.Itemize(IntPtr.Zero, 0, (uint)flags);
+            if (numAttr == 0) return ((IList<signals.IAttribute>)new signals.IAttribute[0]).GetEnumerator();
+            IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
+            try
+            {
+                uint numObj = m_native.Itemize(attrBuff, numAttr, (uint)flags);
                 IntPtr[] ptrArr = new IntPtr[numObj];
                 Marshal.Copy(attrBuff, ptrArr, 0, (int)numObj);
                 signals.IAttribute[] attrArray = new signals.IAttribute[numObj];

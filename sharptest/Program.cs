@@ -26,9 +26,10 @@ namespace sharptest
 #endif
 
             Layout.Schematic schem = new Layout.Schematic();
-            Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
             Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.ElementType.Module, "radio");
-            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag2");
+            Layout.Schematic.Element frameElem = new Layout.Schematic.Element(Layout.ElementType.Module, "make frame");
+            Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
+            Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag^2");
             Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "db");
             Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
 
@@ -37,35 +38,38 @@ namespace sharptest
             schem.add(dbFunc);
             schem.add(waterfallElem);
             schem.add(radioElem);
-            schem.connect(radioElem, "recv1", fftElem, 0);
+            schem.connect(radioElem, "recv1", frameElem, 0);
+            schem.connect(frameElem, 0, fftElem, 0);
             schem.connect(fftElem, 0, mag2Func, 0);
             schem.connect(mag2Func, 0, dbFunc, 0);
             schem.connect(dbFunc, 0, waterfallElem, 0);
             List<Layout.Schematic> options = schem.resolve(library);
             circuit = options[0].construct();
+            using (circuit)
+            {
+                signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
+                signals.IAttributes attrs = hpsdr.Attributes;
+                signals.OnChanged evt = new signals.OnChanged(OnChanged);
+                foreach (signals.IAttribute attr in attrs) attr.changed += evt;
+                attrs["recvRate"].Value = 48000;
+                attrs["Recv1Freq"].Value = 10000000;
 
-            signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
-            signals.IAttributes attrs = hpsdr.Attributes;
-            signals.OnChanged evt = new signals.OnChanged(OnChanged);
-            foreach(signals.IAttribute attr in attrs) attr.changed += evt;
-            attrs["recvRate"].Value = 48000;
-            attrs["Recv1Freq"].Value = 10000000;
+  //            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
+  //            signals.IOutEndpoint fftOut = fft.Outgoing[0];
+  //            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
+  //            fftOut.Connect(outBuff);
+  //            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
+  //            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
 
-//            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
-//            signals.IOutEndpoint fftOut = fft.Outgoing[0];
-//            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
-//            fftOut.Connect(outBuff);
-//            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
-//            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
-            
-            canvas = new Canvas();
-            canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
-            canvasThread = canvas.Start();
-            canvasThread.Join();
-            circuit.Stop();
-//            stream.Stop();
-            
-//            Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
+                canvas = new Canvas();
+                canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
+                canvasThread = canvas.Start();
+                canvasThread.Join();
+                circuit.Stop();
+  //            stream.Stop();
+
+  //            Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
+            }
         }
 
         void panel1_HandleCreated(object sender, EventArgs e)

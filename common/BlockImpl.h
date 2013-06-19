@@ -24,10 +24,13 @@
 #include <set>
 #include <string>
 
-class CRefcountObject
+#define MUST_SUBCLASS _declspec(novtable)
+
+class MUST_SUBCLASS CRefcountObject
 {
-public:
+protected:
 	inline CRefcountObject():m_refCount(0) {}
+public:
 	virtual ~CRefcountObject() {}
 	inline unsigned AddRef() { return _InterlockedIncrement(&m_refCount); }
 	inline unsigned Release();
@@ -39,10 +42,11 @@ private:
 	volatile long m_refCount;
 };
 
-class CInEndpointBase : public signals::IInEndpoint
+class MUST_SUBCLASS CInEndpointBase : public signals::IInEndpoint
 {
-public:
+protected:
 	inline CInEndpointBase():m_connRecv(NULL) {}
+public:
 	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPRecvFrom* recv);
@@ -54,6 +58,10 @@ public:
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
+
+	void MergeRemoteAttrs(std::map<std::string,signals::IAttribute*>& attrs, unsigned flags);
+	signals::IAttribute* RemoteGetByName(const char* name);
+
 protected:
 	virtual void OnConnection(signals::IEPRecvFrom*) { }
 private:
@@ -65,10 +73,11 @@ private:
 	signals::IEPRecvFrom* m_connRecv;
 };
 
-class COutEndpointBase : public signals::IOutEndpoint
+class MUST_SUBCLASS COutEndpointBase : public signals::IOutEndpoint
 {
-public:
+protected:
 	inline COutEndpointBase():m_connSend(NULL) {}
+public:
 	unsigned Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPSendTo* send);
@@ -89,10 +98,11 @@ private:
 	signals::IEPSendTo* m_connSend;
 };
 
-class CAttributeBase : public signals::IAttribute
+class MUST_SUBCLASS CAttributeBase : public signals::IAttribute
 {
-public:
+protected:
 	inline CAttributeBase(const char* pName, const char* pDescr):m_name(pName),m_descr(pDescr) { }
+public:
 	virtual ~CAttributeBase()
 	{
 		Locker obslock(m_observersLock);
@@ -122,14 +132,15 @@ private:
 	const char* m_descr;
 };
 
-class CAttributesBase : public signals::IAttributes
+class MUST_SUBCLASS CAttributesBase : public signals::IAttributes
 {
-public:
+protected:
 	inline CAttributesBase() {}
-	~CAttributesBase();
+public:
+	virtual ~CAttributesBase();
 
-	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem);
-	virtual signals::IAttribute* GetByName(const char* name)			{ return GetByName2(name); }
+	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags);
+	virtual signals::IAttribute* GetByName(const char* name);
 	virtual void Observe(signals::IAttributeObserver* obs);
 	virtual void Unobserve(signals::IAttributeObserver* obs);
 
@@ -141,9 +152,8 @@ protected: // using a "fake generic" for typesafety
 	template<class ATTR> ATTR* addRemoteAttr(const char* pName, ATTR* attr);
 	template<class ATTR> ATTR* addLocalAttr(bool bVisible, ATTR* attr);
 //	CAttributeBase* buildAttr(const char* name, signals::EType type, const char* descr, bool bReadOnly, bool bVisible);
-	CAttributeBase* GetByName2(const char* name);
 
-private:
+protected:
 	typedef std::map<const void*,CAttributeBase*> TVoidMapToAttr;
 	typedef std::map<std::string,const void*> TStringMapToVoid;
 	typedef std::set<CAttributeBase*> TAttrSet;
@@ -153,11 +163,28 @@ private:
 	TAttrSet         m_visibleAttrs;
 };
 
-template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
-{	// This class is assumed to be a static (non-dynamic) member of its parent
+class MUST_SUBCLASS CCascadedAttributesBase : public CAttributesBase
+{
+protected:
+	inline CCascadedAttributesBase(CInEndpointBase& src):m_src(src) {}
 public:
+	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags);
+	virtual signals::IAttribute* GetByName(const char* name);
+
+private:
+	CCascadedAttributesBase(const CCascadedAttributesBase& other);
+	CCascadedAttributesBase& operator=(const CCascadedAttributesBase& other);
+
+private:
+	CInEndpointBase& m_src;
+};
+
+template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
+class MUST_SUBCLASS CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+protected:
 	inline CSimpleIncomingChild(signals::IBlock* parent):m_parent(parent) { }
+public:
 	virtual ~CSimpleIncomingChild() {}
 
 protected:
@@ -184,10 +211,11 @@ public: // CInEndpointBase interface
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class CSimpleOutgoingChild : public COutEndpointBase, public CAttributesBase
+class MUST_SUBCLASS CSimpleOutgoingChild : public COutEndpointBase, public CAttributesBase
 {	// This class is assumed to be a static (non-dynamic) member of its parent
-public:
+protected:
 	inline CSimpleOutgoingChild() { }
+public:
 	virtual ~CSimpleOutgoingChild() {}
 
 private:
@@ -208,10 +236,37 @@ public: // COutEndpointBase interface
 	}
 };
 
-class CBlockBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
-{
+template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
+class MUST_SUBCLASS CSimpleCascadeOutgoingChild : public COutEndpointBase, public CCascadedAttributesBase
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+protected:
+	inline CSimpleCascadeOutgoingChild(CInEndpointBase& src):CCascadedAttributesBase(src) { }
 public:
+	virtual ~CSimpleCascadeOutgoingChild() {}
+
+private:
+	CSimpleCascadeOutgoingChild(const CSimpleCascadeOutgoingChild& other);
+	CSimpleCascadeOutgoingChild& operator=(const CSimpleCascadeOutgoingChild& other);
+
+public: // COutEndpointBase interface
+	virtual signals::EType Type()				{ return ET; }
+//	virtual const char* EPName()				{ return EP_NAME; }
+//	virtual const char* EPDescr()				{ return EP_DESCR; }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+
+	virtual signals::IEPBuffer* CreateBuffer()
+	{
+		signals::IEPBuffer* buffer = new CEPBuffer<ET>(DEFAULT_BUFSIZE);
+		buffer->AddRef(NULL);
+		return buffer;
+	}
+};
+
+class MUST_SUBCLASS CBlockBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+{
+protected:
 	inline CBlockBase(signals::IBlockDriver* driver):m_driver(driver) {};
+public:
 	virtual ~CBlockBase() {}
 
 private:
@@ -227,8 +282,8 @@ public: // IBlock implementation
 	virtual signals::IBlock* Parent()		{ return NULL; }
 	virtual signals::IAttributes* Attributes() { return this; }
 	virtual unsigned Children(signals::IBlock** /* blocks */, unsigned /* availBlocks */) { return 0; }
-	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return 0; }
-	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return 0; }
+	virtual unsigned Incoming(signals::IInEndpoint** /* ep */, unsigned /* availEP */) { return 0; }
+	virtual unsigned Outgoing(signals::IOutEndpoint** /* ep */, unsigned /* availEP */) { return 0; }
 	virtual void Start()					{}
 	virtual void Stop()						{}
 
@@ -239,13 +294,14 @@ protected:
 	static unsigned singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndpoint** pEp, unsigned pAvailEP);
 };
 
-class CThreadBlockBase : public CBlockBase
+class MUST_SUBCLASS CThreadBlockBase : public CBlockBase
 {
-public:
+protected:
 	inline CThreadBlockBase(signals::IBlockDriver* driver):CBlockBase(driver),m_bThreadEnabled(false),
 		 m_thread(Thread<CThreadBlockBase*>::delegate_type(&process_thread))
 	{};
 
+public:
 	virtual ~CThreadBlockBase() { stopThread(); }
 
 private:
@@ -405,7 +461,7 @@ template<> struct StoreType<signals::etypVecLRSingle>
 #pragma warning(disable: 4355)
 
 template<signals::EType ET>
-class CAttribute : public CAttributeBase
+class MUST_SUBCLASS CAttribute : public CAttributeBase
 {
 protected:
 	typedef typename StoreType<ET>::type store_type;
