@@ -65,19 +65,10 @@ public: // IBlock implementation
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return singleOutgoing(&m_outgoing, ep, availEP); }
 	virtual void Start()					{ refreshPlan(); }
 
-public:
-	struct
-	{
-		CAttributeBase* blockSize;
-	} attrs;
-
-	void setBlockSize(const short& blockSize);
-
 private:
 	enum
 	{
 		IN_BUFFER_TIMEOUT = 1000,
-		DEFAULT_BLOCK_SIZE = 1024
 	};
 
 	typedef std::complex<double> TComplexDbl;
@@ -104,8 +95,6 @@ public:
 		struct
 		{
 			CEventAttribute* sync_fault;
-//			CAttributeBase* rate;
-			CAttributeBase* blockSize;
 		} attrs;
 
 	private:
@@ -119,18 +108,25 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class CIncoming : public CSimpleIncomingChild<signals::etypVecCmplDbl>
+	class CIncoming : public CSimpleIncomingChild<signals::etypVecCmplDbl>, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
+		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
+		virtual ~CIncoming();
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
+		virtual void OnChanged(const char* name, signals::EType type, const void* value);
+		virtual void OnDetached(const char* name);
 
 	private:
 		const static char* EP_NAME;
 		const static char* EP_DESCR;
+		signals::IAttribute* m_lastWidthAttr;
+		bool m_bAttached;
+
 		CIncoming(const CIncoming& other);
 		CIncoming& operator=(const CIncoming& other);
+		virtual void OnConnection(signals::IEPRecvFrom* recv);
 	};
 
 private:

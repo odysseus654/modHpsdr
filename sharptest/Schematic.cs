@@ -662,6 +662,14 @@ namespace Layout
             {
                 throw new ArgumentException("This connection sink is already in use", "toEp");
             }
+            if (!this.contents.ContainsValue(fromEp.elem))
+            {
+                throw new ArgumentException("This connection source element is not in this circuit", "fromEp");
+            }
+            if (!this.contents.ContainsValue(toEp.elem))
+            {
+                throw new ArgumentException("This connection sink element is not in this circuit", "toEp");
+            }
             connections.Add(fromEp, toEp);
         }
 

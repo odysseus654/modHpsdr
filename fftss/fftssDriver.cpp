@@ -81,19 +81,7 @@ void CFFTransform::clearPlan()
 
 void CFFTransform::buildAttrs()
 {
-	attrs.blockSize = addLocalAttr(true, new CAttr_callback<signals::etypShort,CFFTransform>
-		(*this, "blockSize", "Number of samples to process in each block", &CFFTransform::setBlockSize, DEFAULT_BLOCK_SIZE));
 	m_outgoing.buildAttrs(*this);
-}
-
-void CFFTransform::setBlockSize(const short& newBs)
-{
-	long blockSize(newBs);
-	long prevValue = InterlockedExchange(&m_requestSize, blockSize);
-	if(blockSize != prevValue)
-	{
-		m_refreshPlanEvent.fire();
-	}
 }
 
 void CFFTransform::refreshPlan()
@@ -135,8 +123,6 @@ bool CFFTransform::startPlan()
 void CFFTransform::COutgoing::buildAttrs(const CFFTransform& parent)
 {
 	attrs.sync_fault = addLocalAttr(true, new CEventAttribute("syncFault", "Fires when a sync fault happens in a receive stream"));
-	attrs.blockSize = addRemoteAttr("blockSize", parent.attrs.blockSize);
-//	attrs.rate = addRemoteAttr("rate", parent.attrs.recv_speed);
 }
 
 void CFFTransform::thread_run()
@@ -146,7 +132,12 @@ void CFFTransform::thread_run()
 	while(threadRunning())
 	{
 		Locker lock(m_planLock);
-		if(!m_currPlan && m_requestSize)
+		if(!m_requestSize)
+		{
+			Sleep(IN_BUFFER_TIMEOUT);		// no plan!
+			continue;
+		}
+		else if(!m_currPlan)
 		{
 			if(!startPlan())
 			{
@@ -155,7 +146,7 @@ void CFFTransform::thread_run()
 			}
 		}
 		ASSERT(m_inBuffer && m_bufSize);
-		unsigned recvCount = m_incoming.Read(signals::etypCmplDbl, &m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
+		unsigned recvCount = m_incoming.Read(signals::etypVecCmplDbl, &m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			if(recvCount != m_bufSize)
@@ -173,6 +164,57 @@ void CFFTransform::thread_run()
 				m_outgoing.attrs.sync_fault->fire();
 			}
 		}
+	}
+}
+
+// ------------------------------------------------------------------ class CFFTransform::CIncoming
+
+CFFTransform::CIncoming::~CIncoming()
+{
+	if(m_lastWidthAttr)
+	{
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+}
+
+void CFFTransform::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
+{
+	if(m_lastWidthAttr)
+	{
+		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr = NULL;
+	}
+	if(!conn) return;
+	signals::IAttributes* attrs = conn->OutputAttributes();
+	if(!attrs) return;
+	signals::IAttribute* attr = attrs->GetByName("blockSize");
+	if(!attr || attr->Type() != signals::etypShort) return;
+	m_lastWidthAttr = attr;
+	m_lastWidthAttr->Observe(this);
+	m_bAttached = true;
+	OnChanged(attr->Name(), attr->Type(), attr->getValue());
+}
+
+void CFFTransform::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
+{
+	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
+	{
+		CFFTransform* base = static_cast<CFFTransform*>(m_parent);
+		long newWidth = *(short*)value;
+		long prevValue = InterlockedExchange(&base->m_requestSize, newWidth);
+		if(newWidth != prevValue)
+		{
+			base->m_refreshPlanEvent.fire();
+		}
+	}
+}
+
+void CFFTransform::CIncoming::OnDetached(const char* name)
+{
+	if(_stricmp(name, "blockSize") == 0)
+	{
+		m_bAttached = false;
 	}
 }
 

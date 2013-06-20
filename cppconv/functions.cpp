@@ -199,7 +199,7 @@ static Function<signals::etypComplex,signals::etypSingle,pick_imag<float> > piS(
 static Function<signals::etypCmplDbl,signals::etypDouble,pick_imag<double> > piD("pick imag","imaginary component (complex-double)");
 
 static Function<signals::etypDouble,signals::etypDouble,func_log10> log10D("log10","common logarithm");
-static Function<signals::etypDouble,signals::etypDouble,func_db> decibelD("db","decibels");
+static Function<signals::etypDouble,signals::etypDouble,func_db> decibelD("dB","decibels");
 
 static Function<signals::etypVecComplex,signals::etypVecDouble,mag2<float> > magV2S("mag^2","squared magnitude (complex-single)");
 static Function<signals::etypVecCmplDbl,signals::etypVecDouble,mag2<double> > magV2D("mag^2","squared magnitude (complex-double)");

@@ -30,10 +30,11 @@ namespace sharptest
             Layout.Schematic.Element frameElem = new Layout.Schematic.Element(Layout.ElementType.Module, "make frame");
             Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
             Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag^2");
-            Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "db");
+            Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "dB");
             Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
 
             schem.add(fftElem);
+            schem.add(frameElem);
             schem.add(mag2Func);
             schem.add(dbFunc);
             schem.add(waterfallElem);
