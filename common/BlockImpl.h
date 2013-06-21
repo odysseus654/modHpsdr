@@ -24,9 +24,7 @@
 #include <set>
 #include <string>
 
-#define MUST_SUBCLASS _declspec(novtable)
-
-class MUST_SUBCLASS CRefcountObject
+class CRefcountObject
 {
 protected:
 	inline CRefcountObject():m_refCount(0) {}
@@ -42,7 +40,7 @@ private:
 	volatile long m_refCount;
 };
 
-class MUST_SUBCLASS CInEndpointBase : public signals::IInEndpoint
+class CInEndpointBase : public signals::IInEndpoint
 {
 protected:
 	inline CInEndpointBase():m_connRecv(NULL) {}
@@ -73,7 +71,7 @@ private:
 	signals::IEPRecvFrom* m_connRecv;
 };
 
-class MUST_SUBCLASS COutEndpointBase : public signals::IOutEndpoint
+class COutEndpointBase : public signals::IOutEndpoint
 {
 protected:
 	inline COutEndpointBase():m_connSend(NULL) {}
@@ -98,7 +96,7 @@ private:
 	signals::IEPSendTo* m_connSend;
 };
 
-class MUST_SUBCLASS CAttributeBase : public signals::IAttribute
+class CAttributeBase : public signals::IAttribute
 {
 protected:
 	inline CAttributeBase(const char* pName, const char* pDescr):m_name(pName),m_descr(pDescr) { }
@@ -132,7 +130,7 @@ private:
 	const char* m_descr;
 };
 
-class MUST_SUBCLASS CAttributesBase : public signals::IAttributes
+class CAttributesBase : public signals::IAttributes
 {
 protected:
 	inline CAttributesBase() {}
@@ -163,7 +161,7 @@ protected:
 	TAttrSet         m_visibleAttrs;
 };
 
-class MUST_SUBCLASS CCascadedAttributesBase : public CAttributesBase
+class CCascadedAttributesBase : public CAttributesBase
 {
 protected:
 	inline CCascadedAttributesBase(CInEndpointBase& src):m_src(src) {}
@@ -180,7 +178,7 @@ private:
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class MUST_SUBCLASS CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
+class CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
 {	// This class is assumed to be a static (non-dynamic) member of its parent
 protected:
 	inline CSimpleIncomingChild(signals::IBlock* parent):m_parent(parent) { }
@@ -211,7 +209,7 @@ public: // CInEndpointBase interface
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class MUST_SUBCLASS CSimpleOutgoingChild : public COutEndpointBase, public CAttributesBase
+class CSimpleOutgoingChild : public COutEndpointBase, public CAttributesBase
 {	// This class is assumed to be a static (non-dynamic) member of its parent
 protected:
 	inline CSimpleOutgoingChild() { }
@@ -237,7 +235,7 @@ public: // COutEndpointBase interface
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class MUST_SUBCLASS CSimpleCascadeOutgoingChild : public COutEndpointBase, public CCascadedAttributesBase
+class CSimpleCascadeOutgoingChild : public COutEndpointBase, public CCascadedAttributesBase
 {	// This class is assumed to be a static (non-dynamic) member of its parent
 protected:
 	inline CSimpleCascadeOutgoingChild(CInEndpointBase& src):CCascadedAttributesBase(src) { }
@@ -262,7 +260,7 @@ public: // COutEndpointBase interface
 	}
 };
 
-class MUST_SUBCLASS CBlockBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
+class CBlockBase : public signals::IBlock, public CAttributesBase, protected CRefcountObject
 {
 protected:
 	inline CBlockBase(signals::IBlockDriver* driver):m_driver(driver) {};
@@ -294,7 +292,7 @@ protected:
 	static unsigned singleOutgoing(signals::IOutEndpoint* ep, signals::IOutEndpoint** pEp, unsigned pAvailEP);
 };
 
-class MUST_SUBCLASS CThreadBlockBase : public CBlockBase
+class CThreadBlockBase : public CBlockBase
 {
 protected:
 	inline CThreadBlockBase(signals::IBlockDriver* driver):CBlockBase(driver),m_bThreadEnabled(false),
@@ -461,7 +459,7 @@ template<> struct StoreType<signals::etypVecLRSingle>
 #pragma warning(disable: 4355)
 
 template<signals::EType ET>
-class MUST_SUBCLASS CAttribute : public CAttributeBase
+class CAttribute : public CAttributeBase
 {
 protected:
 	typedef typename StoreType<ET>::type store_type;
@@ -474,7 +472,7 @@ protected:
 	inline CAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:CAttributeBase(pName, pDescr), m_func(this, &CAttribute<ET>::catcher), m_value(deflt) { }
 public:
-	virtual ~CAttribute()				{ }
+//	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return ET; }
 	virtual const void* getValue()		{ return &m_value; }
 	const store_type& nativeGetValue()	{ return m_value; }
@@ -595,7 +593,7 @@ public:
 	inline CRWAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:base_type(pName, pDescr, deflt) { }
 
-	virtual ~CRWAttribute()				{ }
+//	virtual ~CRWAttribute()				{ }
 	virtual BOOL isReadOnly()			{ return false; }
 
 	virtual BOOL setValue(const void* newVal)

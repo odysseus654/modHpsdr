@@ -44,7 +44,6 @@ const char* CFFTransformDriver::DESCR = "FFT Transform using fftss";
 #pragma warning(disable: 4355)
 CFFTransform::CFFTransform(signals::IBlockDriver* driver)
 	:CThreadBlockBase(driver),m_currPlan(NULL),m_requestSize(0),m_inBuffer(NULL),m_outBuffer(NULL),m_bufSize(0),
-	 m_refreshPlanEvent(fastdelegate::FastDelegate0<>(this, &CFFTransform::refreshPlan)),
 	 m_incoming(this),m_outgoing(this)
 {
 	buildAttrs();
@@ -137,7 +136,7 @@ void CFFTransform::thread_run()
 			Sleep(IN_BUFFER_TIMEOUT);		// no plan!
 			continue;
 		}
-		else if(!m_currPlan)
+		else if(!m_currPlan || m_requestSize != m_bufSize)
 		{
 			if(!startPlan())
 			{
@@ -146,7 +145,7 @@ void CFFTransform::thread_run()
 			}
 		}
 		ASSERT(m_inBuffer && m_bufSize);
-		unsigned recvCount = m_incoming.Read(signals::etypVecCmplDbl, &m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
+		unsigned recvCount = m_incoming.Read(signals::etypVecCmplDbl, m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
 		if(recvCount)
 		{
 			if(recvCount != m_bufSize)
@@ -202,11 +201,7 @@ void CFFTransform::CIncoming::OnChanged(const char* name, signals::EType type, c
 	{
 		CFFTransform* base = static_cast<CFFTransform*>(m_parent);
 		long newWidth = *(short*)value;
-		long prevValue = InterlockedExchange(&base->m_requestSize, newWidth);
-		if(newWidth != prevValue)
-		{
-			base->m_refreshPlanEvent.fire();
-		}
+		InterlockedExchange(&base->m_requestSize, newWidth);
 	}
 }
 

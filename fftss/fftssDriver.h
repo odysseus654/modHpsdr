@@ -63,7 +63,6 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return singleIncoming(&m_incoming, ep, availEP); }
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP) { return singleOutgoing(&m_outgoing, ep, availEP); }
-	virtual void Start()					{ refreshPlan(); }
 
 private:
 	enum
@@ -75,7 +74,6 @@ private:
 	static const char* NAME;
 
 	volatile long m_requestSize;
-	AsyncDelegate<> m_refreshPlanEvent;
 
 	void clearPlan();
 	void refreshPlan();

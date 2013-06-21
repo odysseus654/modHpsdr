@@ -209,7 +209,7 @@ public:
 		if(deflt) setValue(deflt);
 	}
 
-	virtual ~CAttr_outLong() { }
+//	virtual ~CAttr_outLong() { }
 
 protected:
 	virtual void onSetValue(const store_type& newVal)
