@@ -1031,6 +1031,7 @@ namespace cppProxy
         private bool m_readOnly;
         private ChangedCatcher m_catcher;
         private CppNativeProxy.Callback m_callback;
+        private bool m_callbackRef;
 
         public CppProxyAttribute(IntPtr native)
         {
@@ -1057,8 +1058,16 @@ namespace cppProxy
         {
             if (m_callback != null)
             {
-                m_native.Unobserve(m_callback.Pointer);
-                m_callback = null;
+                CppNativeProxy.Callback callback = m_callback;
+                System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
+                try { }
+                finally
+                {
+                    m_native.Unobserve(m_callback.DangerousGetHandle());
+                    if (m_callbackRef) m_callback.DangerousRelease();
+                    m_callback = null;
+                }
+                if (disposing) callback.Dispose();
             }
             if (m_nativeRef != IntPtr.Zero)
             {
@@ -1069,7 +1078,16 @@ namespace cppProxy
 
         void detached(string name)
         {
-            m_callback = null;
+            if (m_callback != null)
+            {
+                System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
+                try { }
+                finally
+                {
+                    if (m_callbackRef) m_callback.DangerousRelease();
+                    m_callback = null;
+                }
+            }
         }
 
         private void interrogate()
@@ -1079,8 +1097,17 @@ namespace cppProxy
             m_type = m_native.Type();
             m_typeInfo = ProxyTypes.getTypeInfo(m_type);
             m_readOnly = m_native.isReadOnly();
-            m_callback = CppNativeProxy.CreateCallin(m_catcher, typeof(Native.IAttributeObserver));
-            m_native.Observe(m_callback.Pointer);
+
+            m_callbackRef = false;
+            CppNativeProxy.Callback callback = CppNativeProxy.CreateCallin(m_catcher, typeof(Native.IAttributeObserver));
+            System.Runtime.CompilerServices.RuntimeHelpers.PrepareConstrainedRegions();
+            try { }
+            finally
+            {
+                m_callback = callback;
+                m_callback.DangerousAddRef(ref m_callbackRef);
+                m_native.Observe(m_callback.DangerousGetHandle());
+            }
         }
 
         public string Name { get { return m_name; } }

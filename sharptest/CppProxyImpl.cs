@@ -257,14 +257,13 @@ namespace cppProxy
             }
         }
 
-        public class Callback : IDisposable
+        public class Callback : Microsoft.Win32.SafeHandles.SafeHandleZeroOrMinusOneIsInvalid
         {
-            private IntPtr m_native = IntPtr.Zero;
             private List<Delegate> m_delegateList;
             private static int nextDelegate = 1;
             private static Dictionary<Signature, Type> delegateCache;
 
-            public Callback(Type ifaceType, object target)
+            public Callback(Type ifaceType, object target):base(true)
             { // technique from http://code4k.blogspot.com/2010/10/implementing-unmanaged-c-interface.html
                 if (target == null) throw new ArgumentNullException("target");
                 if (ifaceType == null) throw new ArgumentNullException("ifaceType");
@@ -274,9 +273,9 @@ namespace cppProxy
 
                 m_delegateList = new List<Delegate>();
                 MethodInfo[] methods = ifaceType.GetMethods();
-                m_native = Marshal.AllocHGlobal(IntPtr.Size * (methods.Length+1));
-                IntPtr vtblPtr = new IntPtr(m_native.ToInt64() + IntPtr.Size);   // Write pointer to vtbl
-                Marshal.WriteIntPtr(m_native, vtblPtr);
+                handle = Marshal.AllocHGlobal(IntPtr.Size * (methods.Length+1));
+                IntPtr vtblPtr = new IntPtr(handle.ToInt64() + IntPtr.Size);   // Write pointer to vtbl
+                Marshal.WriteIntPtr(handle, vtblPtr);
 
                 for (int idx = 0; idx < methods.Length; idx++)
                 {
@@ -287,34 +286,18 @@ namespace cppProxy
                 }
             }
 
-            public IntPtr Pointer { get { return m_native; } }
-
             static Callback()
             {
                 delegateCache = new Dictionary<Signature, Type>();
             }
 
-            ~Callback()
+            override protected bool ReleaseHandle()
             {
-                Dispose(false);
+                Marshal.FreeHGlobal(handle);
+                return true;
             }
 
-            public void Dispose()
-            {
-                Dispose(true);
-                GC.SuppressFinalize(this);
-            }
-
-            protected virtual void Dispose(bool disposing)
-            {
-                if (m_native != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(m_native);
-                    m_native = IntPtr.Zero;
-                }
-            }
-
-            private Delegate createDelegate(object ifaceObj, MethodInfo method)
+            private static Delegate createDelegate(object ifaceObj, MethodInfo method)
             { // adapted from http://blogs.msdn.com/b/joelpob/archive/2004/02/15/73239.aspx
                 ParameterInfo[] parms = method.GetParameters();
 
