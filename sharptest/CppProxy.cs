@@ -996,28 +996,32 @@ namespace cppProxy
     {
         private class ChangedCatcher : Native.IAttributeObserver
         {
-            private readonly CppProxyAttribute parent;
+            private readonly WeakReference parent;
 
             public ChangedCatcher(CppProxyAttribute parent)
             {
-                this.parent = parent;
+                this.parent = new WeakReference(parent);
             }
 
             public void OnChanged(IntPtr name, signals.EType type, IntPtr value)
             {
+                CppProxyAttribute p = (CppProxyAttribute)parent.Target;
+                if (p == null) return;
                 string strName = Utilities.getString(name);
                 object newVal = null;
-                if (value != IntPtr.Zero && parent.m_typeInfo != null)
+                if (value != IntPtr.Zero && p.m_typeInfo != null)
                 {
-                    newVal = parent.m_typeInfo.fromNative(value);
+                    newVal = p.m_typeInfo.fromNative(value);
                 }
-                if(parent.changed != null) parent.changed(strName, type, newVal);
+                if(p.changed != null) p.changed(strName, type, newVal);
             }
 
             public void OnDetached(IntPtr name)
             {
+                CppProxyAttribute p = (CppProxyAttribute)parent.Target;
+                if (p == null) return;
                 string strName = Utilities.getString(name);
-                parent.detached(strName);
+                p.detached(strName);
             }
         }
 
