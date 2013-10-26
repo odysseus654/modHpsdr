@@ -1,11 +1,18 @@
-// waveform.fx
+// waveform_vs.hlsl
 
 // globals
-matrix orthoMatrix;
-Texture1D waveformValues; // DXGI_FORMAT_R16_FLOAT
-float4 waveformColor;
-float minRange;
-float maxRange;
+Texture1D waveformValues : register(t0); // DXGI_FORMAT_R16_FLOAT
+
+cbuffer orthoglobals : register(b0)
+{
+	matrix orthoMatrix;
+}
+
+cbuffer rangeglobals : register(b1)
+{
+	float minRange;
+	float maxRange;
+}
 
 SamplerState WaveSampleType
 {
@@ -33,28 +40,14 @@ PixelInputType VS(VertexInputType input)
 //	// Change the position vector to be 4 units for proper matrix calculations.
 //	input.position.w = 1.0f;
 
-	float4 newPos = input.position;
-	float val = waveformValues.Sample(WaveSampleType, input.tex);
+	float val = waveformValues.Sample(WaveSampleType, input.tex).x;
 	float newVal = (val - minRange) / (maxRange - minRange);
+
+	float4 newPos = input.position;
 	newPos.y = newVal * input.mag;
 	
 	// Calculate the position of the vertex against the world, view, and projection matrices.
-	output.position = mul(newPos, orthoMatrix);
+	output.position = mul(input.position, orthoMatrix);
 	
 	return output;
-}
-
-float4 PS(PixelInputType input) : SV_Target
-{
-	return waveformColor;
-}
-
-technique10 WaveformTechnique
-{
-	pass pass0
-	{
-		SetVertexShader(CompileShader(vs_4_0, VS()));
-		SetPixelShader(CompileShader(ps_4_0, PS()));
-		SetGeometryShader(NULL);
-	}
 }

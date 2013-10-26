@@ -121,6 +121,11 @@ public:
 	}
 	*/
 
+	inline _InterfaceType** ref() throw()
+	{
+		return (_InterfaceType**)&m_pInterface;
+	}
+
 	// Returns the address of the interface pointer contained in this
 	// class. This is useful when using the COM/OLE interfaces to create
 	// this interface.

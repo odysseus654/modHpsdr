@@ -3,14 +3,16 @@
 #include "stdafx.h"
 #include "base.h"
 
-#include <d3d10.h>
+#include <d3d10_1.h>
 #include <d3dx10async.h>
-#pragma comment(lib, "d3d10.lib")
+#pragma comment(lib, "d3d10_1.lib")
 #pragma comment(lib, "d3dx10.lib")
 
 extern HMODULE gl_DllModule;
 
 typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
+typedef unk_ref_t<IDXGIFactory> IDXGIFactoryPtr;
+typedef unk_ref_t<IDXGIAdapter> IDXGIAdapterPtr;
 
 const char* CDirectxBase::CIncoming::EP_NAME = "in";
 const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
@@ -111,26 +113,42 @@ void CDirectxBase::setTargetWindow(void* const & newTarg)
 	}
 }
 
-HRESULT CDirectxBase::compileResource(LPCTSTR fileName, ID3D10EffectPtr& pEffect, std::string& errors)
+HRESULT CDirectxBase::createPixelShaderFromResource(LPCTSTR fileName, ID3D10PixelShaderPtr& pShader)
 {
-	// Load the shader in from the file.
-	ID3D10BlobPtr errorMessage;
-#ifdef _DEBUG
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS | D3D10_SHADER_DEBUG };
-#else
-	enum { DX_FLAGS = D3D10_SHADER_ENABLE_STRICTNESS };
-#endif
-	HRESULT hR = D3DX10CreateEffectFromResource(gl_DllModule, fileName, fileName, NULL, NULL,
-		"fx_4_0", DX_FLAGS, 0, m_pDevice, NULL, NULL, pEffect.inref(), errorMessage.inref(), NULL);
-	if(FAILED(hR))
-	{
-		// If the shader failed to compile it should have writen something to the error message.
-		if(errorMessage)
-		{
-			errors = std::string(LPCSTR(errorMessage->GetBufferPointer()), errorMessage->GetBufferSize());
-		}
-	}
-	return hR;
+	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
+	if(!hResource) return GetLastError();
+
+	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
+	if(!hLoadedResource) return GetLastError();
+
+	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
+	if(!dwSize) return GetLastError();
+
+	LPVOID pLockedResource = LockResource(hLoadedResource);
+	if(!pLockedResource) return E_UNEXPECTED;
+
+	return m_pDevice->CreatePixelShader(pLockedResource, dwSize, pShader.inref());
+}
+
+HRESULT CDirectxBase::createVertexShaderFromResource(LPCTSTR fileName, const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs,
+		UINT NumElements, ID3D10VertexShaderPtr& pShader, ID3D10InputLayoutPtr& pInputLayout)
+{
+	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
+	if(!hResource) return GetLastError();
+
+	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
+	if(!hLoadedResource) return GetLastError();
+
+	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
+	if(!dwSize) return GetLastError();
+
+	LPVOID pLockedResource = LockResource(hLoadedResource);
+	if(!pLockedResource) return E_UNEXPECTED;
+
+	HRESULT hR = m_pDevice->CreateVertexShader(pLockedResource, dwSize, pShader.inref());
+	if(FAILED(hR)) return hR;
+
+	return m_pDevice->CreateInputLayout(pInputElementDescs, NumElements, pLockedResource, dwSize, pInputLayout.inref());
 }
 
 HRESULT CDirectxBase::initDevice()
@@ -146,6 +164,7 @@ HRESULT CDirectxBase::initDevice()
 		m_screenWinWidth = rect.right - rect.left;
 	}
 
+	// pull the current refresh rate from the current display DC
 	HDC hDC = GetDC(m_hOutputWin);
 	if(hDC == NULL) return HRESULT_FROM_WIN32(GetLastError());
 	int iRefresh = GetDeviceCaps(hDC, VREFRESH);
@@ -176,13 +195,36 @@ HRESULT CDirectxBase::initDevice()
 	sd.Windowed = TRUE;
 
 #ifdef _DEBUG
-	enum { DX_FLAGS = D3D10_CREATE_DEVICE_DEBUG };
+	UINT DX_FLAGS = D3D10_CREATE_DEVICE_DEBUG;
 #else
-	enum { DX_FLAGS = 0 };
+	UINT DX_FLAGS = 0;
 #endif
-	HRESULT hR = D3D10CreateDeviceAndSwapChain(NULL, D3D10_DRIVER_TYPE_HARDWARE,
-		NULL, DX_FLAGS, D3D10_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
-	if(FAILED(hR)) return hR;
+
+	HRESULT hR;
+	for(;;)
+	{
+		HRESULT hR = D3D10CreateDeviceAndSwapChain1(NULL, D3D10_DRIVER_TYPE_HARDWARE,
+			NULL, DX_FLAGS, D3D10_FEATURE_LEVEL_9_1, D3D10_1_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
+		if(SUCCEEDED(hR)) break;
+
+#ifdef _DEBUG
+		if((hR == E_FAIL || hR == DXGI_ERROR_UNSUPPORTED) && (DX_FLAGS & D3D10_CREATE_DEVICE_DEBUG))
+		{
+			// no debug layer available?
+			DX_FLAGS &= ~D3D10_CREATE_DEVICE_DEBUG;
+			continue;
+		}
+#endif
+		if(hR == DXGI_ERROR_UNSUPPORTED && sd.BufferDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+		{
+			// try an alternate screen format
+			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+			continue;
+		}
+
+		// request failed
+		return hR;
+	}
 
 	ID3D10Texture2DPtr backBuffer;
 	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));

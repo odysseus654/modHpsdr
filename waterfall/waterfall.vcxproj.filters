@@ -15,12 +15,6 @@
     <None Include="waterfall.def">
       <Filter>Infrastructure</Filter>
     </None>
-    <None Include="waterfall.fx">
-      <Filter>Implementation</Filter>
-    </None>
-    <None Include="waveform.fx">
-      <Filter>Implementation</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\block.h">
@@ -75,5 +69,19 @@
     <ResourceCompile Include="waterfall.rc">
       <Filter>Infrastructure</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="waterfall_ps.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waterfall_vs.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waveform_ps.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waveform_vs.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

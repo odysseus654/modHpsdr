@@ -3,10 +3,8 @@
 #include "stdafx.h"
 #include "waterfall.h"
 
-#include <d3d10.h>
+#include <d3d10_1.h>
 #include <d3dx10async.h>
-#pragma comment(lib, "d3d10.lib")
-#pragma comment(lib, "d3dx10.lib")
 
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
 const unsigned long CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
@@ -63,8 +61,10 @@ static std::pair<float,float> rect2polar(float x, float y)
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexHeight(0),m_dataTexData(NULL),m_pTechnique(NULL),m_floatStaging(NULL),m_minRange(0.0f),m_maxRange(0.0f)
+	m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL)
 {
+	m_psRange.minRange = 0.0f;
+	m_psRange.maxRange = 0.0f;
 	buildAttrs();
 }
 
@@ -106,15 +106,18 @@ void CDirectxWaterfall::releaseDevice()
 	// ASSUMES m_refLock IS HELD BY CALLER
 	CDirectxBase::releaseDevice();
 	m_dataTex.Release();
-	m_pEffect.Release();
+	m_pPS.Release();
+	m_pVS.Release();
 	m_pVertexBuffer.Release();
 	m_pVertexIndexBuffer.Release();
 	m_pInputLayout.Release();
 	m_dataView.Release();
 	m_waterfallView.Release();
+	m_pVSGlobals.Release();
+	m_pPSGlobals.Release();
 }
 
-HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10Texture1DPtr& waterfallTex)
+HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D10Texture2DPtr& waterfallTex)
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
 		{ 0.0f,		0.0f,	0.0f },
@@ -128,15 +131,18 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10
 		{ 0.203f,	1.0f,	0.984f },
 	};
 
-	D3D10_TEXTURE1D_DESC waterfallDesc;
+	D3D10_TEXTURE2D_DESC waterfallDesc;
 	memset(&waterfallDesc, 0, sizeof(waterfallDesc));
 	waterfallDesc.Width = 256;
+	waterfallDesc.Height = 1;
 	waterfallDesc.MipLevels = 1;
 	waterfallDesc.ArraySize = 1;
 	waterfallDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	waterfallDesc.Usage = D3D10_USAGE_IMMUTABLE;
 	waterfallDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 	waterfallDesc.CPUAccessFlags = 0;
+	waterfallDesc.SampleDesc.Count = 1;
+	waterfallDesc.SampleDesc.Quality = 0;
 
 #pragma pack(push,1)
 	struct colors_t {
@@ -178,8 +184,9 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10
 	D3D10_SUBRESOURCE_DATA waterfallData;
 	memset(&waterfallData, 0, sizeof(waterfallData));
 	waterfallData.pSysMem = waterfallColors;
+	waterfallData.SysMemPitch = sizeof(waterfallColors);
 
-	HRESULT hR = pDevice->CreateTexture1D(&waterfallDesc, &waterfallData, waterfallTex.inref());
+	HRESULT hR = pDevice->CreateTexture2D(&waterfallDesc, &waterfallData, waterfallTex.inref());
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
@@ -188,15 +195,6 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10DevicePtr pDevice, ID3D10
 HRESULT CDirectxWaterfall::initTexture()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	// Load the shader in from the file.
-	static LPCTSTR filename = _T("waterfall.fx");
-	std::string errors;
-	HRESULT hR = compileResource(filename, m_pEffect, errors);
-	if(FAILED(hR)) return hR;
-
-	m_pTechnique = m_pEffect->GetTechniqueByName("WaterfallTechnique");
-	D3D10_PASS_DESC PassDesc;
-	m_pTechnique->GetPassByIndex(0)->GetDesc(&PassDesc);
 
 	D3D10_INPUT_ELEMENT_DESC vdesc[] =
 	{
@@ -204,7 +202,11 @@ HRESULT CDirectxWaterfall::initTexture()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TL_FALL_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
-	hR = m_pDevice->CreateInputLayout(vdesc, 2, PassDesc.pIAInputSignature, PassDesc.IAInputSignatureSize, m_pInputLayout.inref());
+	// Load the shader in from the file.
+	HRESULT hR = createPixelShaderFromResource(_T("waterfall_ps.cso"), m_pPS);
+	if(FAILED(hR)) return hR;
+
+	hR = createVertexShaderFromResource(_T("waterfall_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
 	if(FAILED(hR)) return hR;
 
 	// calculate texture coordinates
@@ -224,61 +226,68 @@ HRESULT CDirectxWaterfall::initTexture()
 	vertices[3].pos = D3DXVECTOR3(texRight, texBottom, 0.0f);
 	vertices[3].tex = D3DXVECTOR2(1.0f, 1.0f);
 
-	D3D10_BUFFER_DESC vertexBufferDesc;
-	memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
-	vertexBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-	vertexBufferDesc.ByteWidth = sizeof(vertices);
-	vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
-	vertexBufferDesc.CPUAccessFlags = 0;
-//	vertexBufferDesc.MiscFlags = 0;
+	{
+		D3D10_BUFFER_DESC vertexBufferDesc;
+		memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
+		vertexBufferDesc.Usage = D3D10_USAGE_DEFAULT;
+		vertexBufferDesc.ByteWidth = sizeof(vertices);
+		vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
+		vertexBufferDesc.CPUAccessFlags = 0;
+	//	vertexBufferDesc.MiscFlags = 0;
 
-	D3D10_SUBRESOURCE_DATA vertexData;
-	memset(&vertexData, 0, sizeof(vertexData));
-	vertexData.pSysMem = vertices;
+		D3D10_SUBRESOURCE_DATA vertexData;
+		memset(&vertexData, 0, sizeof(vertexData));
+		vertexData.pSysMem = vertices;
 
-	hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
-	if(FAILED(hR)) return hR;
+		hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
+		if(FAILED(hR)) return hR;
+	}
 
 	// Now create the index buffer.
-	D3D10_BUFFER_DESC indexBufferDesc;
-	memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
-	indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
-	indexBufferDesc.ByteWidth = sizeof(VERTEX_INDICES);
-	indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
-//	indexBufferDesc.CPUAccessFlags = 0;
-//	indexBufferDesc.MiscFlags = 0;
+	{
+		D3D10_BUFFER_DESC indexBufferDesc;
+		memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
+		indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
+		indexBufferDesc.ByteWidth = sizeof(VERTEX_INDICES);
+		indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
+	//	indexBufferDesc.CPUAccessFlags = 0;
+	//	indexBufferDesc.MiscFlags = 0;
 
-	D3D10_SUBRESOURCE_DATA indexData;
-	memset(&indexData, 0, sizeof(indexData));
-	vertexData.pSysMem = VERTEX_INDICES;
+		D3D10_SUBRESOURCE_DATA indexData;
+		memset(&indexData, 0, sizeof(indexData));
+		indexData.pSysMem = VERTEX_INDICES;
 
-	hR = m_pDevice->CreateBuffer(&indexBufferDesc, &vertexData, m_pVertexIndexBuffer.inref());
-	if(FAILED(hR)) return hR;
+		hR = m_pDevice->CreateBuffer(&indexBufferDesc, &indexData, m_pVertexIndexBuffer.inref());
+		if(FAILED(hR)) return hR;
+	}
 
-	ID3D10Texture1DPtr waterfallTex;
+	ID3D10Texture2DPtr waterfallTex;
 	hR = buildWaterfallTexture(m_pDevice, waterfallTex);
 	if(FAILED(hR)) return hR;
 
 	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
 	if(FAILED(hR)) return hR;
 
-	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("waterfallColors");
-	if(!pVar) return E_FAIL;
-	ID3D10EffectShaderResourceVariable* pVarRes = pVar->AsShaderResource();
-	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
-	hR = pVarRes->SetResource(m_waterfallView);
-	if(FAILED(hR)) return hR;
-
 	// Create an orthographic projection matrix for 2D rendering.
 	D3DXMATRIX orthoMatrix;
 	D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
 
-	pVar = m_pEffect->GetVariableByName("orthoMatrix");
-	if(!pVar) return E_FAIL;
-	ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
-	if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
-	hR = pVarMat->SetMatrix(orthoMatrix);
-	if(FAILED(hR)) return hR;
+	{
+		D3D10_BUFFER_DESC vsGlobalBufferDesc;
+		memset(&vsGlobalBufferDesc, 0, sizeof(vsGlobalBufferDesc));
+		vsGlobalBufferDesc.Usage = D3D10_USAGE_DEFAULT;
+		vsGlobalBufferDesc.ByteWidth = sizeof(orthoMatrix);
+		vsGlobalBufferDesc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+	//	vsGlobalBufferDesc.CPUAccessFlags = 0;
+	//	vsGlobalBufferDesc.MiscFlags = 0;
+
+		D3D10_SUBRESOURCE_DATA vsGlobalData;
+		memset(&vsGlobalData, 0, sizeof(vsGlobalData));
+		vsGlobalData.pSysMem = orthoMatrix;
+
+		hR = m_pDevice->CreateBuffer(&vsGlobalBufferDesc, &vsGlobalData, m_pVSGlobals.inref());
+		if(FAILED(hR)) return hR;
+	}
 
 	return initDataTexture();
 }
@@ -301,74 +310,71 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	m_floatStaging = new float[m_dataTexWidth];
 	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
 
-	D3D10_TEXTURE2D_DESC dataDesc;
-	memset(&dataDesc, 0, sizeof(dataDesc));
-	dataDesc.Width = m_dataTexWidth;
-	dataDesc.Height = m_dataTexHeight;
-	dataDesc.MipLevels = 1;
-	dataDesc.ArraySize = 1;
-	dataDesc.Format = DXGI_FORMAT_R16_FLOAT;
-	dataDesc.SampleDesc.Count = 1;
-	dataDesc.SampleDesc.Quality = 0;
-	dataDesc.Usage = D3D10_USAGE_DYNAMIC;
-	dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
-	dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
+	HRESULT hR;
+	{
+		D3D10_TEXTURE2D_DESC dataDesc;
+		memset(&dataDesc, 0, sizeof(dataDesc));
+		dataDesc.Width = m_dataTexWidth;
+		dataDesc.Height = m_dataTexHeight;
+		dataDesc.MipLevels = 1;
+		dataDesc.ArraySize = 1;
+		dataDesc.Format = DXGI_FORMAT_R16_FLOAT;
+		dataDesc.SampleDesc.Count = 1;
+		dataDesc.SampleDesc.Quality = 0;
+		dataDesc.Usage = D3D10_USAGE_DYNAMIC;
+		dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
+		dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-	HRESULT hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
-	if(FAILED(hR)) return hR;
+		hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
+		if(FAILED(hR)) return hR;
+	}
 
 	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
 	if(FAILED(hR)) return hR;
 
-	ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("waterfallValues");
-	if(!pVar) return E_FAIL;
-	ID3D10EffectShaderResourceVariable* pVarRes = pVar->AsShaderResource();
-	if(!pVarRes || !pVarRes->IsValid()) return E_FAIL;
-	hR = pVarRes->SetResource(m_dataView);
-	if(FAILED(hR)) return hR;
+	{
+		D3D10_BUFFER_DESC psGlobalBufferDesc;
+		memset(&psGlobalBufferDesc, 0, sizeof(psGlobalBufferDesc));
+		psGlobalBufferDesc.Usage = D3D10_USAGE_DEFAULT;
+		psGlobalBufferDesc.ByteWidth = sizeof(m_psRange);
+		psGlobalBufferDesc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
+	//	psGlobalBufferDesc.CPUAccessFlags = 0;
+	//	psGlobalBufferDesc.MiscFlags = 0;
 
-	pVar = m_pEffect->GetVariableByName("minRange");
-	if(!pVar) return E_FAIL;
-	ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
-	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
-	hR = pVarScal->SetFloat(m_minRange);
-	if(FAILED(hR)) return hR;
+		D3D10_SUBRESOURCE_DATA psGlobalData;
+		memset(&psGlobalData, 0, sizeof(psGlobalData));
+		psGlobalData.pSysMem = &m_psRange;
 
-	pVar = m_pEffect->GetVariableByName("maxRange");
-	if(!pVar) return E_FAIL;
-	pVarScal = pVar->AsScalar();
-	if(!pVarScal || !pVarScal->IsValid()) return E_FAIL;
-	hR = pVarScal->SetFloat(m_maxRange);
-	if(FAILED(hR)) return hR;
+		hR = m_pDevice->CreateBuffer(&psGlobalBufferDesc, &psGlobalData, m_pPSGlobals.inref());
+		if(FAILED(hR)) return hR;
+	}
 
 	return S_OK;
 }
 
 void CDirectxWaterfall::setMinRange(const float& newMin)
 {
-	if(newMin != m_minRange)
+	if(newMin != m_psRange.minRange)
 	{
-		m_minRange = newMin;
-		if(!m_pEffect) return;
-		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("minRange");
-		if(!pVar) return;
-		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
-		if(!pVarScal || !pVarScal->IsValid()) return;
-		pVarScal->SetFloat(m_minRange);
+		m_psRange.minRange = newMin;
+
+		if(m_pDevice && m_pPSGlobals)
+		{
+			m_pDevice->UpdateSubresource(m_pPSGlobals, 0, NULL, &m_psRange, sizeof(m_psRange), sizeof(m_psRange));
+		}
 	}
 }
 
 void CDirectxWaterfall::setMaxRange(const float& newMax)
 {
-	if(newMax != m_maxRange)
+	if(newMax != m_psRange.maxRange)
 	{
-		m_maxRange = newMax;
-		if(!m_pEffect) return;
-		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("maxRange");
-		if(!pVar) return;
-		ID3D10EffectScalarVariable* pVarScal = pVar->AsScalar();
-		if(!pVarScal || !pVarScal->IsValid()) return;
-		pVarScal->SetFloat(m_maxRange);
+		m_psRange.maxRange = newMax;
+
+		if(m_pDevice && m_pPSGlobals)
+		{
+			m_pDevice->UpdateSubresource(m_pPSGlobals, 0, NULL, &m_psRange, sizeof(m_psRange), sizeof(m_psRange));
+		}
 	}
 }
 
@@ -400,18 +406,13 @@ HRESULT CDirectxWaterfall::resizeDevice()
 		m_pDevice->UpdateSubresource(m_pVertexBuffer, 0, NULL, vertices, sizeof(vertices), sizeof(vertices));
 	}
 
-	if(m_pEffect)
+	if(m_pDevice && m_pVSGlobals)
 	{
 		// Create an orthographic projection matrix for 2D rendering.
 		D3DXMATRIX orthoMatrix;
 		D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
 
-		ID3D10EffectVariable* pVar = m_pEffect->GetVariableByName("orthoMatrix");
-		if(!pVar) return E_FAIL;
-		ID3D10EffectMatrixVariable* pVarMat = pVar->AsMatrix();
-		if(!pVarMat || !pVarMat->IsValid()) return E_FAIL;
-		hR = pVarMat->SetMatrix(orthoMatrix);
-		if(FAILED(hR)) return hR;
+		m_pDevice->UpdateSubresource(m_pVSGlobals, 0, NULL, &orthoMatrix, sizeof(orthoMatrix), sizeof(orthoMatrix));
 	}
 
 	return S_OK;
@@ -420,7 +421,7 @@ HRESULT CDirectxWaterfall::resizeDevice()
 HRESULT CDirectxWaterfall::drawFrameContents()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pTechnique)
+	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pPS || !m_pVS)
 	{
 		return E_POINTER;
 	}
@@ -442,20 +443,19 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	m_pDevice->IASetInputLayout(m_pInputLayout);
 
-	// Get the description structure of the technique from inside the shader so it can be used for rendering.
-	D3D10_TECHNIQUE_DESC techniqueDesc;
-	memset(&techniqueDesc, 0, sizeof(techniqueDesc));
-	hR = m_pTechnique->GetDesc(&techniqueDesc);
-	if(FAILED(hR)) return hR;
+	// Build our vertex shader
+	m_pDevice->VSSetShader(m_pVS);
+	m_pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
 
-	// Go through each pass in the technique (should be just one currently) and render the triangles.
-	for(UINT i=0; i<techniqueDesc.Passes; ++i)
-	{
-		hR = m_pTechnique->GetPassByIndex(i)->Apply(0);
-		if(FAILED(hR)) return hR;
+	// Build our piel shader
+	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
+	m_pDevice->PSSetShader(m_pPS);
+	m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
+	m_pDevice->PSSetShaderResources(0, 2, psResr);
 
-		m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
-	}
+	// render the frame
+	m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
+	hR = drawText();
 
 	return S_OK;
 }
