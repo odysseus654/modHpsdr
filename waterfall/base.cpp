@@ -22,7 +22,7 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CThreadBlockBase(driver),m_incoming(this),
-	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
+	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),m_driverLevel(0),
 	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0)
 {
 	startThread();
@@ -226,8 +226,27 @@ HRESULT CDirectxBase::initDevice()
 		return hR;
 	}
 
+	switch(m_pDevice->GetFeatureLevel())
+	{
+	case D3D10_FEATURE_LEVEL_9_1:
+		m_driverLevel = 9.1f;
+		break;
+	case D3D10_FEATURE_LEVEL_9_2:
+		m_driverLevel = 9.2f;
+		break;
+	case D3D10_FEATURE_LEVEL_9_3:
+		m_driverLevel = 9.3f;
+		break;
+	case D3D10_FEATURE_LEVEL_10_0:
+		m_driverLevel = 10.0f;
+		break;
+	case D3D10_FEATURE_LEVEL_10_1:
+		m_driverLevel = 10.1f;
+		break;
+	}
+
 	ID3D10Texture2DPtr backBuffer;
-	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
+	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(backBuffer.inref()));
 	if(FAILED(hR)) return hR;
 	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
 	if(FAILED(hR)) return hR;
@@ -318,7 +337,7 @@ HRESULT CDirectxBase::resizeDevice()
 
 	// Get buffer and create a render-target-view.
 	ID3D10Texture2DPtr backBuffer;
-	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(&backBuffer));
+	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(backBuffer.inref()));
 	if(FAILED(hR)) return hR;
 
 	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());

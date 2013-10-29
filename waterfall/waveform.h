@@ -1,6 +1,7 @@
 #pragma once
 #include "base.h"
 
+enum DXGI_FORMAT;
 struct ID3D10Buffer;
 struct ID3D10ShaderResourceView;
 struct ID3D10Texture1D;
@@ -34,10 +35,12 @@ private:
 	static const char* NAME;
 
 private: // directx stuff
-	typedef unsigned short dataTex_t;
-	dataTex_t *m_dataTexData;
+	DXGI_FORMAT m_texFormat;
+	bool m_bUsingDX9Shader;
+	UINT m_dataTexWidth;
+	void *m_dataTexData;
+	size_t m_dataTexElemSize;
 	float m_waveformColor[4];
-	float* m_floatStaging;
 
 #pragma pack(push, 4)
 	struct

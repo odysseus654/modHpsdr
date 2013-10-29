@@ -84,6 +84,7 @@ protected: // directx stuff
 	UINT m_frameWidth;
 	UINT m_screenCliWidth;
 	UINT m_screenCliHeight;
+	float m_driverLevel;
 private: // directx stuff
 	HWND m_hOutputWin;
 	WNDPROC m_pOldWinProc;

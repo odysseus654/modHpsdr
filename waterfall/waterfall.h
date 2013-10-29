@@ -1,6 +1,7 @@
 #pragma once
 #include "base.h"
 
+enum DXGI_FORMAT;
 struct ID3D10Buffer;
 struct ID3D10ShaderResourceView;
 struct ID3D10Texture1D;
@@ -36,9 +37,11 @@ private:
 	static const char* NAME;
 
 private: // directx stuff
-	typedef unsigned short dataTex_t;
+	DXGI_FORMAT m_texFormat;
+	bool m_bUsingDX9Shader;
 	UINT m_dataTexHeight;
-	dataTex_t *m_dataTexData;
+	void *m_dataTexData;
+	size_t m_dataTexElemSize;
 	float* m_floatStaging;
 
 #pragma pack(push, 4)
@@ -58,7 +61,7 @@ private: // directx stuff
 	ID3D10BufferPtr m_pVertexBuffer;
 	ID3D10BufferPtr m_pVertexIndexBuffer;
 	ID3D10InputLayoutPtr m_pInputLayout;
-	static const unsigned long VERTEX_INDICES[4];
+	static const unsigned short VERTEX_INDICES[4];
 
 	// shader resource references
 	ID3D10ShaderResourceViewPtr m_waterfallView;

@@ -7,7 +7,7 @@
 #include <d3dx10async.h>
 
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
-const unsigned long CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
+const unsigned short CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 
 static const float PI = std::atan(1.0f)*4;
 
@@ -61,7 +61,8 @@ static std::pair<float,float> rect2polar(float x, float y)
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL)
+	m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL), m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false),
+	m_dataTexElemSize(0)
 {
 	m_psRange.minRange = 0.0f;
 	m_psRange.maxRange = 0.0f;
@@ -202,8 +203,31 @@ HRESULT CDirectxWaterfall::initTexture()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TL_FALL_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
+	// check for texture support
+	enum { REQUIRED_SUPPORT = D3D10_FORMAT_SUPPORT_TEXTURE2D|D3D10_FORMAT_SUPPORT_SHADER_SAMPLE };
+	UINT texSupport;
+	if(m_driverLevel >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_FLOAT, &texSupport))
+		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
+	{
+		m_bUsingDX9Shader = false;
+		m_texFormat = DXGI_FORMAT_R16_FLOAT;
+	}
+	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, &texSupport))
+		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
+	{
+		m_bUsingDX9Shader = true;
+		m_texFormat = DXGI_FORMAT_R16_UNORM;
+	}
+	else
+	{
+		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, &texSupport))
+			&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT);
+		m_bUsingDX9Shader = true;
+		m_texFormat = DXGI_FORMAT_R8_UNORM;
+	}
+
 	// Load the shader in from the file.
-	HRESULT hR = createPixelShaderFromResource(_T("waterfall_ps.cso"), m_pPS);
+	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
 
 	hR = createVertexShaderFromResource(_T("waterfall_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
@@ -302,13 +326,30 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	m_dataView.Release();
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
-	if(m_floatStaging) delete [] m_floatStaging;
+	if(m_floatStaging)
+	{
+		delete [] m_floatStaging;
+		m_floatStaging = NULL;
+	}
+	m_dataTexElemSize = 0;
 
 //	m_dataTexWidth = 1024;
 //	m_dataTexHeight = 512;
-	m_dataTexData = new dataTex_t[m_dataTexWidth*m_dataTexHeight];
-	m_floatStaging = new float[m_dataTexWidth];
-	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
+//	m_floatStaging = new float[m_dataTexWidth];
+
+	switch(m_texFormat)
+	{
+	case DXGI_FORMAT_R16_FLOAT:
+	case DXGI_FORMAT_R16_UNORM:
+		m_dataTexData = new short[m_dataTexWidth*m_dataTexHeight];
+		m_dataTexElemSize = sizeof(short);
+		break;
+	default:
+		m_dataTexData = new char[m_dataTexWidth*m_dataTexHeight];
+		m_dataTexElemSize = sizeof(char);
+		break;
+	}
+	memset(m_dataTexData, 0, m_dataTexElemSize*m_dataTexWidth*m_dataTexHeight);
 
 	HRESULT hR;
 	{
@@ -318,7 +359,7 @@ HRESULT CDirectxWaterfall::initDataTexture()
 		dataDesc.Height = m_dataTexHeight;
 		dataDesc.MipLevels = 1;
 		dataDesc.ArraySize = 1;
-		dataDesc.Format = DXGI_FORMAT_R16_FLOAT;
+		dataDesc.Format = m_texFormat;
 		dataDesc.SampleDesc.Count = 1;
 		dataDesc.SampleDesc.Quality = 0;
 		dataDesc.Usage = D3D10_USAGE_DYNAMIC;
@@ -332,6 +373,7 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
 	if(FAILED(hR)) return hR;
 
+	if(!m_bUsingDX9Shader)
 	{
 		D3D10_BUFFER_DESC psGlobalBufferDesc;
 		memset(&psGlobalBufferDesc, 0, sizeof(psGlobalBufferDesc));
@@ -421,7 +463,7 @@ HRESULT CDirectxWaterfall::resizeDevice()
 HRESULT CDirectxWaterfall::drawFrameContents()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pPS || !m_pVS)
+	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pPS || !m_pVS || !m_dataTexElemSize)
 	{
 		return E_POINTER;
 	}
@@ -431,7 +473,7 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	UINT subr = D3D10CalcSubresource(0, 0, 0);
 	HRESULT hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
 	if(FAILED(hR)) return hR;
-	memcpy(mappedDataTex.pData, m_dataTexData, sizeof(dataTex_t)*m_dataTexWidth*m_dataTexHeight);
+	memcpy(mappedDataTex.pData, m_dataTexData, m_dataTexElemSize*m_dataTexWidth*m_dataTexHeight);
 	m_dataTex->Unmap(subr);
 
 	// setup the input assembler.
@@ -439,7 +481,7 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	UINT offset = 0;
 	ID3D10Buffer* buf = m_pVertexBuffer;
 	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
-	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 	m_pDevice->IASetInputLayout(m_pInputLayout);
 
@@ -450,7 +492,7 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	// Build our piel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
 	m_pDevice->PSSetShader(m_pPS);
-	m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
+	if(!m_bUsingDX9Shader) m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
 	m_pDevice->PSSetShaderResources(0, 2, psResr);
 
 	// render the frame
@@ -480,13 +522,82 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 	}
 
 	// shift the data up one row
-	memmove(m_dataTexData, m_dataTexData+m_dataTexWidth, sizeof(dataTex_t)*m_dataTexWidth*(m_dataTexHeight-1));
+	memmove(m_dataTexData, ((char*)m_dataTexData)+m_dataTexWidth*m_dataTexElemSize,
+		m_dataTexElemSize*m_dataTexWidth*(m_dataTexHeight-1));
 
-	// convert to float
-	for(unsigned i = 0; i < m_dataTexWidth; i++) m_floatStaging[i] = float(frame[i]);
+	double* src = frame;
+	switch(m_texFormat)
+	{
+	case DXGI_FORMAT_R16_FLOAT:
+		{
+			// convert to float
+			if(!m_floatStaging) m_floatStaging = new float[m_dataTexWidth];
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				float* dest = m_floatStaging + halfWidth;
+				float* destEnd = m_floatStaging + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
 
-	// write a new bottom line
-	dataTex_t* newLine = m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
-	D3DXFloat32To16Array((D3DXFLOAT16*)(newLine), m_floatStaging, m_dataTexWidth);
+				dest = m_floatStaging;
+				destEnd = m_floatStaging + halfWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
+			} else {
+				float* dest = m_floatStaging;
+				float* destEnd = m_floatStaging + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
+			}
+
+			// write a new bottom line
+			D3DXFLOAT16* newLine = (D3DXFLOAT16*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+			D3DXFloat32To16Array(newLine, m_floatStaging, m_dataTexWidth);
+		}
+		break;
+	case DXGI_FORMAT_R16_UNORM:
+		{
+			// convert to normalised short
+			unsigned short* newLine = (unsigned short*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+			double range = m_psRange.maxRange - m_psRange.minRange;
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				unsigned short* dest = newLine + halfWidth;
+				unsigned short* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+
+				dest = newLine;
+				destEnd = newLine + halfWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+			} else {
+				unsigned short* dest = newLine;
+				unsigned short* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+			}
+		}
+		break;
+	case DXGI_FORMAT_R8_UNORM:
+		{
+			// convert to normalised char
+			unsigned char* newLine = (unsigned char*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
+			double range = m_psRange.maxRange - m_psRange.minRange;
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				unsigned char* dest = newLine + halfWidth;
+				unsigned char* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+
+				dest = newLine;
+				destEnd = newLine + halfWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+			} else {
+				unsigned char* dest = newLine;
+				unsigned char* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+			}
+		}
+		break;
+	}
+
 	VERIFY(SUCCEEDED(drawFrame()));
 }

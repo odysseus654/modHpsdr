@@ -74,6 +74,9 @@
     <CustomBuild Include="waterfall_ps.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
+    <CustomBuild Include="waterfall_ps9.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
     <CustomBuild Include="waterfall_vs.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
@@ -81,6 +84,9 @@
       <Filter>Implementation</Filter>
     </CustomBuild>
     <CustomBuild Include="waveform_vs.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waveform_vs9.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
   </ItemGroup>

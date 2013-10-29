@@ -4,12 +4,6 @@
 Texture2D waterfallValues : register(t0); // DXGI_FORMAT_R16_FLOAT
 Texture2D waterfallColors : register(t1); // 1D texture, DXGI_FORMAT_R32G32B32_FLOAT
 
-cbuffer globals : register(b0)
-{
-	float minRange;
-	float maxRange;
-}
-
 SamplerState ValueSampleType
 {
 	Filter = MIN_MAG_MIP_LINEAR;
@@ -33,8 +27,7 @@ struct PixelInputType
 
 float4 PS(PixelInputType input) : SV_Target
 {
-	float val = waterfallValues.Sample(ValueSampleType, input.tex).r;
-	float newVal = (val - minRange) / (maxRange - minRange);
-	float4 texColor = waterfallColors.Sample(ColorSampleType, float2(newVal, 0.0));
+	unorm float val = waterfallValues.Sample(ValueSampleType, input.tex).r;
+	float4 texColor = waterfallColors.Sample(ColorSampleType, float2(val, 0.0));
 	return texColor;
 }

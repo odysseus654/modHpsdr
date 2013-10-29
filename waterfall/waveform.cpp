@@ -11,7 +11,8 @@ char const * CDirectxWaveform::NAME = "DirectX waveform display";
 // ---------------------------------------------------------------------------- class CDirectxWaveform
 
 CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexData(NULL)
+	m_dataTexData(NULL), m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false),
+	m_dataTexElemSize(0)
 {
 	m_psRange.minRange = 0.0f;
 	m_psRange.maxRange = 0.0f;
@@ -30,11 +31,6 @@ CDirectxWaveform::~CDirectxWaveform()
 	{
 		delete [] m_dataTexData;
 		m_dataTexData = NULL;
-	}
-	if(m_floatStaging)
-	{
-		delete [] m_floatStaging;
-		m_floatStaging = NULL;
 	}
 }
 
@@ -78,11 +74,34 @@ HRESULT CDirectxWaveform::initTexture()
 		{"TEXCOORD", 0, DXGI_FORMAT_R32_FLOAT, 0, offsetof(TL_FORM_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
 	};
 
+	// check for texture support
+	enum { REQUIRED_SUPPORT = D3D10_FORMAT_SUPPORT_TEXTURE1D|D3D10_FORMAT_SUPPORT_SHADER_SAMPLE };
+	UINT texSupport;
+	if(m_driverLevel >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R32_FLOAT, &texSupport))
+		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
+	{
+		m_bUsingDX9Shader = false;
+		m_texFormat = DXGI_FORMAT_R32_FLOAT;
+	}
+	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, &texSupport))
+		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
+	{
+		m_bUsingDX9Shader = true;
+		m_texFormat = DXGI_FORMAT_R16_UNORM;
+	}
+	else
+	{
+		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, &texSupport))
+			&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT);
+		m_bUsingDX9Shader = true;
+		m_texFormat = DXGI_FORMAT_R8_UNORM;
+	}
+
 	// Load the shader in from the file.
 	HRESULT hR = createPixelShaderFromResource(_T("waveform_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
 
-	hR = createVertexShaderFromResource(_T("wavform_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
+	hR = createVertexShaderFromResource(m_bUsingDX9Shader ? _T("wavform_vs9.cso") : _T("wavform_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
 	if(FAILED(hR)) return hR;
 
 	// calculate texture coordinates
@@ -90,7 +109,7 @@ HRESULT CDirectxWaveform::initTexture()
 	float mag = float(m_screenCliHeight) / 2.0f;
 
 	TL_FORM_VERTEX* vertices = new TL_FORM_VERTEX[m_screenCliWidth];
-	unsigned long* indices = new unsigned long[m_screenCliWidth];
+	unsigned short* indices = new unsigned short[m_screenCliWidth];
 
 	for(unsigned idx=0; idx < m_screenCliWidth; idx++)
 	{
@@ -175,12 +194,24 @@ HRESULT CDirectxWaveform::initDataTexture()
 	m_dataView.Release();
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
-	if(m_floatStaging) delete [] m_floatStaging;
+	m_dataTexElemSize = 0;
 
-//	m_dataTexWidth = 1024;
-	m_dataTexData = new dataTex_t[m_dataTexWidth];
-	m_floatStaging = new float[m_dataTexWidth];
-	memset(m_dataTexData, 0, sizeof(dataTex_t)*m_dataTexWidth);
+	switch(m_texFormat)
+	{
+	case DXGI_FORMAT_R32_FLOAT:
+		m_dataTexData = new float[m_dataTexWidth];
+		m_dataTexElemSize = sizeof(float);
+		break;
+	case DXGI_FORMAT_R16_UNORM:
+		m_dataTexData = new short[m_dataTexWidth];
+		m_dataTexElemSize = sizeof(short);
+		break;
+	default:
+		m_dataTexData = new char[m_dataTexWidth];
+		m_dataTexElemSize = sizeof(char);
+		break;
+	}
+	memset(m_dataTexData, 0, m_dataTexElemSize*m_dataTexWidth);
 
 	HRESULT hR;
 	{
@@ -218,6 +249,7 @@ HRESULT CDirectxWaveform::initDataTexture()
 		if(FAILED(hR)) return hR;
 	}
 
+	if(!m_bUsingDX9Shader)
 	{
 		D3D10_BUFFER_DESC psGlobalBufferDesc;
 		memset(&psGlobalBufferDesc, 0, sizeof(psGlobalBufferDesc));
@@ -342,7 +374,7 @@ HRESULT CDirectxWaveform::resizeDevice()
 HRESULT CDirectxWaveform::drawFrameContents()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pVSOrthoGlobals || !m_pVSRangeGlobals || !m_pPSColorGlobals)
+	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pVSOrthoGlobals || !m_pPSColorGlobals || !m_dataTexElemSize)
 	{
 		return E_POINTER;
 	}
@@ -352,7 +384,7 @@ HRESULT CDirectxWaveform::drawFrameContents()
 	UINT subr = D3D10CalcSubresource(0, 0, 0);
 	HRESULT hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
 	if(FAILED(hR)) return hR;
-	memcpy(mappedDataTex, m_dataTexData, sizeof(dataTex_t)*m_dataTexWidth);
+	memcpy(mappedDataTex, m_dataTexData, m_dataTexElemSize*m_dataTexWidth);
 	m_dataTex->Unmap(subr);
 
 	// setup the input assembler.
@@ -360,15 +392,20 @@ HRESULT CDirectxWaveform::drawFrameContents()
 	UINT offset = 0;
 	ID3D10Buffer* buf = m_pVertexBuffer;
 	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
-	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
 	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_LINESTRIP);
 	m_pDevice->IASetInputLayout(m_pInputLayout);
 
 	// Build our vertex shader
-	ID3D10Buffer* vsBuf[] = { m_pVSOrthoGlobals, m_pVSRangeGlobals };
 	m_pDevice->VSSetShader(m_pVS);
-	m_pDevice->PSSetShaderResources(0, 1, m_dataView.ref());
-	m_pDevice->VSSetConstantBuffers(0, 2, vsBuf);
+	m_pDevice->VSSetShaderResources(0, 1, m_dataView.ref());
+	if(!m_bUsingDX9Shader)
+	{
+		ID3D10Buffer* vsBuf[] = { m_pVSOrthoGlobals, m_pVSRangeGlobals };
+		m_pDevice->VSSetConstantBuffers(0, 2, vsBuf);
+	} else {
+		m_pDevice->VSSetConstantBuffers(0, 1, m_pVSOrthoGlobals.ref());
+	}
 
 	// Build our piel shader
 	m_pDevice->PSSetShader(m_pPS);
@@ -391,11 +428,75 @@ void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
 		}
 	}
 
-	// convert to float
-	for(unsigned i = 0; i < m_dataTexWidth; i++) m_floatStaging[i] = float(frame[i]);
+	double* src = frame;
+	switch(m_texFormat)
+	{
+	case DXGI_FORMAT_R32_FLOAT:
+		{
+			// convert to float
+			float* newLine = (float*)m_dataTexData;
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				float* dest = newLine + halfWidth;
+				float* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
 
-	// write the new line out
-	D3DXFloat32To16Array((D3DXFLOAT16*)(m_dataTexData), m_floatStaging, m_dataTexWidth);
+				dest = newLine;
+				destEnd = newLine + halfWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
+			} else {
+				float* dest = newLine;
+				float* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = float(*src++);
+			}
+		}
+		break;
+	case DXGI_FORMAT_R16_UNORM:
+		{
+			// convert to normalised short
+			unsigned short* newLine = (unsigned short*)m_dataTexData;
+			double range = m_psRange.maxRange - m_psRange.minRange;
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				unsigned short* dest = newLine + halfWidth;
+				unsigned short* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+
+				dest = newLine;
+				destEnd = newLine + halfWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+			} else {
+				unsigned short* dest = newLine;
+				unsigned short* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+			}
+		}
+		break;
+	case DXGI_FORMAT_R8_UNORM:
+		{
+			// convert to normalised char
+			unsigned char* newLine = (unsigned char*)m_dataTexData;
+			double range = m_psRange.maxRange - m_psRange.minRange;
+			if(m_bIsComplexInput)
+			{
+				UINT halfWidth = m_dataTexWidth / 2;
+				unsigned char* dest = newLine + halfWidth;
+				unsigned char* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+
+				dest = newLine;
+				destEnd = newLine + halfWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+			} else {
+				unsigned char* dest = newLine;
+				unsigned char* destEnd = newLine + m_dataTexWidth;
+				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+			}
+		}
+		break;
+	}
 
 	VERIFY(SUCCEEDED(drawFrame()));
 }

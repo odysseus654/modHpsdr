@@ -8,12 +8,6 @@ cbuffer orthoglobals : register(b0)
 	matrix orthoMatrix;
 }
 
-cbuffer rangeglobals : register(b1)
-{
-	float minRange;
-	float maxRange;
-}
-
 SamplerState WaveSampleType
 {
 	Filter = MIN_MAG_MIP_LINEAR;
@@ -40,11 +34,10 @@ PixelInputType VS(VertexInputType input)
 //	// Change the position vector to be 4 units for proper matrix calculations.
 //	input.position.w = 1.0f;
 
-	float val = waveformValues.Sample(WaveSampleType, input.tex).r;
-	float newVal = (val - minRange) / (maxRange - minRange);
+	unorm float val = waveformValues.Sample(WaveSampleType, input.tex).r;
 
 	float4 newPos = input.position;
-	newPos.y = newVal * input.mag;
+	newPos.y = val * input.mag;
 	
 	// Calculate the position of the vertex against the world, view, and projection matrices.
 	output.position = mul(input.position, orthoMatrix);
