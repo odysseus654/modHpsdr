@@ -86,8 +86,5 @@
     <CustomBuild Include="waveform_vs.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
-    <CustomBuild Include="waveform_vs9.hlsl">
-      <Filter>Implementation</Filter>
-    </CustomBuild>
   </ItemGroup>
 </Project>

@@ -14,14 +14,12 @@ waterfall_ps9.cso  RCDATA   ".\Debug\waterfall_ps9.cso"
 waterfall_vs.cso   RCDATA   ".\Debug\waterfall_vs.cso"
 waveform_ps.cso    RCDATA   ".\Debug\waveform_ps.cso"
 waveform_vs.cso    RCDATA   ".\Debug\waveform_vs.cso"
-waveform_vs9.cso   RCDATA   ".\Debug\waveform_vs9.cso"
 #else
 waterfall_ps.cso   RCDATA   ".\Release\waterfall_ps.cso"
 waterfall_ps9.cso  RCDATA   ".\Release\waterfall_ps9.cso"
 waterfall_vs.cso   RCDATA   ".\Release\waterfall_vs.cso"
 waveform_ps.cso    RCDATA   ".\Release\waveform_ps.cso"
 waveform_vs.cso    RCDATA   ".\Release\waveform_vs.cso"
-waveform_vs9.cso   RCDATA   ".\Release\waveform_vs9.cso"
 #endif
 
 //

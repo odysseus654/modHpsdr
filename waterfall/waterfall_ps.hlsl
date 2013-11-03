@@ -35,6 +35,5 @@ float4 PS(PixelInputType input) : SV_Target
 {
 	float val = waterfallValues.Sample(ValueSampleType, input.tex).r;
 	float newVal = (val - minRange) / (maxRange - minRange);
-	float4 texColor = waterfallColors.Sample(ColorSampleType, float2(newVal, 0.0));
-	return texColor;
+	return waterfallColors.Sample(ColorSampleType, float2(newVal, 0.0));
 }

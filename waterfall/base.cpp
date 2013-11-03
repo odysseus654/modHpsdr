@@ -116,13 +116,13 @@ void CDirectxBase::setTargetWindow(void* const & newTarg)
 HRESULT CDirectxBase::createPixelShaderFromResource(LPCTSTR fileName, ID3D10PixelShaderPtr& pShader)
 {
 	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
-	if(!hResource) return GetLastError();
+	if(!hResource) return HRESULT_FROM_WIN32(GetLastError());
 
 	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
-	if(!hLoadedResource) return GetLastError();
+	if(!hLoadedResource) return HRESULT_FROM_WIN32(GetLastError());
 
 	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
-	if(!dwSize) return GetLastError();
+	if(!dwSize) return HRESULT_FROM_WIN32(GetLastError());
 
 	LPVOID pLockedResource = LockResource(hLoadedResource);
 	if(!pLockedResource) return E_UNEXPECTED;
@@ -134,13 +134,13 @@ HRESULT CDirectxBase::createVertexShaderFromResource(LPCTSTR fileName, const D3D
 		UINT NumElements, ID3D10VertexShaderPtr& pShader, ID3D10InputLayoutPtr& pInputLayout)
 {
 	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
-	if(!hResource) return GetLastError();
+	if(!hResource) return HRESULT_FROM_WIN32(GetLastError());
 
 	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
-	if(!hLoadedResource) return GetLastError();
+	if(!hLoadedResource) return HRESULT_FROM_WIN32(GetLastError());
 
 	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
-	if(!dwSize) return GetLastError();
+	if(!dwSize) return HRESULT_FROM_WIN32(GetLastError());
 
 	LPVOID pLockedResource = LockResource(hLoadedResource);
 	if(!pLockedResource) return E_UNEXPECTED;

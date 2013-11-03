@@ -81,7 +81,7 @@ private:
 
 protected: // directx stuff
 	Lock m_refLock;
-	UINT m_frameWidth;
+	UINT m_dataTexWidth;
 	UINT m_screenCliWidth;
 	UINT m_screenCliHeight;
 	float m_driverLevel;

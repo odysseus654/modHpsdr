@@ -49,6 +49,7 @@ private: // directx stuff
 	{
 		float minRange;
 		float maxRange;
+		float unused1, unused2;
 	} m_psRange;
 #pragma pack(pop)
 

@@ -129,17 +129,8 @@
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader - waveform</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_vs.cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_vs.cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
-    </CustomBuild>
-    <CustomBuild Include="waveform_vs9.hlsl">
-      <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling VertexShader9 - waveform</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader9 - waveform</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_vs9.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_vs9.cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs9.cso" "$(ProjectDir)waveform_vs9.hlsl"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs.cso9" "$(ProjectDir)waveform_vs9.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
