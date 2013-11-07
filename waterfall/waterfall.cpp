@@ -61,8 +61,8 @@ static std::pair<float,float> rect2polar(float x, float y)
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL), m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false),
-	m_dataTexElemSize(0)
+	m_dataTexWidth(0), m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL), m_bIsComplexInput(true),
+	m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false), m_dataTexElemSize(0)
 {
 	m_psRange.minRange = 0.0f;
 	m_psRange.maxRange = 0.0f;
@@ -100,6 +100,8 @@ void CDirectxWaterfall::buildAttrs()
 		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -200.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
 		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -100.0f));
+	attrs.isComplexInput = addLocalAttr(true, new CAttr_callback<signals::etypBoolean,CDirectxWaterfall>
+		(*this, "isComplexInput", "Input is based on complex data", &CDirectxWaterfall::setIsComplexInput, true));
 }
 
 void CDirectxWaterfall::releaseDevice()
@@ -319,10 +321,11 @@ HRESULT CDirectxWaterfall::initTexture()
 HRESULT CDirectxWaterfall::initDataTexture()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_dataTexWidth || !m_dataTexHeight || !m_pDevice)
+	if(!m_frameWidth || !m_dataTexHeight || !m_pDevice)
 	{
 		return S_FALSE;
 	}
+	m_dataTexWidth = m_bIsComplexInput ? m_frameWidth : m_frameWidth / 2;
 	m_dataView.Release();
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
@@ -333,7 +336,6 @@ HRESULT CDirectxWaterfall::initDataTexture()
 	}
 	m_dataTexElemSize = 0;
 
-//	m_dataTexWidth = 1024;
 //	m_dataTexHeight = 512;
 //	m_floatStaging = new float[m_dataTexWidth];
 
@@ -416,6 +418,19 @@ void CDirectxWaterfall::setMaxRange(const float& newMax)
 		if(m_pDevice && m_pPSGlobals)
 		{
 			m_pDevice->UpdateSubresource(m_pPSGlobals, 0, NULL, &m_psRange, sizeof(m_psRange), sizeof(m_psRange));
+		}
+	}
+}
+
+void CDirectxWaterfall::setIsComplexInput(const unsigned char& bComplex)
+{
+	if(!!bComplex != m_bIsComplexInput)
+	{
+		Locker lock(m_refLock);
+		if(!!bComplex != m_bIsComplexInput)
+		{
+			m_bIsComplexInput = !!bComplex;
+			initDataTexture();
 		}
 	}
 }
@@ -512,11 +527,11 @@ void CDirectxWaterfall::setHeight(const short& newHeight)
 
 void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 {
-	if(size && size != m_dataTexWidth)
+	if(size && size != m_frameWidth)
 	{
-		if(size && size != m_dataTexWidth)
+		if(size && size != m_frameWidth)
 		{
-			m_dataTexWidth = size;
+			m_frameWidth = size;
 			initDataTexture();
 		}
 	}

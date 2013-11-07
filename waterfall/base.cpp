@@ -23,7 +23,7 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 #pragma warning(disable: 4355)
 CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CThreadBlockBase(driver),m_incoming(this),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),m_driverLevel(0),
-	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0),m_dataRate(0),m_dataFrequency(0)
+	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_frameWidth(0),m_dataRate(0),m_dataFrequency(0)
 {
 	startThread();
 }
@@ -44,7 +44,7 @@ void CDirectxBase::thread_run()
 	{
 		{
 			Locker lock(m_refLock);
-			if(m_dataTexWidth > buffer.capacity()) buffer.resize(m_dataTexWidth);
+			if(m_frameWidth > buffer.capacity()) buffer.resize(m_frameWidth);
 		}
 		if(!buffer.capacity()) buffer.resize(DEFAULT_CAPACITY);
 		unsigned recvCount = m_incoming.Read(signals::etypVecDouble, buffer.data(),
@@ -52,7 +52,7 @@ void CDirectxBase::thread_run()
 		if(recvCount)
 		{
 			Locker lock(m_refLock);
-			unsigned bufSize = m_dataTexWidth;
+			unsigned bufSize = m_frameWidth;
 			if(!bufSize) bufSize = recvCount;
 
 			double* buffPtr = buffer.data();
@@ -459,12 +459,12 @@ void CDirectxBase::CIncoming::OnChanged(signals::IAttribute* attr, const void* v
 		} else {
 			width = *(long*)value;
 		}
-		if(width != base->m_dataTexWidth && width > 0)
+		if(width != base->m_frameWidth && width > 0)
 		{
 			Locker lock(base->m_refLock);
-			if(width != base->m_dataTexWidth && width > 0)
+			if(width != base->m_frameWidth && width > 0)
 			{
-				base->m_dataTexWidth = width;
+				base->m_frameWidth = width;
 				base->initDataTexture();
 			}
 		}

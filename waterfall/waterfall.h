@@ -25,12 +25,14 @@ public: // IBlock implementation
 	void setHeight(const short& height);
 	void setMinRange(const float& newMin);
 	void setMaxRange(const float& newMax);
+	void setIsComplexInput(const unsigned char& bComplex);
 
 	struct
 	{
 		CAttributeBase* height;
 		CAttributeBase* minRange;
 		CAttributeBase* maxRange;
+		CAttributeBase* isComplexInput;
 	} attrs;
 
 private:
@@ -39,10 +41,11 @@ private:
 private: // directx stuff
 	DXGI_FORMAT m_texFormat;
 	bool m_bUsingDX9Shader;
-	UINT m_dataTexHeight;
+	UINT m_dataTexWidth, m_dataTexHeight;
 	void *m_dataTexData;
 	size_t m_dataTexElemSize;
 	float* m_floatStaging;
+	bool m_bIsComplexInput;
 
 #pragma pack(push, 4)
 	struct

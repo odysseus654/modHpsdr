@@ -11,7 +11,7 @@ char const * CDirectxWaveform::NAME = "DirectX waveform display";
 // ---------------------------------------------------------------------------- class CDirectxWaveform
 
 CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexData(NULL)
+	m_dataTexWidth(0), m_dataTexData(NULL), m_bIsComplexInput(true)
 {
 	m_psRange.minRange = 0.0f;
 	m_psRange.maxRange = 0.0f;
@@ -40,6 +40,8 @@ void CDirectxWaveform::buildAttrs()
 		(*this, "minRange", "Weakest signal to display", &CDirectxWaveform::setMinRange, -200.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaveform>
 		(*this, "maxRange", "Strongest signal to display", &CDirectxWaveform::setMaxRange, -150.0f));
+	attrs.isComplexInput = addLocalAttr(true, new CAttr_callback<signals::etypBoolean,CDirectxWaveform>
+		(*this, "isComplexInput", "Input is based on complex data", &CDirectxWaveform::setIsComplexInput, true));
 }
 
 void CDirectxWaveform::releaseDevice()
@@ -79,10 +81,11 @@ HRESULT CDirectxWaveform::initTexture()
 HRESULT CDirectxWaveform::initDataTexture()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_dataTexWidth || !m_pDevice)
+	if(!m_frameWidth || !m_pDevice)
 	{
 		return S_FALSE;
 	}
+	m_dataTexWidth = m_bIsComplexInput ? m_frameWidth : m_frameWidth / 2;
 	m_dataTex.Release();
 	if(m_dataTexData) delete [] m_dataTexData;
 	m_dataTexData = new float[m_dataTexWidth];
@@ -285,21 +288,32 @@ HRESULT CDirectxWaveform::drawFrameContents()
 
 void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
 {
-	if(size && size != m_dataTexWidth)
+	if(size && size != m_frameWidth)
 	{
-		if(size && size != m_dataTexWidth)
+		if(size && size != m_frameWidth)
 		{
-			m_dataTexWidth = size;
+			m_frameWidth = size;
 			initDataTexture();
 		}
 	}
 
 	// convert to float
 	double* src = frame;
-	float* newLine = m_dataTexData;
-	float* dest = newLine;
-	float* destEnd = newLine + m_dataTexWidth;
-	while(dest < destEnd) *dest++ = float(*src++);
+	if(m_bIsComplexInput)
+	{
+		UINT halfWidth = m_dataTexWidth / 2;
+		float* dest = m_dataTexData + halfWidth;
+		float* destEnd = m_dataTexData + m_dataTexWidth;
+		while(dest < destEnd) *dest++ = float(*src++);
+
+		dest = m_dataTexData;
+		destEnd = m_dataTexData + halfWidth;
+		while(dest < destEnd) *dest++ = float(*src++);
+	} else {
+		float* dest = m_dataTexData;
+		float* destEnd = m_dataTexData + m_dataTexWidth;
+		while(dest < destEnd) *dest++ = float(*src++);
+	}
 
 	VERIFY(SUCCEEDED(drawFrame()));
 }

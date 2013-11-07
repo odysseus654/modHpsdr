@@ -22,19 +22,23 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	void setMinRange(const float& newMin);
 	void setMaxRange(const float& newMax);
+	void setIsComplexInput(const unsigned char& bComplex);
 
 	struct
 	{
 		CAttributeBase* minRange;
 		CAttributeBase* maxRange;
+		CAttributeBase* isComplexInput;
 	} attrs;
 
 private:
 	static const char* NAME;
 
 private: // directx stuff
+	UINT m_dataTexWidth;
 	float *m_dataTexData;
 	float m_waveformColor[4];
+	bool m_bIsComplexInput;
 
 #pragma pack(push, 4)
 	struct
