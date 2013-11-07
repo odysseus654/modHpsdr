@@ -36,6 +36,7 @@ private:
 
 public: // IBlock implementation
 	virtual unsigned Incoming(signals::IInEndpoint** ep, unsigned availEP) { return singleIncoming(&m_incoming, ep, availEP); }
+	virtual void Start() { m_incoming.AttachAttributes(); }
 
 	struct
 	{
@@ -49,7 +50,8 @@ public:
 	class CIncoming : public CSimpleIncomingChild<signals::etypVecDouble>, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
+		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_lastRateAttr(NULL),
+			m_lastFreqAttr(NULL) { }
 		virtual ~CIncoming();
 
 	private:
@@ -61,13 +63,17 @@ public:
 	public: // CInEndpointBase interface
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual void OnChanged(const char* name, signals::EType type, const void* value);
-		virtual void OnDetached(const char* name);
+		virtual void OnChanged(signals::IAttribute* attr, const void* value);
+		virtual void OnDetached(signals::IAttribute* attr);
+		void AttachAttributes();
 
 	private:
 		virtual void OnConnection(signals::IEPRecvFrom* recv);
+		void AttachAttributes(signals::IEPRecvFrom *conn);
+		void DetachAttributes();
 		signals::IAttribute* m_lastWidthAttr;
-		bool m_bAttached;
+		signals::IAttribute* m_lastRateAttr;
+		signals::IAttribute* m_lastFreqAttr;
 	};
 
 private:
@@ -85,6 +91,8 @@ protected: // directx stuff
 	UINT m_screenCliWidth;
 	UINT m_screenCliHeight;
 	float m_driverLevel;
+	volatile long m_dataRate;
+	volatile __int64 m_dataFrequency;
 private: // directx stuff
 	HWND m_hOutputWin;
 	WNDPROC m_pOldWinProc;

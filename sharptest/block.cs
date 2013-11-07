@@ -157,7 +157,7 @@ namespace signals
         event OnChanged changed;
 	};
 
-    public delegate void OnChanged(string name, EType type, object value);
+    public delegate void OnChanged(IAttribute attr, object value);
 
     public interface IFunctionSpec : ICircuitConnectible
 	{

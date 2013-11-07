@@ -22,25 +22,26 @@ namespace hpsdr {
 
 void CAttr_inProxy::setProxy(signals::IAttribute& target)
 {
-	Locker proxyLock(m_proxyLock);
+	WriteLocker proxyLock(m_proxyLock);
 	if(proxyObject)
 	{
-		Locker obsLock(m_observersLock);
+		ReadLocker obsLock(m_observersLock);
 		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
 		{
 			proxyObject->Unobserve(*trans);
 		}
 	}
 
+	ASSERT(proxyObject->Type() == Type());
 	proxyObject = &target;
 
 	if(proxyObject)
 	{
-		Locker obsLock(m_observersLock);
+		ReadLocker obsLock(m_observersLock);
 		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
 		{
 			proxyObject->Observe(*trans);
-			(*trans)->OnChanged(Name(), proxyObject->Type(), proxyObject->getValue());
+			(*trans)->OnChanged(this, proxyObject->getValue());
 		}
 	}
 }

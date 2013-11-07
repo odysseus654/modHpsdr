@@ -23,7 +23,7 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 #pragma warning(disable: 4355)
 CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CThreadBlockBase(driver),m_incoming(this),
 	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),m_driverLevel(0),
-	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0)
+	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_dataTexWidth(0),m_dataRate(0),m_dataFrequency(0)
 {
 	startThread();
 }
@@ -382,37 +382,83 @@ HRESULT CDirectxBase::resizeDevice()
 
 CDirectxBase::CIncoming::~CIncoming()
 {
-	if(m_lastWidthAttr)
-	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
-		m_lastWidthAttr = NULL;
-	}
+	DetachAttributes();
 }
 
 void CDirectxBase::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 {
+	DetachAttributes();
+	if(conn) AttachAttributes(conn);
+}
+
+void CDirectxBase::CIncoming::AttachAttributes()
+{
+	signals::IEPRecvFrom *conn = this->CurrentEndpoint();
+	if(conn) AttachAttributes(conn);
+}
+
+void CDirectxBase::CIncoming::DetachAttributes()
+{
 	if(m_lastWidthAttr)
 	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr->Unobserve(this);
 		m_lastWidthAttr = NULL;
 	}
+	if(m_lastRateAttr)
+	{
+		m_lastRateAttr->Unobserve(this);
+		m_lastRateAttr = NULL;
+	}
+	if(m_lastFreqAttr)
+	{
+		m_lastFreqAttr->Unobserve(this);
+		m_lastFreqAttr = NULL;
+	}
+}
+
+void CDirectxBase::CIncoming::AttachAttributes(signals::IEPRecvFrom *conn)
+{
 	if(!conn) return;
 	signals::IAttributes* attrs = conn->OutputAttributes();
 	if(!attrs) return;
-	signals::IAttribute* attr = attrs->GetByName("blockSize");
-	if(!attr || attr->Type() != signals::etypShort) return;
-	m_lastWidthAttr = attr;
-	m_lastWidthAttr->Observe(this);
-	m_bAttached = true;
-	OnChanged(attr->Name(), attr->Type(), attr->getValue());
+	if(!m_lastWidthAttr)
+	{
+		signals::IAttribute* attr = attrs->GetByName("blockSize");
+		if(!attr ||  (attr->Type() != signals::etypShort && attr->Type() != signals::etypLong)) return;
+		m_lastWidthAttr = attr;
+		m_lastWidthAttr->Observe(this);
+		OnChanged(attr, attr->getValue());
+	}
+	if(!m_lastRateAttr)
+	{
+		signals::IAttribute* attr = attrs->GetByName("rate");
+		if(!attr || attr->Type() != signals::etypLong) return;
+		m_lastRateAttr = attr;
+		m_lastRateAttr->Observe(this);
+		OnChanged(attr, attr->getValue());
+	}
+	if(!m_lastFreqAttr)
+	{
+		signals::IAttribute* attr = attrs->GetByName("freq");
+		if(!attr || (attr->Type() != signals::etypLong && attr->Type() != signals::etypInt64)) return;
+		m_lastFreqAttr = attr;
+		m_lastFreqAttr->Observe(this);
+		OnChanged(attr, attr->getValue());
+	}
 }
 
-void CDirectxBase::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
+void CDirectxBase::CIncoming::OnChanged(signals::IAttribute* attr, const void* value)
 {
-	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
+	if(attr == m_lastWidthAttr)
 	{
 		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
-		short width = *(short*)value;
+		long width;
+		if(attr->Type() == signals::etypShort)
+		{
+			width = *(short*)value;
+		} else {
+			width = *(long*)value;
+		}
 		if(width != base->m_dataTexWidth && width > 0)
 		{
 			Locker lock(base->m_refLock);
@@ -423,14 +469,50 @@ void CDirectxBase::CIncoming::OnChanged(const char* name, signals::EType type, c
 			}
 		}
 	}
+	else if(attr == m_lastRateAttr && attr->Type() == signals::etypLong)
+	{
+		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
+		long rate = *(long*)value;
+		if(rate > 0)
+		{
+			InterlockedExchange(&base->m_dataRate, rate);
+		}
+	}
+	else if(attr == m_lastFreqAttr)
+	{
+		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
+		__int64 freq;
+		signals::EType type = attr->Type();
+		if(type == signals::etypLong)
+		{
+			freq = *(long*)value;
+		}
+		else if(type == signals::etypInt64)
+		{
+			freq = *(__int64*)value;
+		}
+		if(freq > 0)
+		{
+			InterlockedExchange64(&base->m_dataFrequency, freq);
+		}
+	}
 }
 
-void CDirectxBase::CIncoming::OnDetached(const char* name)
+void CDirectxBase::CIncoming::OnDetached(signals::IAttribute* attr)
 {
-	if(_stricmp(name, "blockSize") == 0)
+	if(attr == m_lastWidthAttr)
 	{
-		m_bAttached = false;
+		m_lastWidthAttr = NULL;
 	}
+	else if(attr == m_lastRateAttr)
+	{
+		m_lastRateAttr = NULL;
+	}
+	else if(attr == m_lastFreqAttr)
+	{
+		m_lastFreqAttr = NULL;
+	}
+	else ASSERT(FALSE);
 }
 
 LRESULT CDirectxBase::WindowProcCatcher(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)

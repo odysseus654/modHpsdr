@@ -98,6 +98,147 @@ private:
 	friend class Condition;
 };
 
+class RWLock
+{
+public:
+	inline RWLock()				{ InitializeSRWLock(&m_lock); }
+	~RWLock()					{ }
+	inline void lockRead()		{ AcquireSRWLockShared(&m_lock); }
+	inline void unlockRead()	{ ReleaseSRWLockShared(&m_lock); }
+	inline bool tryLockRead()	{ return !!TryAcquireSRWLockShared(&m_lock); }
+	inline void lockWrite()		{ AcquireSRWLockExclusive(&m_lock); }
+	inline void unlockWrite()	{ ReleaseSRWLockExclusive(&m_lock); }
+	inline bool tryLockWrite()	{ return !!TryAcquireSRWLockExclusive(&m_lock); }
+
+private:
+	SRWLOCK m_lock;
+
+	RWLock(const RWLock& other);
+	RWLock& operator=(const RWLock& other);
+
+	friend class Condition;
+};
+
+class ReadLocker
+{
+public:
+	explicit inline ReadLocker(RWLock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
+	{
+		if(bLocked) lock();
+	}
+
+	~ReadLocker()
+	{
+		unlock();
+	}
+
+	inline void set(RWLock& lock)
+	{
+		unlock();
+		m_lock = &lock;
+	}
+
+	inline void lock()
+	{
+		if(m_lock && !m_bLocked)
+		{
+			m_lock->lockRead();
+			m_bLocked = true;
+		}
+	}
+
+	inline bool tryLock()
+	{
+		if(m_lock && (m_bLocked || m_lock->tryLockRead()))
+		{
+			m_bLocked = true;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	inline void unlock()
+	{
+		if(m_lock && m_bLocked)
+		{
+			m_lock->unlockRead();
+			m_bLocked = false;
+		}
+	}
+
+private:
+	RWLock* m_lock;
+	bool    m_bLocked;
+
+	ReadLocker(const ReadLocker& other);
+	ReadLocker& operator=(const ReadLocker& other);
+
+	friend class Condition;
+};
+
+class WriteLocker
+{
+public:
+	explicit inline WriteLocker(RWLock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
+	{
+		if(bLocked) lock();
+	}
+
+	~WriteLocker()
+	{
+		unlock();
+	}
+
+	inline void set(RWLock& lock)
+	{
+		unlock();
+		m_lock = &lock;
+	}
+
+	inline void lock()
+	{
+		if(m_lock && !m_bLocked)
+		{
+			m_lock->lockWrite();
+			m_bLocked = true;
+		}
+	}
+
+	inline bool tryLock()
+	{
+		if(m_lock && (m_bLocked || m_lock->tryLockWrite()))
+		{
+			m_bLocked = true;
+			return true;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	inline void unlock()
+	{
+		if(m_lock && m_bLocked)
+		{
+			m_lock->unlockWrite();
+			m_bLocked = false;
+		}
+	}
+
+private:
+	RWLock* m_lock;
+	bool    m_bLocked;
+
+	WriteLocker(const WriteLocker& other);
+	WriteLocker& operator=(const WriteLocker& other);
+
+	friend class Condition;
+};
+
 class Condition
 {
 public:
@@ -105,6 +246,10 @@ public:
 	~Condition()				{ }
 	inline bool sleep(Locker& cs, DWORD milli = INFINITE)
 								{ return cs.m_bLocked && cs.m_lock && !!SleepConditionVariableCS(&m_cond, &cs.m_lock->m_cs, milli); }
+	inline bool sleep(ReadLocker& cs, DWORD milli = INFINITE)
+								{ return cs.m_bLocked && cs.m_lock && !!SleepConditionVariableSRW(&m_cond, &cs.m_lock->m_lock, milli, CONDITION_VARIABLE_LOCKMODE_SHARED); }
+	inline bool sleep(WriteLocker& cs, DWORD milli = INFINITE)
+								{ return cs.m_bLocked && cs.m_lock && !!SleepConditionVariableSRW(&m_cond, &cs.m_lock->m_lock, milli, 0); }
 	inline void wake()			{ WakeConditionVariable(&m_cond); }
 	inline void wakeAll()		{ WakeAllConditionVariable(&m_cond); }
 

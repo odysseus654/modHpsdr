@@ -257,7 +257,7 @@ class CAttr_outProxy : public CRWAttribute<ET>, public CHpsdrDevice::Receiver::I
 {
 private:
 	typedef CRWAttribute<ET> base_type;
-	Lock m_proxyLock;
+	RWLock m_proxyLock;
 
 public:
 	inline CAttr_outProxy(const char* pName, const char* pDescr, base_type& ref)
@@ -265,7 +265,7 @@ public:
 
 	virtual void setProxy(base_type& target)
 	{
-		Locker lock(m_proxyLock);
+		WriteLocker lock(m_proxyLock);
 		proxyObject = &target;
 		if(proxyObject) proxyObject->nativeSetValue(nativeGetValue());
 	}
@@ -275,7 +275,7 @@ public:
 protected:
 	virtual void onSetValue(const store_type& value)
 	{
-		Locker lock(m_proxyLock);
+		ReadLocker lock(m_proxyLock);
 		if(proxyObject) proxyObject->nativeSetValue(value);
 	}
 
@@ -294,14 +294,14 @@ public:
 	virtual signals::EType Type()		{ return refObject.Type(); }
 	virtual BOOL isReadOnly()			{ return true; }
 	virtual BOOL setValue(const void* newVal) { UNUSED_ALWAYS(newVal); return false; }
-	virtual const void* getValue()		{ Locker lock(m_proxyLock); return proxyObject ? proxyObject->getValue() : NULL; }
+	virtual const void* getValue()		{ ReadLocker lock(m_proxyLock); return proxyObject ? proxyObject->getValue() : NULL; }
 	virtual void setProxy(signals::IAttribute& target);
 
 private:
 	CAttr_inProxy(const CAttr_inProxy& other);
 	CAttr_inProxy& operator=(const CAttr_inProxy& other);
 private:
-	Lock m_proxyLock;
+	RWLock m_proxyLock;
 	signals::IAttribute& refObject;
 	signals::IAttribute* proxyObject;
 };

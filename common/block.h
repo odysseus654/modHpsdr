@@ -166,8 +166,8 @@ namespace signals
 
 	__interface IAttributeObserver
 	{
-		void OnChanged(const char* name, EType type, const void* value);
-		void OnDetached(const char* name);
+		void OnChanged(IAttribute* attr, const void* value);
+		void OnDetached(IAttribute* attr);
 	};
 
 	__interface IFunctionSpec

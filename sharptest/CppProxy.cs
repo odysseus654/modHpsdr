@@ -336,8 +336,8 @@ namespace cppProxy
 
         public interface IAttributeObserver
         {
-            void OnChanged(IntPtr name, [MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr value);
-            void OnDetached(IntPtr name);
+            void OnChanged(IntPtr attr, IntPtr value);
+            void OnDetached(IntPtr attr);
         };
 
 	    public interface IFunctionSpec
@@ -1003,25 +1003,23 @@ namespace cppProxy
                 this.parent = new WeakReference(parent);
             }
 
-            public void OnChanged(IntPtr name, signals.EType type, IntPtr value)
+            public void OnChanged(IntPtr attr, IntPtr value)
             {
                 CppProxyAttribute p = (CppProxyAttribute)parent.Target;
                 if (p == null) return;
-                string strName = Utilities.getString(name);
                 object newVal = null;
                 if (value != IntPtr.Zero && p.m_typeInfo != null)
                 {
                     newVal = p.m_typeInfo.fromNative(value);
                 }
-                if(p.changed != null) p.changed(strName, type, newVal);
+                if(p.changed != null) p.changed(p, newVal);
             }
 
-            public void OnDetached(IntPtr name)
+            public void OnDetached(IntPtr attr)
             {
                 CppProxyAttribute p = (CppProxyAttribute)parent.Target;
                 if (p == null) return;
-                string strName = Utilities.getString(name);
-                p.detached(strName);
+                p.detached();
             }
         }
 
@@ -1080,7 +1078,7 @@ namespace cppProxy
             }
         }
 
-        void detached(string name)
+        void detached()
         {
             if (m_callback != null)
             {

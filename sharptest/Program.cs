@@ -31,7 +31,7 @@ namespace sharptest
             Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
             Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag^2");
             Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "dB");
-            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
+            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waveform");
 
             schem.add(fftElem);
             schem.add(frameElem);
@@ -75,7 +75,7 @@ namespace sharptest
 
         void panel1_HandleCreated(object sender, EventArgs e)
         {
-            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waterfall");
+            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waveform");
             List<Layout.Circuit.Element> lookup = circuit.Find(waterfallElem);
             signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
             waterfall.Attributes["targetWindow"].Value = canvas.panel1.Handle;
@@ -83,17 +83,17 @@ namespace sharptest
         }
 
         protected object st_screenLock = new object();
-        private void OnChanged(string name, signals.EType type, object value)
+        private void OnChanged(signals.IAttribute attr, object value)
         {
             lock(st_screenLock)
             {
                 if (value == null)
                 {
-                    Console.Out.WriteLine(String.Format("{0}: null", name));
+                    Console.Out.WriteLine(String.Format("{0}: null", attr.Name));
                 }
                 else
                 {
-                    Console.Out.WriteLine(String.Format("{0}: ({1}){2}", name, value.GetType().Name, value));
+                    Console.Out.WriteLine(String.Format("{0}: ({1}){2}", attr.Name, value.GetType().Name, value));
                 }
             }
         }

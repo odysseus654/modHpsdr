@@ -109,18 +109,17 @@ public:
 	class CIncoming : public CSimpleIncomingChild<signals::etypVecCmplDbl>, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_bAttached(false) { }
+		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL) { }
 		virtual ~CIncoming();
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }
-		virtual void OnChanged(const char* name, signals::EType type, const void* value);
-		virtual void OnDetached(const char* name);
+		virtual void OnChanged(signals::IAttribute* attr, const void* value);
+		virtual void OnDetached(signals::IAttribute* attr);
 
 	private:
 		const static char* EP_NAME;
 		const static char* EP_DESCR;
 		signals::IAttribute* m_lastWidthAttr;
-		bool m_bAttached;
 
 		CIncoming(const CIncoming& other);
 		CIncoming& operator=(const CIncoming& other);

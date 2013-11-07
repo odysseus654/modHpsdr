@@ -172,7 +172,7 @@ CFFTransform::CIncoming::~CIncoming()
 {
 	if(m_lastWidthAttr)
 	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr->Unobserve(this);
 		m_lastWidthAttr = NULL;
 	}
 }
@@ -181,36 +181,43 @@ void CFFTransform::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 {
 	if(m_lastWidthAttr)
 	{
-		if(m_bAttached) m_lastWidthAttr->Unobserve(this);
+		m_lastWidthAttr->Unobserve(this);
 		m_lastWidthAttr = NULL;
 	}
 	if(!conn) return;
 	signals::IAttributes* attrs = conn->OutputAttributes();
 	if(!attrs) return;
 	signals::IAttribute* attr = attrs->GetByName("blockSize");
-	if(!attr || attr->Type() != signals::etypShort) return;
+	if(!attr || (attr->Type() != signals::etypShort && attr->Type() != signals::etypLong)) return;
 	m_lastWidthAttr = attr;
 	m_lastWidthAttr->Observe(this);
-	m_bAttached = true;
-	OnChanged(attr->Name(), attr->Type(), attr->getValue());
+	OnChanged(attr, attr->getValue());
 }
 
-void CFFTransform::CIncoming::OnChanged(const char* name, signals::EType type, const void* value)
+void CFFTransform::CIncoming::OnChanged(signals::IAttribute* attr, const void* value)
 {
-	if(_stricmp(name, "blockSize") == 0 && type == signals::etypShort)
+	if(attr == m_lastWidthAttr)
 	{
 		CFFTransform* base = static_cast<CFFTransform*>(m_parent);
-		long newWidth = *(short*)value;
+		long newWidth;
+		if(attr->Type() == signals::etypShort)
+		{
+			newWidth = *(short*)value;
+		} else {
+			newWidth = *(long*)value;
+		}
 		InterlockedExchange(&base->m_requestSize, newWidth);
 	}
+	else ASSERT(FALSE);
 }
 
-void CFFTransform::CIncoming::OnDetached(const char* name)
+void CFFTransform::CIncoming::OnDetached(signals::IAttribute* attr)
 {
-	if(_stricmp(name, "blockSize") == 0)
+	if(attr == m_lastWidthAttr)
 	{
-		m_bAttached = false;
+		m_lastWidthAttr = NULL;
 	}
+	else ASSERT(FALSE);
 }
 
 // ------------------------------------------------------------------ class CFFTransformDriver

@@ -20,7 +20,7 @@
 
 BOOL CInEndpointBase::Connect(signals::IEPRecvFrom* recv)
 {
-	Locker lock(m_connRecvLock);
+	WriteLocker lock(m_connRecvLock);
 	if(recv != m_connRecv)
 	{
 		if(recv) recv->onSinkConnected(this);
@@ -34,7 +34,7 @@ BOOL CInEndpointBase::Connect(signals::IEPRecvFrom* recv)
 
 unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
 {
-	Locker lock(m_connRecvLock);
+	ReadLocker lock(m_connRecvLock);
 	if(!m_connRecv)
 	{
 		if(!msTimeout) return 0;
@@ -46,7 +46,7 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 
 void CInEndpointBase::MergeRemoteAttrs(std::map<std::string,signals::IAttribute*>& attrs, unsigned flags)
 {
-	Locker lock(m_connRecvLock);
+	ReadLocker lock(m_connRecvLock);
 	if(!m_connRecv) return;
 	signals::IAttributes* rattrs = m_connRecv->OutputAttributes();
 	if(!rattrs) return;
@@ -68,7 +68,7 @@ void CInEndpointBase::MergeRemoteAttrs(std::map<std::string,signals::IAttribute*
 
 signals::IAttribute* CInEndpointBase::RemoteGetByName(const char* name)
 {
-	Locker lock(m_connRecvLock);
+	ReadLocker lock(m_connRecvLock);
 	if(!m_connRecv) return NULL;
 	signals::IAttributes* attrs = m_connRecv->OutputAttributes();
 	return attrs ? attrs->GetByName(name) : NULL;
@@ -78,7 +78,7 @@ signals::IAttribute* CInEndpointBase::RemoteGetByName(const char* name)
 
 BOOL COutEndpointBase::Connect(signals::IEPSendTo* send)
 {
-	Locker lock(m_connSendLock);
+	WriteLocker lock(m_connSendLock);
 	if(send != m_connSend)
 	{
 		if(send) send->AddRef(this);
@@ -92,7 +92,7 @@ BOOL COutEndpointBase::Connect(signals::IEPSendTo* send)
 
 unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout)
 {
-	Locker lock(m_connSendLock);
+	ReadLocker lock(m_connSendLock);
 	if(!m_connSend)
 	{
 		if(!msTimeout) return 0;
@@ -106,7 +106,7 @@ unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned num
 
 void CAttributeBase::Observe(signals::IAttributeObserver* obs)
 {
-	Locker lock(m_observersLock);
+	WriteLocker lock(m_observersLock);
 	if(m_observers.find(obs) == m_observers.end())
 	{
 		m_observers.insert(obs);
@@ -115,7 +115,7 @@ void CAttributeBase::Observe(signals::IAttributeObserver* obs)
 
 void CAttributeBase::Unobserve(signals::IAttributeObserver* obs)
 {
-	Locker lock(m_observersLock);
+	WriteLocker lock(m_observersLock);
 	TObserverList::iterator lookup = m_observers.find(obs);
 	if(lookup != m_observers.end())
 	{
@@ -296,7 +296,7 @@ void CAttribute<signals::etypString>::onSetValue(const store_type& value)
 {
 	TObserverList transList;
 	{
-		Locker obslock(m_observersLock);
+		ReadLocker obslock(m_observersLock);
 		transList = m_observers;
 	}
 	Locker listlock(m_funcListLock);
@@ -320,7 +320,7 @@ void CEventAttribute::fire()
 {
 	TObserverList transList;
 	{
-		Locker obslock(m_observersLock);
+		ReadLocker obslock(m_observersLock);
 		transList = m_observers;
 	}
 	Locker listlock(m_funcListLock);

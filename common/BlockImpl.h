@@ -62,11 +62,12 @@ public:
 
 protected:
 	virtual void OnConnection(signals::IEPRecvFrom*) { }
+	inline signals::IEPRecvFrom* CurrentEndpoint() const { return m_connRecv; }
 private:
 	CInEndpointBase(const CInEndpointBase& other);
 	CInEndpointBase& operator=(const CInEndpointBase& other);
 private:
-	Lock m_connRecvLock;
+	RWLock m_connRecvLock;
 	Condition m_connRecvConnected;
 	signals::IEPRecvFrom* m_connRecv;
 };
@@ -87,11 +88,12 @@ public:
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
 protected:
 	virtual void OnConnection(signals::IEPSendTo*) { }
+	inline signals::IEPSendTo* CurrentEndpoint() const { return m_connSend; }
 private:
 	COutEndpointBase(const COutEndpointBase& other);
 	COutEndpointBase& operator=(const COutEndpointBase& other);
 private:
-	Lock m_connSendLock;
+	RWLock m_connSendLock;
 	Condition m_connSendConnected;
 	signals::IEPSendTo* m_connSend;
 };
@@ -103,10 +105,10 @@ protected:
 public:
 	virtual ~CAttributeBase()
 	{
-		Locker obslock(m_observersLock);
+		WriteLocker obslock(m_observersLock);
 		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
 		{
-			(*trans)->OnDetached(m_name);
+			(*trans)->OnDetached(this);
 		}
 	}
 	virtual const char* Name()			{ return m_name; }
@@ -124,7 +126,7 @@ private:
 protected:
 	typedef std::set<signals::IAttributeObserver*> TObserverList;
 	TObserverList m_observers;
-	Lock          m_observersLock;
+	RWLock        m_observersLock;
 private:
 	const char* m_name;
 	const char* m_descr;
@@ -493,7 +495,7 @@ protected:
 	{
 		TObserverList transList;
 		{
-			Locker obslock(m_observersLock);
+			ReadLocker obslock(m_observersLock);
 			transList = m_observers;
 		}
 		Locker listlock(m_funcListLock);
@@ -521,10 +523,10 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs, store_type value)
 	{
-		Locker obslock(m_observersLock);
+		ReadLocker obslock(m_observersLock);
 		if(m_observers.find(obs) != m_observers.end())
 		{
-			obs->OnChanged(Name(), Type(), &value);
+			obs->OnChanged(this, &value);
 		}
 	}
 };
@@ -566,10 +568,10 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs, store_type value)
 	{
-		Locker obslock(m_observersLock);
+		ReadLocker obslock(m_observersLock);
 		if(m_observers.find(obs) != m_observers.end())
 		{
-			obs->OnChanged(Name(), Type(), value.c_str());
+			obs->OnChanged(this, value.c_str());
 		}
 	}
 
@@ -675,10 +677,10 @@ private:
 
 	void catcher(signals::IAttributeObserver* obs)
 	{
-		Locker obslock(m_observersLock);
+		ReadLocker obslock(m_observersLock);
 		if(m_observers.find(obs) != m_observers.end())
 		{
-			obs->OnChanged(Name(), Type(), NULL);
+			obs->OnChanged(this, NULL);
 		}
 	}
 };
@@ -829,7 +831,7 @@ protected:
 	}
 };
 
-// ------------------------------------------------------------------------------------------------
+// ----------------------------------------------------------------------------- inline implementations
 
 unsigned CRefcountObject::Release()
 {

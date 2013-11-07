@@ -37,7 +37,7 @@ public:
 		CAttributeBase* blockSize;
 	} attrs;
 
-	void setBlockSize(const short& blockSize);
+	void setBlockSize(const long& blockSize);
 
 private:
 	enum
@@ -181,16 +181,15 @@ CFrameBuilder<IN_TYPE,OUT_TYPE>::CFrameBuilder(signals::IBlockDriver* driver)
 template<signals::EType IN_TYPE, signals::EType OUT_TYPE>
 void CFrameBuilder<IN_TYPE,OUT_TYPE>::buildAttrs()
 {
-	attrs.blockSize = addLocalAttr(true, new CAttr_callback<signals::etypShort,CFrameBuilder>
+	attrs.blockSize = addLocalAttr(true, new CAttr_callback<signals::etypLong,CFrameBuilder>
 		(*this, "blockSize", "Number of samples to process in each block", &CFrameBuilder::setBlockSize, DEFAULT_BLOCK_SIZE));
 	m_outgoing.buildAttrs(*this);
 }
 
 template<signals::EType IN_TYPE, signals::EType OUT_TYPE>
-void CFrameBuilder<IN_TYPE,OUT_TYPE>::setBlockSize(const short& newBs)
+void CFrameBuilder<IN_TYPE,OUT_TYPE>::setBlockSize(const long& newBs)
 {
-	long blockSize(newBs);
-	InterlockedExchange(&m_bufSize, blockSize);
+	InterlockedExchange(&m_bufSize, newBs);
 }
 
 template<signals::EType IN_TYPE, signals::EType OUT_TYPE>
