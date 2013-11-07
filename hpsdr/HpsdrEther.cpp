@@ -189,7 +189,7 @@ CHpsdrEthernet::CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipad
 	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
 	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
 	 m_sock(INVALID_SOCKET), m_lastRunStatus(0), m_iqStarting(false), m_wideStarting(false),
-	 m_nextSendSeq(0), m_driver(driver), m_wideSyncFault(false)
+	 m_nextSendSeq(0), m_driver(driver)
 {
 }
 
@@ -350,19 +350,14 @@ void CHpsdrEthernet::thread_recv()
 							*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 							wideSrc += 2;
 						}
-						if(m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0))
+						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0)
+							&& m_wideRecv.isConnected())
 						{
-							m_wideSyncFault = false;
-						}
-						else if(!m_wideSyncFault && m_wideRecv.isConnected())
-						{
-							m_wideSyncFault = true;
 							attrs.wide_sync_fault->fire();
 						}
 					}
 					break;
 				case 6: // endpoint 4: IQ + mic data
-					if(!m_iqStarting || !seq)
 					{
 						unsigned numSamples = receive_frame(message+8);
 						if(numSamples)
@@ -379,6 +374,7 @@ void CHpsdrEthernet::thread_recv()
 							if(m_recvSamples > m_recvSpeed*128)
 							{
 								// release send thread
+								m_recvSamples -= m_recvSpeed*128;
 								m_sendThreadLock.wake();
 							}
 						}
