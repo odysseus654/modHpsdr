@@ -4,7 +4,7 @@
 #include "base.h"
 
 #include <d3d10_1.h>
-#include <d3dx10async.h>
+#include <d3dx10.h>
 #pragma comment(lib, "d3d10_1.lib")
 #pragma comment(lib, "d3dx10.lib")
 
@@ -199,12 +199,13 @@ HRESULT CDirectxBase::initDevice()
 #else
 	UINT DX_FLAGS = 0;
 #endif
+	D3D10_FEATURE_LEVEL1 level = D3D10_FEATURE_LEVEL_10_1;
 
 	HRESULT hR;
 	for(;;)
 	{
 		HRESULT hR = D3D10CreateDeviceAndSwapChain1(NULL, D3D10_DRIVER_TYPE_HARDWARE,
-			NULL, DX_FLAGS, D3D10_FEATURE_LEVEL_9_1, D3D10_1_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
+			NULL, DX_FLAGS, level, D3D10_1_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
 		if(SUCCEEDED(hR)) break;
 
 #ifdef _DEBUG
@@ -214,19 +215,29 @@ HRESULT CDirectxBase::initDevice()
 			DX_FLAGS &= ~D3D10_CREATE_DEVICE_DEBUG;
 			continue;
 		}
+		DX_FLAGS |= D3D10_CREATE_DEVICE_DEBUG;
 #endif
-		if(hR == DXGI_ERROR_UNSUPPORTED && sd.BufferDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+		switch(level)
 		{
-			// try an alternate screen format
-			sd.BufferDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+		case D3D10_FEATURE_LEVEL_10_1:
+			level = D3D10_FEATURE_LEVEL_10_0;
 			continue;
-		}
+		case D3D10_FEATURE_LEVEL_10_0:
+			level = D3D10_FEATURE_LEVEL_9_3;
+			continue;
+		case D3D10_FEATURE_LEVEL_9_3:
+			level = D3D10_FEATURE_LEVEL_9_2;
+			continue;
+		case D3D10_FEATURE_LEVEL_9_2:
+			level = D3D10_FEATURE_LEVEL_9_1;
+			continue;
+		};
 
 		// request failed
 		return hR;
 	}
 
-	switch(m_pDevice->GetFeatureLevel())
+	switch(level)
 	{
 	case D3D10_FEATURE_LEVEL_9_1:
 		m_driverLevel = 9.1f;
@@ -293,8 +304,7 @@ HRESULT CDirectxBase::initDevice()
 	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
 	if(FAILED(hR)) return hR;
 
-	ID3D10RenderTargetView* targs = m_pRenderTargetView;
-	m_pDevice->OMSetRenderTargets(1, &targs, m_pDepthView);
+	m_pDevice->OMSetRenderTargets(1, m_pRenderTargetView.ref(), m_pDepthView);
 
 	// Setup the viewport for rendering.
 	D3D10_VIEWPORT viewport;
@@ -574,7 +584,7 @@ HRESULT CDirectxBase::drawFrame()
 		return E_POINTER;
 	}
 
-	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+	clearFrame();
 
 	HRESULT hR = drawFrameContents();
 	if(FAILED(hR)) return hR;
@@ -583,4 +593,9 @@ HRESULT CDirectxBase::drawFrame()
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
+}
+
+void CDirectxBase::clearFrame()
+{
+	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 }

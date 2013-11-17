@@ -30,13 +30,14 @@ void CAttr_inProxy::setProxy(signals::IAttribute& target)
 		{
 			proxyObject->Unobserve(*trans);
 		}
+		ASSERT(proxyObject->Type() == Type());
 	}
 
-	ASSERT(proxyObject->Type() == Type());
 	proxyObject = &target;
 
 	if(proxyObject)
 	{
+		ASSERT(proxyObject->Type() == Type());
 		ReadLocker obsLock(m_observersLock);
 		for(TObserverList::const_iterator trans=m_observers.begin(); trans != m_observers.end(); trans++)
 		{

@@ -1,14 +1,12 @@
 #pragma once
-#include "base.h"
+#include "scope.h"
 
-enum DXGI_FORMAT;
-struct ID3D10Buffer;
 struct ID3D10ShaderResourceView;
-
-typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
+struct ID3D10SamplerState;
 typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
+typedef unk_ref_t<ID3D10SamplerState> ID3D10SamplerStatePtr;
 
-class CDirectxWaveform : public CDirectxBase
+class CDirectxWaveform : public CDirectxScope
 {
 public:
 	CDirectxWaveform(signals::IBlockDriver* driver);
@@ -22,23 +20,22 @@ public: // IBlock implementation
 	virtual const char* Name()				{ return NAME; }
 	void setMinRange(const float& newMin);
 	void setMaxRange(const float& newMax);
-	void setIsComplexInput(const unsigned char& bComplex);
 
 	struct
 	{
 		CAttributeBase* minRange;
 		CAttributeBase* maxRange;
-		CAttributeBase* isComplexInput;
 	} attrs;
 
 private:
 	static const char* NAME;
 
 private: // directx stuff
+	bool m_bUsingDX9Shader;
+	DXGI_FORMAT m_texFormat;
 	UINT m_dataTexWidth;
-	float *m_dataTexData;
-	float m_waveformColor[4];
-	bool m_bIsComplexInput;
+	void *m_dataTexData;
+	size_t m_dataTexElemSize;
 
 #pragma pack(push, 4)
 	struct
@@ -47,28 +44,35 @@ private: // directx stuff
 		float maxRange;
 		float unused1, unused2;
 	} m_psRange;
+
+	struct
+	{
+		float m_waveformColor[4];
+		float viewWidth;
+		float viewHeight;
+		float texture_width;
+		float line_width;
+	} m_psGlobals;
 #pragma pack(pop)
 
 	// Direct3d references we use
-	ID3D10BufferPtr m_dataTex;
+	ID3D10Texture2DPtr m_dataTex;
 	ID3D10PixelShaderPtr m_pPS;
-	ID3D10VertexShaderPtr m_pVS;
-
-	// vertex stuff
-	ID3D10BufferPtr m_pVertexBuffer;
-	ID3D10BufferPtr m_pVertexIndexBuffer;
-	ID3D10InputLayoutPtr m_pInputLayout;
 
 	// shader resource references
-	ID3D10BufferPtr m_pVSOrthoGlobals;
-	ID3D10BufferPtr m_pVSRangeGlobals;
-	ID3D10BufferPtr m_pPSColorGlobals;
+	ID3D10ShaderResourceViewPtr m_dataView;
+	ID3D10BufferPtr m_pPSRangeGlobals;
+	ID3D10BufferPtr m_pPSGlobals;
+	ID3D10SamplerStatePtr m_pPSSampler;
 
 protected:
 	virtual void buildAttrs();
 	virtual void releaseDevice();
+	virtual HRESULT resizeDevice();
 	virtual HRESULT initTexture();
 	virtual HRESULT initDataTexture();
-	virtual HRESULT drawFrameContents();
+	virtual void clearFrame();
+	virtual HRESULT preDrawFrame();
+	virtual HRESULT setupPixelShader();
 	virtual void onReceivedFrame(double* frame, unsigned size);
 };

@@ -47,6 +47,9 @@
     <ClInclude Include="driver.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="scope.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -64,6 +67,9 @@
     <ClCompile Include="driver.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
+    <ClCompile Include="scope.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="waterfall.rc">
@@ -77,13 +83,13 @@
     <CustomBuild Include="waterfall_ps9.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
-    <CustomBuild Include="waterfall_vs.hlsl">
-      <Filter>Implementation</Filter>
-    </CustomBuild>
     <CustomBuild Include="waveform_ps.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
-    <CustomBuild Include="waveform_vs.hlsl">
+    <CustomBuild Include="waveform_ps9.hlsl">
+      <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="ortho_vs.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
   </ItemGroup>

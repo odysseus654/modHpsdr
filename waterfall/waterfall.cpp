@@ -4,10 +4,9 @@
 #include "waterfall.h"
 
 #include <d3d10_1.h>
-#include <d3dx10async.h>
+#include <d3dx10.h>
 
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
-const unsigned short CDirectxWaterfall::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 
 static const float PI = std::atan(1.0f)*4;
 
@@ -60,9 +59,9 @@ static std::pair<float,float> rect2polar(float x, float y)
 
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
-CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase(driver),
-	m_dataTexWidth(0), m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL), m_bIsComplexInput(true),
-	m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false), m_dataTexElemSize(0)
+CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxScope(driver, false),
+	m_dataTexWidth(0), m_dataTexHeight(0), m_dataTexData(NULL), m_floatStaging(NULL), m_dataTexElemSize(0),
+	m_texFormat(DXGI_FORMAT_UNKNOWN), m_bUsingDX9Shader(false)
 {
 	m_psRange.minRange = 0.0f;
 	m_psRange.maxRange = 0.0f;
@@ -72,7 +71,6 @@ CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxBase
 CDirectxWaterfall::~CDirectxWaterfall()
 {
 	Locker lock(m_refLock);
-	releaseDevice();
 	if(m_dataTexData)
 	{
 		delete [] m_dataTexData;
@@ -85,38 +83,24 @@ CDirectxWaterfall::~CDirectxWaterfall()
 	}
 }
 
-struct TL_FALL_VERTEX
-{
-	D3DXVECTOR3 pos;
-	D3DXVECTOR2 tex;
-};
-
 void CDirectxWaterfall::buildAttrs()
 {
-	CDirectxBase::buildAttrs();
+	CDirectxScope::buildAttrs();
 	attrs.height = addLocalAttr(true, new CAttr_callback<signals::etypShort,CDirectxWaterfall>
 		(*this, "height", "Rows of history to display", &CDirectxWaterfall::setHeight, 512));
 	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
 		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -200.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
 		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -100.0f));
-	attrs.isComplexInput = addLocalAttr(true, new CAttr_callback<signals::etypBoolean,CDirectxWaterfall>
-		(*this, "isComplexInput", "Input is based on complex data", &CDirectxWaterfall::setIsComplexInput, true));
 }
 
 void CDirectxWaterfall::releaseDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	CDirectxBase::releaseDevice();
+	CDirectxScope::releaseDevice();
 	m_dataTex.Release();
 	m_pPS.Release();
-	m_pVS.Release();
-	m_pVertexBuffer.Release();
-	m_pVertexIndexBuffer.Release();
-	m_pInputLayout.Release();
-	m_dataView.Release();
 	m_waterfallView.Release();
-	m_pVSGlobals.Release();
 	m_pPSGlobals.Release();
 }
 
@@ -198,13 +182,6 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D1
 HRESULT CDirectxWaterfall::initTexture()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-
-	const static D3D10_INPUT_ELEMENT_DESC vdesc[] =
-	{
-		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, offsetof(TL_FALL_VERTEX, pos), D3D10_INPUT_PER_VERTEX_DATA, 0},
-		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(TL_FALL_VERTEX, tex), D3D10_INPUT_PER_VERTEX_DATA, 0}
-	};
-
 	// check for texture support
 	enum { REQUIRED_SUPPORT = D3D10_FORMAT_SUPPORT_TEXTURE2D|D3D10_FORMAT_SUPPORT_SHADER_SAMPLE };
 	UINT texSupport;
@@ -228,94 +205,18 @@ HRESULT CDirectxWaterfall::initTexture()
 		m_texFormat = DXGI_FORMAT_R8_UNORM;
 	}
 
+	HRESULT hR = CDirectxScope::initTexture();
+	if(FAILED(hR)) return hR;
+
 	// Load the shader in from the file.
-	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
+	hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
-
-	hR = createVertexShaderFromResource(_T("waterfall_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
-	if(FAILED(hR)) return hR;
-
-	// calculate texture coordinates
-	float texLeft = (float)(int(m_screenCliWidth / 2) * -1);// + (float)positionX;
-	float texRight = texLeft + (float)m_screenCliWidth;
-	float texTop = (float)(m_screenCliHeight / 2);// - (float)positionY;
-	float texBottom = texTop - (float)m_screenCliHeight;
-
-	// Now create the vertex buffer.
-	TL_FALL_VERTEX vertices[4];
-	vertices[0].pos = D3DXVECTOR3(texLeft, texTop, 0.0f);
-	vertices[0].tex = D3DXVECTOR2(0.0f, 0.0f);
-	vertices[1].pos = D3DXVECTOR3(texRight, texTop, 0.0f);
-	vertices[1].tex = D3DXVECTOR2(1.0f, 0.0f);
-	vertices[2].pos = D3DXVECTOR3(texLeft, texBottom, 0.0f);
-	vertices[2].tex = D3DXVECTOR2(0.0f, 1.0f);
-	vertices[3].pos = D3DXVECTOR3(texRight, texBottom, 0.0f);
-	vertices[3].tex = D3DXVECTOR2(1.0f, 1.0f);
-
-	{
-		D3D10_BUFFER_DESC vertexBufferDesc;
-		memset(&vertexBufferDesc, 0, sizeof(vertexBufferDesc));
-		vertexBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-		vertexBufferDesc.ByteWidth = sizeof(vertices);
-		vertexBufferDesc.BindFlags = D3D10_BIND_VERTEX_BUFFER;
-		vertexBufferDesc.CPUAccessFlags = 0;
-	//	vertexBufferDesc.MiscFlags = 0;
-
-		D3D10_SUBRESOURCE_DATA vertexData;
-		memset(&vertexData, 0, sizeof(vertexData));
-		vertexData.pSysMem = vertices;
-
-		hR = m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, m_pVertexBuffer.inref());
-		if(FAILED(hR)) return hR;
-	}
-
-	// Now create the index buffer.
-	{
-		D3D10_BUFFER_DESC indexBufferDesc;
-		memset(&indexBufferDesc, 0, sizeof(indexBufferDesc));
-		indexBufferDesc.Usage = D3D10_USAGE_IMMUTABLE;
-		indexBufferDesc.ByteWidth = sizeof(VERTEX_INDICES);
-		indexBufferDesc.BindFlags = D3D10_BIND_INDEX_BUFFER;
-	//	indexBufferDesc.CPUAccessFlags = 0;
-	//	indexBufferDesc.MiscFlags = 0;
-
-		D3D10_SUBRESOURCE_DATA indexData;
-		memset(&indexData, 0, sizeof(indexData));
-		indexData.pSysMem = VERTEX_INDICES;
-
-		hR = m_pDevice->CreateBuffer(&indexBufferDesc, &indexData, m_pVertexIndexBuffer.inref());
-		if(FAILED(hR)) return hR;
-	}
 
 	ID3D10Texture2DPtr waterfallTex;
 	hR = buildWaterfallTexture(m_pDevice, waterfallTex);
 	if(FAILED(hR)) return hR;
 
-	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
-	if(FAILED(hR)) return hR;
-
-	// Create an orthographic projection matrix for 2D rendering.
-	D3DXMATRIX orthoMatrix;
-	D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
-
-	{
-		D3D10_BUFFER_DESC vsGlobalBufferDesc;
-		memset(&vsGlobalBufferDesc, 0, sizeof(vsGlobalBufferDesc));
-		vsGlobalBufferDesc.Usage = D3D10_USAGE_DEFAULT;
-		vsGlobalBufferDesc.ByteWidth = sizeof(orthoMatrix);
-		vsGlobalBufferDesc.BindFlags = D3D10_BIND_CONSTANT_BUFFER;
-	//	vsGlobalBufferDesc.CPUAccessFlags = 0;
-	//	vsGlobalBufferDesc.MiscFlags = 0;
-
-		D3D10_SUBRESOURCE_DATA vsGlobalData;
-		memset(&vsGlobalData, 0, sizeof(vsGlobalData));
-		vsGlobalData.pSysMem = orthoMatrix;
-
-		hR = m_pDevice->CreateBuffer(&vsGlobalBufferDesc, &vsGlobalData, m_pVSGlobals.inref());
-		if(FAILED(hR)) return hR;
-	}
-
-	return initDataTexture();
+	return m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
 }
 
 HRESULT CDirectxWaterfall::initDataTexture()
@@ -422,63 +323,10 @@ void CDirectxWaterfall::setMaxRange(const float& newMax)
 	}
 }
 
-void CDirectxWaterfall::setIsComplexInput(const unsigned char& bComplex)
-{
-	if(!!bComplex != m_bIsComplexInput)
-	{
-		Locker lock(m_refLock);
-		if(!!bComplex != m_bIsComplexInput)
-		{
-			m_bIsComplexInput = !!bComplex;
-			initDataTexture();
-		}
-	}
-}
-
-HRESULT CDirectxWaterfall::resizeDevice()
+HRESULT CDirectxWaterfall::preDrawFrame()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	HRESULT hR = CDirectxBase::resizeDevice();
-	if(hR != S_OK) return hR;
-
-	if(m_pVertexBuffer)
-	{
-		// calculate texture coordinates
-		float texLeft = (float)(int(m_screenCliWidth / 2) * -1);// + (float)positionX;
-		float texRight = texLeft + (float)m_screenCliWidth;
-		float texTop = (float)(m_screenCliHeight / 2);// - (float)positionY;
-		float texBottom = texTop - (float)m_screenCliHeight;
-
-		// Now create the vertex buffer.
-		TL_FALL_VERTEX vertices[4];
-		vertices[0].pos = D3DXVECTOR3(texLeft, texTop, 0.0f);
-		vertices[0].tex = D3DXVECTOR2(0.0f, 0.0f);
-		vertices[1].pos = D3DXVECTOR3(texRight, texTop, 0.0f);
-		vertices[1].tex = D3DXVECTOR2(1.0f, 0.0f);
-		vertices[2].pos = D3DXVECTOR3(texLeft, texBottom, 0.0f);
-		vertices[2].tex = D3DXVECTOR2(0.0f, 1.0f);
-		vertices[3].pos = D3DXVECTOR3(texRight, texBottom, 0.0f);
-		vertices[3].tex = D3DXVECTOR2(1.0f, 1.0f);
-
-		m_pDevice->UpdateSubresource(m_pVertexBuffer, 0, NULL, vertices, sizeof(vertices), sizeof(vertices));
-	}
-
-	if(m_pDevice && m_pVSGlobals)
-	{
-		// Create an orthographic projection matrix for 2D rendering.
-		D3DXMATRIX orthoMatrix;
-		D3DXMatrixOrthoLH(&orthoMatrix, (float)m_screenCliWidth, (float)m_screenCliHeight, 0.0f, 1.0f);
-
-		m_pDevice->UpdateSubresource(m_pVSGlobals, 0, NULL, &orthoMatrix, sizeof(orthoMatrix), sizeof(orthoMatrix));
-	}
-
-	return S_OK;
-}
-
-HRESULT CDirectxWaterfall::drawFrameContents()
-{
-	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_dataTex || !m_dataTexData || !m_pPS || !m_pVS || !m_dataTexElemSize)
+	if(!m_dataTex || !m_dataTexData || !m_pPS || !m_dataTexElemSize)
 	{
 		return E_POINTER;
 	}
@@ -491,28 +339,16 @@ HRESULT CDirectxWaterfall::drawFrameContents()
 	memcpy(mappedDataTex.pData, m_dataTexData, m_dataTexElemSize*m_dataTexWidth*m_dataTexHeight);
 	m_dataTex->Unmap(subr);
 
-	// setup the input assembler.
-	UINT stride = sizeof(TL_FALL_VERTEX); 
-	UINT offset = 0;
-	ID3D10Buffer* buf = m_pVertexBuffer;
-	m_pDevice->IASetVertexBuffers(0, 1, &buf, &stride, &offset);
-	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	m_pDevice->IASetInputLayout(m_pInputLayout);
+	return S_OK;
+}
 
-	// Build our vertex shader
-	m_pDevice->VSSetShader(m_pVS);
-	m_pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
-
+HRESULT CDirectxWaterfall::setupPixelShader()
+{
 	// Build our piel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
 	m_pDevice->PSSetShader(m_pPS);
 	if(!m_bUsingDX9Shader) m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
 	m_pDevice->PSSetShaderResources(0, 2, psResr);
-
-	// render the frame
-	m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
-	hR = drawText();
 
 	return S_OK;
 }

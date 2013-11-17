@@ -105,32 +105,32 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waterfall_ps9.cso" "$(ProjectDir)waterfall_ps9.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waterfall_ps9.cso" "$(ProjectDir)waterfall_ps9.hlsl"</Command>
     </CustomBuild>
-    <CustomBuild Include="waterfall_vs.hlsl">
-      <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling VertexShader - waterfall</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader - waterfall</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waterfall_vs.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waterfall_vs.cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waterfall_vs.cso" "$(ProjectDir)waterfall_vs.hlsl"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waterfall_vs.cso" "$(ProjectDir)waterfall_vs.hlsl"</Command>
-    </CustomBuild>
     <CustomBuild Include="waveform_ps.hlsl">
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader - waveform</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader - waveform</Message>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_ps.cso</Outputs>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_ps.cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
     </CustomBuild>
-    <CustomBuild Include="waveform_vs.hlsl">
+    <CustomBuild Include="ortho_vs.hlsl">
       <FileType>Document</FileType>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling VertexShader - waveform</Message>
-      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader - waveform</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_vs.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_vs.cso</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)waveform_vs.cso" "$(ProjectDir)waveform_vs.hlsl"</Command>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling VertexShader - ortho</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader - ortho</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ortho_vs.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ortho_vs.cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)ortho_vs.cso" "$(ProjectDir)ortho_vs.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)ortho_vs.cso" "$(ProjectDir)ortho_vs.hlsl"</Command>
+    </CustomBuild>
+    <CustomBuild Include="waveform_ps9.hlsl">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader9 - waveform</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader9 - waveform</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_ps9.cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps9.cso" "$(ProjectDir)waveform_ps9.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps9.cso" "$(ProjectDir)waveform_ps9.hlsl"</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -139,6 +139,7 @@
     <ClInclude Include="base.h" />
     <ClInclude Include="driver.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="scope.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="unkref.h" />
@@ -148,6 +149,7 @@
   <ItemGroup>
     <ClCompile Include="base.cpp" />
     <ClCompile Include="driver.cpp" />
+    <ClCompile Include="scope.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>

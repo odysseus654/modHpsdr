@@ -1,4 +1,4 @@
-// waterfall_vs.hlsl
+// ortho_vs.hlsl
 
 // globals
 cbuffer globals : register(b0)

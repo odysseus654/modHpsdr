@@ -101,13 +101,13 @@ private: // directx stuff
 
 protected:	// Direct3d references we use
 	ID3D10Device1Ptr m_pDevice;
+	ID3D10RenderTargetViewPtr m_pRenderTargetView;
 private:	// Direct3d references we use
 	IDXGISwapChainPtr m_pSwapChain;
 	ID3D10DepthStencilViewPtr m_pDepthView;
 
 	// these are mapped resources, we don't reference them other than managing their lifetime
 	ID3D10DepthStencilStatePtr m_pDepthStencilState;
-	ID3D10RenderTargetViewPtr m_pRenderTargetView;
 
 protected:
 	HRESULT createPixelShaderFromResource(LPCTSTR fileName, ID3D10PixelShaderPtr& pShader);
@@ -118,6 +118,7 @@ protected:
 	virtual HRESULT initTexture() PURE;
 	virtual HRESULT resizeDevice();
 	virtual HRESULT initDataTexture() PURE;
+	virtual void clearFrame();
 	virtual HRESULT drawFrameContents() PURE;
 	HRESULT drawFrame();
 	virtual void onReceivedFrame(double* frame, unsigned size) PURE;
