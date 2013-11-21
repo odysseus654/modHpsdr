@@ -342,7 +342,7 @@ HRESULT CDirectxWaterfall::preDrawFrame()
 	return S_OK;
 }
 
-HRESULT CDirectxWaterfall::setupPixelShader()
+HRESULT CDirectxWaterfall::drawRect()
 {
 	// Build our piel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
@@ -350,7 +350,7 @@ HRESULT CDirectxWaterfall::setupPixelShader()
 	if(!m_bUsingDX9Shader) m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
 	m_pDevice->PSSetShaderResources(0, 2, psResr);
 
-	return S_OK;
+	return CDirectxScope::drawRect();
 }
 
 void CDirectxWaterfall::setHeight(const short& newHeight)

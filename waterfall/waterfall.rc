@@ -10,16 +10,22 @@
 LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 #ifdef _DEBUG
 ortho_vs.cso       RCDATA   ".\Debug\ortho_vs.cso"
+mono_bitmap_ps.cso RCDATA   ".\Debug\mono_bitmap_ps.cso"
 waterfall_ps.cso   RCDATA   ".\Debug\waterfall_ps.cso"
 waterfall_ps9.cso  RCDATA   ".\Debug\waterfall_ps9.cso"
 waveform_ps.cso    RCDATA   ".\Debug\waveform_ps.cso"
 waveform_ps9.cso   RCDATA   ".\Debug\waveform_ps9.cso"
+waveform_shadow_ps.cso  RCDATA ".\Debug\waveform_shadow_ps.cso"
+waveform_shadow_ps9.cso RCDATA ".\Debug\waveform_shadow_ps9.cso"
 #else
 ortho_vs.cso       RCDATA   ".\Release\ortho_vs.cso"
+mono_bitmap_ps.cso RCDATA   ".\Release\mono_bitmap_ps.cso"
 waterfall_ps.cso   RCDATA   ".\Release\waterfall_ps.cso"
 waterfall_ps9.cso  RCDATA   ".\Release\waterfall_ps9.cso"
 waveform_ps.cso    RCDATA   ".\Release\waveform_ps.cso"
 waveform_ps9.cso   RCDATA   ".\Release\waveform_ps9.cso"
+waveform_shadow_ps.cso  RCDATA ".\Release\waveform_shadow_ps.cso"
+waveform_shadow_ps9.cso RCDATA ".\Release\waveform_shadow_ps9.cso"
 #endif
 
 //

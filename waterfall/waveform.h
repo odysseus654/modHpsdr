@@ -1,11 +1,6 @@
 #pragma once
 #include "scope.h"
 
-struct ID3D10ShaderResourceView;
-struct ID3D10SamplerState;
-typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
-typedef unk_ref_t<ID3D10SamplerState> ID3D10SamplerStatePtr;
-
 class CDirectxWaveform : public CDirectxScope
 {
 public:
@@ -48,6 +43,7 @@ private: // directx stuff
 	struct
 	{
 		float m_waveformColor[4];
+		float m_shadowColor[4];
 		float viewWidth;
 		float viewHeight;
 		float texture_width;
@@ -58,6 +54,7 @@ private: // directx stuff
 	// Direct3d references we use
 	ID3D10Texture2DPtr m_dataTex;
 	ID3D10PixelShaderPtr m_pPS;
+	ID3D10PixelShaderPtr m_pShadowPS;
 
 	// shader resource references
 	ID3D10ShaderResourceViewPtr m_dataView;
@@ -73,6 +70,6 @@ protected:
 	virtual HRESULT initDataTexture();
 	virtual void clearFrame();
 	virtual HRESULT preDrawFrame();
-	virtual HRESULT setupPixelShader();
+	virtual HRESULT drawRect();
 	virtual void onReceivedFrame(double* frame, unsigned size);
 };

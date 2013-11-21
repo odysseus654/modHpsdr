@@ -121,7 +121,7 @@ public:
 	}
 	*/
 
-	inline _InterfaceType** ref() throw()
+	inline _InterfaceType** ref() const throw()
 	{
 		return (_InterfaceType**)&m_pInterface;
 	}

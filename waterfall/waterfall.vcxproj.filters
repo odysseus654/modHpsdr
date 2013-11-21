@@ -10,6 +10,12 @@
     <Filter Include="Implementation">
       <UniqueIdentifier>{c8b0821c-f46b-4967-af82-ca895b54df20}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Implementation\waterfall">
+      <UniqueIdentifier>{4e41c0cd-d26a-48c9-b9ff-cd3795094bba}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation\waveform">
+      <UniqueIdentifier>{d8e7e5ed-8b36-422d-9421-1229329a0fc0}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <None Include="waterfall.def">
@@ -35,13 +41,7 @@
     <ClInclude Include="Resource.h">
       <Filter>Infrastructure</Filter>
     </ClInclude>
-    <ClInclude Include="waterfall.h">
-      <Filter>Implementation</Filter>
-    </ClInclude>
     <ClInclude Include="base.h">
-      <Filter>Implementation</Filter>
-    </ClInclude>
-    <ClInclude Include="waveform.h">
       <Filter>Implementation</Filter>
     </ClInclude>
     <ClInclude Include="driver.h">
@@ -50,18 +50,21 @@
     <ClInclude Include="scope.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="font.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="waterfall.h">
+      <Filter>Implementation\waterfall</Filter>
+    </ClInclude>
+    <ClInclude Include="waveform.h">
+      <Filter>Implementation\waveform</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Infrastructure</Filter>
     </ClCompile>
-    <ClCompile Include="waterfall.cpp">
-      <Filter>Implementation</Filter>
-    </ClCompile>
     <ClCompile Include="base.cpp">
-      <Filter>Implementation</Filter>
-    </ClCompile>
-    <ClCompile Include="waveform.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
     <ClCompile Include="driver.cpp">
@@ -70,6 +73,15 @@
     <ClCompile Include="scope.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
+    <ClCompile Include="font.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+    <ClCompile Include="waterfall.cpp">
+      <Filter>Implementation\waterfall</Filter>
+    </ClCompile>
+    <ClCompile Include="waveform.cpp">
+      <Filter>Implementation\waveform</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="waterfall.rc">
@@ -77,19 +89,28 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="waterfall_ps.hlsl">
+    <CustomBuild Include="ortho_vs.hlsl">
       <Filter>Implementation</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waterfall_ps.hlsl">
+      <Filter>Implementation\waterfall</Filter>
     </CustomBuild>
     <CustomBuild Include="waterfall_ps9.hlsl">
-      <Filter>Implementation</Filter>
+      <Filter>Implementation\waterfall</Filter>
     </CustomBuild>
     <CustomBuild Include="waveform_ps.hlsl">
-      <Filter>Implementation</Filter>
+      <Filter>Implementation\waveform</Filter>
     </CustomBuild>
     <CustomBuild Include="waveform_ps9.hlsl">
-      <Filter>Implementation</Filter>
+      <Filter>Implementation\waveform</Filter>
     </CustomBuild>
-    <CustomBuild Include="ortho_vs.hlsl">
+    <CustomBuild Include="waveform_shadow_ps.hlsl">
+      <Filter>Implementation\waveform</Filter>
+    </CustomBuild>
+    <CustomBuild Include="waveform_shadow_ps9.hlsl">
+      <Filter>Implementation\waveform</Filter>
+    </CustomBuild>
+    <CustomBuild Include="mono_bitmap_ps.hlsl">
       <Filter>Implementation</Filter>
     </CustomBuild>
   </ItemGroup>

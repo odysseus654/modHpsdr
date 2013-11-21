@@ -8,6 +8,7 @@ SamplerState ValueSampleType : register(s0);
 cbuffer globals : register(b0)
 {
 	float4 waveformColor;
+	float4 shadowColor;
 	float width;
 	float height;
 	float texture_width;

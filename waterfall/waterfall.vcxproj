@@ -86,13 +86,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <CustomBuild Include="mono_bitmap_ps.hlsl">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader - mono_bitmap</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader - mono_bitmap</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)mono_bitmap_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)mono_bitmap_ps.cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)mono_bitmap_ps.cso" "$(ProjectDir)mono_bitmap_ps.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)mono_bitmap_ps.cso" "$(ProjectDir)mono_bitmap_ps.hlsl"</Command>
+    </CustomBuild>
     <None Include="waterfall.def" />
     <CustomBuild Include="waterfall_ps.hlsl">
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader - waterfall</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader - waterfall</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waterfall_ps.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waterfall_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waterfall_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waterfall_ps.cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0 /Fo "$(IntDir)waterfall_ps.cso" "$(ProjectDir)waterfall_ps.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0 /Fo "$(IntDir)waterfall_ps.cso" "$(ProjectDir)waterfall_ps.hlsl"</Command>
     </CustomBuild>
@@ -100,8 +109,8 @@
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader9 - waterfall</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader9 - waterfall</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waterfall_ps9.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waterfall_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waterfall_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waterfall_ps9.cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waterfall_ps9.cso" "$(ProjectDir)waterfall_ps9.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waterfall_ps9.cso" "$(ProjectDir)waterfall_ps9.hlsl"</Command>
     </CustomBuild>
@@ -109,8 +118,8 @@
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader - waveform</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader - waveform</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_ps.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waveform_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waveform_ps.cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0 /Fo "$(IntDir)waveform_ps.cso" "$(ProjectDir)waveform_ps.hlsl"</Command>
     </CustomBuild>
@@ -118,8 +127,8 @@
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling VertexShader - ortho</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling VertexShader - ortho</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">ortho_vs.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">ortho_vs.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)ortho_vs.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)ortho_vs.cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)ortho_vs.cso" "$(ProjectDir)ortho_vs.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E VS /T vs_4_0_level_9_1 /Fo "$(IntDir)ortho_vs.cso" "$(ProjectDir)ortho_vs.hlsl"</Command>
     </CustomBuild>
@@ -127,10 +136,28 @@
       <FileType>Document</FileType>
       <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader9 - waveform</Message>
       <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader9 - waveform</Message>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">waveform_ps9.cso</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">waveform_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waveform_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waveform_ps9.cso</Outputs>
       <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps9.cso" "$(ProjectDir)waveform_ps9.hlsl"</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_ps9.cso" "$(ProjectDir)waveform_ps9.hlsl"</Command>
+    </CustomBuild>
+    <CustomBuild Include="waveform_shadow_ps.hlsl">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader - waveform_shadow</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader - waveform_shadow</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waveform_shadow_ps.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waveform_shadow_ps.cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0 /Fo "$(IntDir)waveform_shadow_ps.cso" "$(ProjectDir)waveform_shadow_ps.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0 /Fo "$(IntDir)waveform_shadow_ps.cso" "$(ProjectDir)waveform_shadow_ps.hlsl"</Command>
+    </CustomBuild>
+    <CustomBuild Include="waveform_shadow_ps9.hlsl">
+      <FileType>Document</FileType>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Compiling PixelShader9 - waveform_shadow</Message>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Compiling PixelShader9 - waveform_shadow</Message>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(IntDir)waveform_shadow_ps9.cso</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(IntDir)waveform_shadow_ps9.cso</Outputs>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">fxc /nologo /Od /Zi /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_shadow_ps9.cso" "$(ProjectDir)waveform_shadow_ps9.hlsl"</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">fxc /nologo /E PS /T ps_4_0_level_9_1 /Fo "$(IntDir)waveform_shadow_ps9.cso" "$(ProjectDir)waveform_shadow_ps9.hlsl"</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -138,6 +165,7 @@
     <ClInclude Include="..\common\BlockImpl.h" />
     <ClInclude Include="base.h" />
     <ClInclude Include="driver.h" />
+    <ClInclude Include="font.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="scope.h" />
     <ClInclude Include="stdafx.h" />
@@ -149,6 +177,7 @@
   <ItemGroup>
     <ClCompile Include="base.cpp" />
     <ClCompile Include="driver.cpp" />
+    <ClCompile Include="font.cpp" />
     <ClCompile Include="scope.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

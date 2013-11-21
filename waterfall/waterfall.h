@@ -1,9 +1,6 @@
 #pragma once
 #include "scope.h"
 
-struct ID3D10ShaderResourceView;
-typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
-
 class CDirectxWaterfall : public CDirectxScope
 {
 public:
@@ -62,7 +59,7 @@ protected:
 	virtual HRESULT initTexture();
 	virtual HRESULT initDataTexture();
 	virtual HRESULT preDrawFrame();
-	virtual HRESULT setupPixelShader();
+	virtual HRESULT drawRect();
 	virtual void onReceivedFrame(double* frame, unsigned size);
 private:
 	static HRESULT buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D10Texture2DPtr& waterfallTex);

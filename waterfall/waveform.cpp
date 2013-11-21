@@ -20,6 +20,10 @@ CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxScope(
 	m_psGlobals.m_waveformColor[1] = 0.0f;
 	m_psGlobals.m_waveformColor[2] = 0.0f;
 	m_psGlobals.m_waveformColor[3] = 1.0f;
+	m_psGlobals.m_shadowColor[0] = 0.75f;
+	m_psGlobals.m_shadowColor[1] = 0.0f;
+	m_psGlobals.m_shadowColor[2] = 0.0f;
+	m_psGlobals.m_shadowColor[3] = 0.75f;
 	m_psGlobals.line_width = 1.0f;
 	buildAttrs();
 }
@@ -48,6 +52,7 @@ void CDirectxWaveform::releaseDevice()
 	// ASSUMES m_refLock IS HELD BY CALLER
 	CDirectxScope::releaseDevice();
 	m_pPS.Release();
+	m_pShadowPS.Release();
 	m_dataTex.Release();
 	m_pPSRangeGlobals.Release();
 	m_pPSGlobals.Release();
@@ -81,6 +86,9 @@ HRESULT CDirectxWaveform::initTexture()
 
 	// Load the shader in from the file.
 	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_ps9.cso") : _T("waveform_ps.cso"), m_pPS);
+	if(FAILED(hR)) return hR;
+
+	hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_shadow_ps9.cso") : _T("waveform_shadow_ps.cso"), m_pShadowPS);
 	if(FAILED(hR)) return hR;
 
 	{
@@ -264,10 +272,10 @@ HRESULT CDirectxWaveform::preDrawFrame()
 	return S_OK;
 }
 
-HRESULT CDirectxWaveform::setupPixelShader()
+HRESULT CDirectxWaveform::drawRect()
 {
 	// Build our piel shader
-	m_pDevice->PSSetShader(m_pPS);
+	m_pDevice->PSSetShader(m_pShadowPS);
 	if(!m_bUsingDX9Shader)
 	{
 		ID3D10Buffer* psResr[] = { m_pPSGlobals, m_pPSRangeGlobals };
@@ -278,7 +286,11 @@ HRESULT CDirectxWaveform::setupPixelShader()
 	m_pDevice->PSSetShaderResources(0, 1, m_dataView.ref());
 	m_pDevice->PSSetSamplers(0, 1, m_pPSSampler.ref());
 
-	return S_OK;
+	HRESULT hR = CDirectxScope::drawRect();
+	if(FAILED(hR)) return hR;
+
+	m_pDevice->PSSetShader(m_pPS);
+	return CDirectxScope::drawRect();
 }
 
 void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)

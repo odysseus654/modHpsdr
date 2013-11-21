@@ -30,6 +30,8 @@ public:
 	CDirectxBase(signals::IBlockDriver* driver);
 	virtual ~CDirectxBase();
 
+	inline ID3D10Device1Ptr& device() { return m_pDevice; }
+
 private:
 	CDirectxBase(const CDirectxBase& other);
 	CDirectxBase& operator=(const CDirectxBase& other);
