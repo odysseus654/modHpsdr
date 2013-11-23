@@ -47,6 +47,8 @@ private: // directx stuff
 	// Direct3d references we use
 	ID3D10Texture2DPtr m_dataTex;
 	ID3D10PixelShaderPtr m_pPS;
+	ID3D10SamplerStatePtr m_pColorSampler;
+	ID3D10SamplerStatePtr m_pValSampler;
 
 	// shader resource references
 	ID3D10ShaderResourceViewPtr m_waterfallView;

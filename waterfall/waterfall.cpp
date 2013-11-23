@@ -102,6 +102,8 @@ void CDirectxWaterfall::releaseDevice()
 	m_pPS.Release();
 	m_waterfallView.Release();
 	m_pPSGlobals.Release();
+	m_pColorSampler.Release();
+	m_pValSampler.Release();
 }
 
 HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D10Texture2DPtr& waterfallTex)
@@ -205,18 +207,49 @@ HRESULT CDirectxWaterfall::initTexture()
 		m_texFormat = DXGI_FORMAT_R8_UNORM;
 	}
 
-	HRESULT hR = CDirectxScope::initTexture();
-	if(FAILED(hR)) return hR;
-
 	// Load the shader in from the file.
-	hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
+	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
 
 	ID3D10Texture2DPtr waterfallTex;
 	hR = buildWaterfallTexture(m_pDevice, waterfallTex);
 	if(FAILED(hR)) return hR;
 
-	return m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
+	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
+	if(FAILED(hR)) return hR;
+
+	{
+		D3D10_SAMPLER_DESC samplerDesc;
+		memset(&samplerDesc, 0, sizeof(samplerDesc));
+		samplerDesc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+		samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_BORDER;
+		samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_BORDER;
+		samplerDesc.AddressW = D3D10_TEXTURE_ADDRESS_BORDER;
+		samplerDesc.ComparisonFunc = D3D10_COMPARISON_NEVER;
+		samplerDesc.MinLOD = 0.0f;
+		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
+		//samplerDesc.BorderColor = { 0.0f, 0.0f, 0.0f, 0.0f };
+
+		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pValSampler.inref());
+		if(FAILED(hR)) return hR;
+	}
+
+	{
+		D3D10_SAMPLER_DESC samplerDesc;
+		memset(&samplerDesc, 0, sizeof(samplerDesc));
+		samplerDesc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
+		samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
+		samplerDesc.ComparisonFunc = D3D10_COMPARISON_NEVER;
+		samplerDesc.MinLOD = 0.0f;
+		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
+
+		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pColorSampler.inref());
+		if(FAILED(hR)) return hR;
+	}
+
+	return CDirectxScope::initTexture();
 }
 
 HRESULT CDirectxWaterfall::initDataTexture()
@@ -346,9 +379,11 @@ HRESULT CDirectxWaterfall::drawRect()
 {
 	// Build our piel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
+	ID3D10SamplerState* psSamp[] = { m_pValSampler, m_pColorSampler };
 	m_pDevice->PSSetShader(m_pPS);
 	if(!m_bUsingDX9Shader) m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
 	m_pDevice->PSSetShaderResources(0, 2, psResr);
+	m_pDevice->PSSetSamplers(0, 2, psSamp);
 
 	return CDirectxScope::drawRect();
 }
