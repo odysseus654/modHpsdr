@@ -14,7 +14,7 @@ cbuffer globals : register(b0)
 	float line_width;
 }
 
-float4 PS(float2 p : TEXCOORD0) : SV_TARGET
+float4 PS(unorm float2 p : TEXCOORD) : SV_TARGET
 {
 	float delta = 1.0 / texture_width;
 	float tc = floor(p.x * texture_width) / texture_width;

@@ -28,7 +28,7 @@ float segdist(float2 p1, float2 p2, float2 a)
 	return distance(a, lerp(p1, p2, t));
 }
 
-float4 PS(float2 p : TEXCOORD0) : SV_TARGET
+float4 PS(unorm float2 p : TEXCOORD) : SV_TARGET
 {
 	float2 delta = float2(1.0 / texture_width, 2.0 / texture_width);
 	float tc = floor(p.x * texture_width) / texture_width;
