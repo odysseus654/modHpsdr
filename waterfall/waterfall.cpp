@@ -70,6 +70,7 @@ CDirectxWaterfall::CDirectxWaterfall(signals::IBlockDriver* driver):CDirectxScop
 
 CDirectxWaterfall::~CDirectxWaterfall()
 {
+	stopThread();
 	Locker lock(m_refLock);
 	if(m_dataTexData)
 	{

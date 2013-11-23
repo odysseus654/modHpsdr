@@ -52,6 +52,7 @@ void CDirectxBase::thread_run()
 		if(recvCount)
 		{
 			Locker lock(m_refLock);
+			if(!threadRunning()) return;
 			unsigned bufSize = m_frameWidth;
 			if(!bufSize) bufSize = recvCount;
 

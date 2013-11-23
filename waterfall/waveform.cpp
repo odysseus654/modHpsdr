@@ -30,6 +30,7 @@ CDirectxWaveform::CDirectxWaveform(signals::IBlockDriver* driver):CDirectxScope(
 
 CDirectxWaveform::~CDirectxWaveform()
 {
+	stopThread();
 	Locker lock(m_refLock);
 	if(m_dataTexData)
 	{
