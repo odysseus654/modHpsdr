@@ -3,8 +3,6 @@
 #include "stdafx.h"
 #include "scope.h"
 
-#include "font.h"
-
 #include <d3d10_1.h>
 #include <d3dx10.h>
 
@@ -19,7 +17,10 @@ const unsigned short CDirectxScope::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 // ---------------------------------------------------------------------------- class CDirectxWaterfall
 
 CDirectxScope::CDirectxScope(signals::IBlockDriver* driver, bool bBottomOrigin):CDirectxBase(driver),
-	m_bIsComplexInput(true),m_bBottomOrigin(bBottomOrigin)
+	m_bIsComplexInput(true),m_bBottomOrigin(bBottomOrigin),
+	m_majFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New")),
+	m_dotFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New")),
+	m_minFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New"))
 {
 }
 
@@ -261,6 +262,9 @@ HRESULT CDirectxScope::drawFrameContents()
 	m_pDevice->OMSetBlendState(m_pBlendState, NULL, MAXUINT16);
 
 	m_bDrawingFonts = false;
+	m_majFont.BeginFrame();
+	m_dotFont.BeginFrame();
+	m_minFont.BeginFrame();
 
 	hR = drawRect();
 	if(FAILED(hR)) return hR;
@@ -269,6 +273,9 @@ HRESULT CDirectxScope::drawFrameContents()
 	if(FAILED(hR)) return hR;
 
 	m_pDevice->OMSetBlendState(pOrigBlendState, origBlendFactor, origBlendMask);
+	m_majFont.EndFrame();
+	m_dotFont.EndFrame();
+	m_minFont.EndFrame();
 
 	return S_OK;
 }
@@ -390,13 +397,6 @@ HRESULT CDirectxScope::drawText()
 	}
 	if(numDig > majDig) numDig = majDig;
 
-	CFont majFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, _T("Courier New"));
-	CFont dotFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, _T("Courier New"));
-	CFont minFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY,
-		DEFAULT_PITCH | FF_DONTCARE, _T("Courier New"));
-
 	D3DXCOLOR minColor(0.7f,0.7f,0.7f,1.0f);
 	D3DXCOLOR maxColor(1.0f,1.0f,1.0f,1.0f);
 	D3DXCOLOR dotColor(1.0f,1.0f,1.0f,1.0f);
@@ -410,58 +410,65 @@ HRESULT CDirectxScope::drawText()
 		short majLen = max(freqLen - majDig, 0);
 		short minLen = max(min(majDig, freqLen) - numDig, 0);
 
-		RECT majRect, dotRect, minRect;
-		memset(&majRect, 0, sizeof(majRect));
-		memset(&dotRect, 0, sizeof(dotRect));
-		memset(&minRect, 0, sizeof(minRect));
+		SIZE majSize, dotSize, minSize;
+		memset(&majSize, 0, sizeof(majSize));
+		memset(&dotSize, 0, sizeof(dotSize));
+		memset(&minSize, 0, sizeof(minSize));
 
 		HRESULT hR;
 		if(majLen)
 		{
-			hR = majFont.CalcRect(charBuf, majLen, &majRect);
+			hR = m_majFont.CalcSize(charBuf, majLen, majSize);
 		} else {
-			hR = majFont.CalcRect(_T("0"), 1, &majRect);
+			hR = m_majFont.CalcSize(_T("0"), 1, majSize);
 		}
 		if(FAILED(hR)) return hR;
 
-		hR = dotFont.CalcRect(&majChar, 1, &dotRect);
+		hR = m_dotFont.CalcSize(&majChar, 1, dotSize);
 		if(FAILED(hR)) return hR;
 
 		if(minLen)
 		{
-			hR = minFont.CalcRect(charBuf + majLen, minLen, &minRect);
+			hR = m_minFont.CalcSize(charBuf + majLen, minLen, minSize);
 			if(FAILED(hR)) return hR;
 		}
 
 		long clientCenter = long(m_screenCliWidth * (thisFreq - minFreq) / (maxFreq - minFreq));
-		unsigned drawLeft = max(0, clientCenter - (dotRect.right/2) - majRect.right);
-		if(drawLeft + dotRect.right + majRect.right + minRect.right > m_screenCliWidth)
+		unsigned drawLeft = max(0, clientCenter - (dotSize.cx/2) - majSize.cx);
+		if(drawLeft + dotSize.cx + majSize.cx + minSize.cx > m_screenCliWidth)
 		{
-			drawLeft = m_screenCliWidth - dotRect.right - majRect.right - minRect.right;
+			drawLeft = m_screenCliWidth - dotSize.cx - majSize.cx - minSize.cx;
 		}
 
-		majRect.left = drawLeft;
-		majRect.right += drawLeft;
+		RECT rect;
+		memset(&rect, 0, sizeof(rect));
+
+		rect.top = 0;
+		rect.bottom = majSize.cy;
+		rect.left = drawLeft;
+		rect.right = majSize.cx + drawLeft;
 		if(majLen)
 		{
-			hR = majFont.DrawText(*this, charBuf, majLen, &majRect, maxColor);
+			hR = m_majFont.DrawText(*this, charBuf, majLen, rect, maxColor);
 		} else {
-			hR = majFont.DrawText(*this, _T("0"), 1, &majRect, maxColor);
+			hR = m_majFont.DrawText(*this, _T("0"), 1, rect, maxColor);
 		}
 		if(FAILED(hR)) return hR;
 
-		dotRect.left = majRect.right;
-		dotRect.right += dotRect.left;
-		dotRect.top = majRect.bottom - dotRect.bottom;
-		dotRect.bottom = majRect.bottom;
-		hR = dotFont.DrawText(*this, &majChar, 1, &dotRect, dotColor);
+		rect.top = majSize.cy - dotSize.cy;
+		rect.bottom = majSize.cy;
+		rect.left = rect.right;
+		rect.right = rect.left + dotSize.cx;
+		hR = m_dotFont.DrawText(*this, &majChar, 1, rect, dotColor);
 		if(FAILED(hR)) return hR;
 
 		if(minLen)
 		{
-			minRect.left = dotRect.right;
-			minRect.right += minRect.left;
-			hR = minFont.DrawText(*this, charBuf + majLen, minLen, &minRect, minColor);
+			rect.top = 0;
+			rect.bottom = minSize.cy;
+			rect.left = rect.right;
+			rect.right = rect.left + minSize.cx;
+			hR = m_minFont.DrawText(*this, charBuf + majLen, minLen, rect, minColor);
 			if(FAILED(hR)) return hR;
 		}
 	}

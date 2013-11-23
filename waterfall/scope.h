@@ -1,5 +1,6 @@
 #pragma once
 #include "base.h"
+#include "font.h"
 
 enum DXGI_FORMAT;
 struct ID3D10BlendState;
@@ -55,6 +56,8 @@ private: // directx stuff
 
 	// shader resource references
 	ID3D10BufferPtr m_pVSGlobals;
+
+	CFont m_majFont, m_dotFont, m_minFont;
 
 protected:
 	virtual void buildAttrs();
