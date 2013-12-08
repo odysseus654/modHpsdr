@@ -45,6 +45,7 @@ class CInEndpointBase : public signals::IInEndpoint
 protected:
 	inline CInEndpointBase():m_connRecv(NULL) {}
 public:
+	virtual ~CInEndpointBase() { Disconnect(); }
 	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPRecvFrom* recv);
@@ -77,6 +78,7 @@ class COutEndpointBase : public signals::IOutEndpoint
 protected:
 	inline COutEndpointBase():m_connSend(NULL) {}
 public:
+	virtual ~COutEndpointBase() { Disconnect(); }
 	unsigned Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPSendTo* send);

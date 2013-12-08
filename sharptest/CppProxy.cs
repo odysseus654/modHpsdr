@@ -1207,6 +1207,7 @@ namespace cppProxy
             m_nativeRef = native;
             Registration.storeObject(native, this);
             m_native = (Native.IInEndpoint)CppNativeProxy.CreateCallout(native, typeof(Native.IInEndpoint));
+            m_native.AddRef();
             interrogate();
         }
 
@@ -1411,6 +1412,7 @@ namespace cppProxy
             m_nativeRef = native;
             Registration.storeObject(native, this);
             m_native = (Native.IEPSendTo)CppNativeProxy.CreateCallout(native, typeof(Native.IEPSendTo));
+            m_native.AddRef(IntPtr.Zero);
         }
 
         ~CppProxyEPSender()
@@ -1903,6 +1905,7 @@ namespace cppProxy
         {
             m_nativeSendRef = new IntPtr(native.ToInt64() + IntPtr.Size);
             m_nativeSend = (Native.IEPSendTo)CppNativeProxy.CreateCallout(m_nativeSendRef, typeof(Native.IEPSendTo));
+            m_nativeSend.AddRef(IntPtr.Zero);
         }
 
         ~CppProxyOutputFunction()
