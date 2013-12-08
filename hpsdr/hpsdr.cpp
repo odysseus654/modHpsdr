@@ -134,7 +134,7 @@ private:
 // IBlock
 // IOutEndpoint
 
-static hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+static CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 
 int _tmain(int argc, _TCHAR* argv[])
 {

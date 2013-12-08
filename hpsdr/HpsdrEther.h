@@ -19,13 +19,8 @@
 #include <list>
 #include <WinSock2.h>
 
-namespace hpsdr
-{
-	class CHpsdrEthernetDriver;
-}
+class CHpsdrEthernetDriver;
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers);
-
-namespace hpsdr {
 
 class CHpsdrEthernetDriver : public signals::IBlockDriver
 {
@@ -115,4 +110,3 @@ private:
 	unsigned m_recvSamples;		// private to thread_recv
 };
 
-}

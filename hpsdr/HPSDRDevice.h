@@ -19,8 +19,6 @@
 #include <vector>
 typedef unsigned char byte;
 
-namespace hpsdr {
-
 class CAttr_outBits;
 
 class CHpsdrDevice : public CAttributesBase, public signals::IBlock
@@ -345,6 +343,4 @@ template<class ATTR> ATTR* CHpsdrDevice::addLocalInAttr(bool bVisible, ATTR* att
 		m_inAttrs.push_back(attr);
 	}
 	return attr;
-}
-
 }

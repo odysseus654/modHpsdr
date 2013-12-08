@@ -24,15 +24,13 @@
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)
 {
-	static hpsdr::CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
+	static CHpsdrEthernetDriver DRIVER_HpsdrEthernet;
 	if(drivers && availDrivers)
 	{
 		drivers[0] = &DRIVER_HpsdrEthernet;
 	}
 	return 1;
 }
-
-namespace hpsdr {
 
 // ------------------------------------------------------------------ class CHpsdrEthernetDriver
 
@@ -481,6 +479,4 @@ void CHpsdrEthernet::FlushPendingChanges()
 		int ret = ::send(this->m_sock, (char*)message, sizeof(message), 0);
 		if(ret == SOCKET_ERROR) ThrowSocketError(WSAGetLastError());
 	}
-}
-
 }

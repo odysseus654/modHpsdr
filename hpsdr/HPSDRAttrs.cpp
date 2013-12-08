@@ -16,8 +16,6 @@
 #include "stdafx.h"
 #include "HPSDRAttrs.h"
 
-namespace hpsdr {
-
 // ------------------------------------------------------------------ attribute proxies
 
 void CAttr_inProxy::setProxy(signals::IAttribute& target)
@@ -74,6 +72,4 @@ bool CAttr_out_recv_speed::setValue(const store_type& newVal)
 		}
 	}
 	return false;
-}
-
 }

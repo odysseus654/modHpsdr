@@ -19,8 +19,6 @@
 #include "error.h"
 #include "HPSDRAttrs.h"
 
-namespace hpsdr {
-
 // ------------------------------------------------------------------ class CHpsdrDevice
 
 const float CHpsdrDevice::SCALE_32 = float(1U << 31);
@@ -574,6 +572,4 @@ void CHpsdrDevice::DetachReceiver(const CHpsdrDevice::Receiver& recv, unsigned s
 	}
 	m_receivers.resize(numRecv-1);
 	if(attrs.num_recv) attrs.num_recv->nativeSetValue((byte)max(numRecv-1,1)-1);
-}
-
 }

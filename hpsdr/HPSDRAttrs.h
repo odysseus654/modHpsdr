@@ -17,8 +17,6 @@
 
 #include "HPSDRDevice.h"
 
-namespace hpsdr {
-
 // ------------------------------------------------------------------ generic attribute handlers
 
 template<signals::EType ET>
@@ -400,5 +398,3 @@ protected:
 		}
 	}
 };
-
-}
