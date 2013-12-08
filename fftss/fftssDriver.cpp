@@ -188,10 +188,12 @@ void CFFTransform::CIncoming::OnConnection(signals::IEPRecvFrom *conn)
 	signals::IAttributes* attrs = conn->OutputAttributes();
 	if(!attrs) return;
 	signals::IAttribute* attr = attrs->GetByName("blockSize");
-	if(!attr || (attr->Type() != signals::etypShort && attr->Type() != signals::etypLong)) return;
-	m_lastWidthAttr = attr;
-	m_lastWidthAttr->Observe(this);
-	OnChanged(attr, attr->getValue());
+	if(attr && (attr->Type() == signals::etypShort || attr->Type() == signals::etypLong))
+	{
+		m_lastWidthAttr = attr;
+		m_lastWidthAttr->Observe(this);
+		OnChanged(attr, attr->getValue());
+	}
 }
 
 void CFFTransform::CIncoming::OnChanged(signals::IAttribute* attr, const void* value)

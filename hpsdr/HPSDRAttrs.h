@@ -251,7 +251,8 @@ private:
 // ------------------------------------------------------------------ attribute proxies
 
 template<signals::EType ET>
-class CAttr_outProxy : public CRWAttribute<ET>, public CHpsdrDevice::Receiver::IAttrProxy<CRWAttribute<ET> >
+class CAttr_outProxy : public CRWAttribute<ET>, public CHpsdrDevice::Receiver::IAttrProxy<CRWAttribute<ET> >,
+	public signals::IAttributeObserver
 {
 private:
 	typedef CRWAttribute<ET> base_type;
@@ -261,14 +262,50 @@ public:
 	inline CAttr_outProxy(const char* pName, const char* pDescr, base_type& ref)
 		:base_type(pName, pDescr, ref.nativeGetValue()), refObject(ref), proxyObject(NULL) { }
 
+	virtual ~CAttr_outProxy()
+	{
+		WriteLocker lock(m_proxyLock);
+		if(proxyObject)
+		{
+			proxyObject->Unobserve(this);
+			proxyObject = NULL;
+		}
+	}
+
 	virtual void setProxy(base_type& target)
 	{
 		WriteLocker lock(m_proxyLock);
+		if(proxyObject) proxyObject->Unobserve(this);
 		proxyObject = &target;
-		if(proxyObject) proxyObject->nativeSetValue(nativeGetValue());
+		if(proxyObject)
+		{
+			proxyObject->nativeSetValue(nativeGetValue());
+			proxyObject->Observe(this);
+		}
 	}
 
 	virtual bool isValidValue(const store_type& newVal) const { return refObject.isValidValue(newVal); }
+
+	virtual void OnChanged(IAttribute* attr, const void* value)
+	{
+		ReadLocker lock(m_proxyLock);
+		ASSERT(attr == proxyObject && proxyObject);
+		if(attr == proxyObject && proxyObject)
+		{
+			nativeSetValue(proxyObject->nativeGetValue());
+		}
+	}
+
+	virtual void OnDetached(IAttribute* attr)
+	{
+		WriteLocker lock(m_proxyLock);
+		ASSERT(attr == proxyObject && proxyObject);
+		if(attr == proxyObject && proxyObject)
+		{
+			proxyObject = NULL;
+		}
+	}
+
 
 protected:
 	virtual void onSetValue(const store_type& value)
@@ -290,7 +327,7 @@ public:
 	virtual unsigned options(const void* vals, const char** opts, unsigned availElem)
 		{ return refObject.options(vals,opts,availElem); }
 	virtual signals::EType Type()		{ return refObject.Type(); }
-	virtual BOOL isReadOnly()			{ return true; }
+	virtual BOOL isReadOnly() const		{ return true; }
 	virtual BOOL setValue(const void* newVal) { UNUSED_ALWAYS(newVal); return false; }
 	virtual const void* getValue()		{ ReadLocker lock(m_proxyLock); return proxyObject ? proxyObject->getValue() : NULL; }
 	virtual void setProxy(signals::IAttribute& target);

@@ -119,7 +119,7 @@ public:
 	virtual void Unobserve(signals::IAttributeObserver* obs);
 	virtual unsigned options(const void* /* vals */, const char** /* opts */, unsigned /* availElem */) { return 0; }
 //	virtual signals::EType Type() = 0;
-//	virtual BOOL isReadOnly();
+//	virtual BOOL isReadOnly() const;
 //	virtual const void* getValue() = 0;
 //	virtual BOOL setValue(const void* newVal) = 0;
 private:
@@ -480,7 +480,7 @@ public:
 	virtual signals::EType Type()		{ return ET; }
 	virtual const void* getValue()		{ return &m_value; }
 	const store_type& nativeGetValue()	{ return m_value; }
-//	virtual BOOL isReadOnly();
+//	virtual BOOL isReadOnly() const;
 //	virtual BOOL setValue(const void* newVal) = 0;
 
 protected:
@@ -489,6 +489,16 @@ protected:
 		if(newVal != m_value)
 		{
 			m_value = newVal;
+			onSetValue(newVal);
+		}
+	}
+
+	void privateSetValue(const store_type& newVal, Locker& lock)
+	{
+		if(newVal != m_value)
+		{
+			m_value = newVal;
+			lock.unlock();
 			onSetValue(newVal);
 		}
 	}
@@ -546,7 +556,7 @@ public:
 	virtual ~CAttribute()				{ }
 	virtual signals::EType Type()		{ return signals::etypString; }
 	virtual const void* getValue()		{ return m_value.c_str(); }
-//	virtual BOOL isReadOnly();
+//	virtual BOOL isReadOnly() const;
 //	virtual BOOL setValue(const void* newVal) = 0;
 
 protected:
@@ -557,6 +567,16 @@ protected:
 		if(newVal != m_value)
 		{
 			m_value = newVal;
+			onSetValue(newVal);
+		}
+	}
+
+	void privateSetValue(const store_type& newVal, Locker& lock)
+	{
+		if(newVal != m_value)
+		{
+			m_value = newVal;
+			lock.unlock();
 			onSetValue(newVal);
 		}
 	}
@@ -598,7 +618,7 @@ public:
 		:base_type(pName, pDescr, deflt) { }
 
 //	virtual ~CRWAttribute()				{ }
-	virtual BOOL isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly() const		{ return false; }
 
 	virtual BOOL setValue(const void* newVal)
 	{
@@ -610,7 +630,7 @@ public:
 	{
 		if(!isValidValue(newVal)) return false;
 		Locker lock(m_valueLock);
-		privateSetValue(newVal);
+		privateSetValue(newVal, lock);
 		return true;
 	}
 
@@ -633,7 +653,7 @@ protected:
 		:base_type(pName, pDescr, deflt) { }
 public:
 	virtual ~CRWAttribute()				{ }
-	virtual BOOL isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly() const		{ return false; }
 
 	virtual BOOL setValue(const void* newVal)
 	{
@@ -645,7 +665,7 @@ public:
 	{
 		if(!isValidValue(newVal)) return false;
 		Locker lock(m_valueLock);
-		privateSetValue(newVal);
+		privateSetValue(newVal, lock);
 		return true;
 	}
 
@@ -662,7 +682,7 @@ public:
 		:CAttributeBase(pName, pDescr), m_func(this, &CEventAttribute::catcher) { }
 	virtual ~CEventAttribute()			{ }
 	virtual signals::EType Type()		{ return signals::etypNone; }
-	virtual BOOL isReadOnly()			{ return false; }
+	virtual BOOL isReadOnly() const		{ return false; }
 	virtual const void* getValue()		{ return NULL; }
 	virtual BOOL setValue(const void* newVal) { UNUSED_ALWAYS(newVal); fire(); return true; }
 	void fire();
@@ -700,7 +720,7 @@ private:
 public:
 	inline CROAttribute(const char* pName, const char* pDescr, param_type deflt)
 		:parent_type(pName, pDescr, deflt) { }
-	virtual BOOL isReadOnly()					{ return true; }
+	virtual BOOL isReadOnly() const					{ return true; }
 	virtual BOOL setValue(const void* /* newVal */) { return false; }
 };
 

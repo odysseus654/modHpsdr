@@ -158,7 +158,7 @@ namespace signals
 		EType Type();
 		void Observe(IAttributeObserver* obs);
 		void Unobserve(IAttributeObserver* obs);
-		BOOL isReadOnly();
+		BOOL isReadOnly() const;
 		const void* getValue();
 		BOOL setValue(const void* newVal);
 		unsigned options(const void* values, const char** opts, unsigned availElem);

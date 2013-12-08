@@ -435,26 +435,32 @@ void CDirectxBase::CIncoming::AttachAttributes(signals::IEPRecvFrom *conn)
 	if(!m_lastWidthAttr)
 	{
 		signals::IAttribute* attr = attrs->GetByName("blockSize");
-		if(!attr ||  (attr->Type() != signals::etypShort && attr->Type() != signals::etypLong)) return;
-		m_lastWidthAttr = attr;
-		m_lastWidthAttr->Observe(this);
-		OnChanged(attr, attr->getValue());
+		if(attr && (attr->Type() == signals::etypShort || attr->Type() == signals::etypLong))
+		{
+			m_lastWidthAttr = attr;
+			m_lastWidthAttr->Observe(this);
+			OnChanged(attr, attr->getValue());
+		}
 	}
 	if(!m_lastRateAttr)
 	{
 		signals::IAttribute* attr = attrs->GetByName("rate");
-		if(!attr || attr->Type() != signals::etypLong) return;
-		m_lastRateAttr = attr;
-		m_lastRateAttr->Observe(this);
-		OnChanged(attr, attr->getValue());
+		if(attr && attr->Type() == signals::etypLong)
+		{
+			m_lastRateAttr = attr;
+			m_lastRateAttr->Observe(this);
+			OnChanged(attr, attr->getValue());
+		}
 	}
 	if(!m_lastFreqAttr)
 	{
 		signals::IAttribute* attr = attrs->GetByName("freq");
-		if(!attr || (attr->Type() != signals::etypLong && attr->Type() != signals::etypInt64)) return;
-		m_lastFreqAttr = attr;
-		m_lastFreqAttr->Observe(this);
-		OnChanged(attr, attr->getValue());
+		if(attr && (attr->Type() == signals::etypLong || attr->Type() == signals::etypInt64))
+		{
+			m_lastFreqAttr = attr;
+			m_lastFreqAttr->Observe(this);
+			OnChanged(attr, attr->getValue());
+		}
 	}
 }
 
