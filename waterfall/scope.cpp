@@ -396,6 +396,7 @@ HRESULT CDirectxScope::drawText()
 		numDig = 0;
 	}
 	if(numDig > majDig) numDig = majDig;
+	minIncr += minIncr % digMag;
 
 	D3DXCOLOR minColor(0.7f,0.7f,0.7f,1.0f);
 	D3DXCOLOR maxColor(1.0f,1.0f,1.0f,1.0f);
@@ -403,7 +404,7 @@ HRESULT CDirectxScope::drawText()
 
 	__int64 maxFreq = m_dataFrequency + m_dataRate;
 	TCHAR charBuf[11];
-	for(__int64 thisFreq = minFreq + (minFreq % digMag); thisFreq <= maxFreq; thisFreq += digMag)
+	for(__int64 thisFreq = minFreq + (minFreq % digMag); thisFreq <= maxFreq; thisFreq += minIncr)
 	{
 		_stprintf_s(charBuf, _countof(charBuf), _T("%I64d"), thisFreq);
 		short freqLen = _tcslen(charBuf);

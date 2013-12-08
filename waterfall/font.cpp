@@ -61,13 +61,17 @@ HRESULT CFont::CalcSize(LPCTSTR szText, UINT uiLen, SIZE& size)
 	RECT rect;
 	memset(&rect, 0, sizeof(rect));
 
+	HGDIOBJ hOldFont = SelectObject(hDC, m_hFont);
+
 	if(!::DrawText(hDC, szText, uiLen, &rect, DT_CALCRECT | DT_LEFT | DT_SINGLELINE | DT_TOP))
 	{
 		HRESULT hR = HRESULT_FROM_WIN32(GetLastError());
+		SelectObject(hDC, hOldFont);
 		ReleaseDC(NULL, hDC);
 		return hR;
 	}
 
+	SelectObject(hDC, hOldFont);
 	ReleaseDC(NULL, hDC);
 	size.cx = rect.right;
 	size.cy = rect.bottom;
