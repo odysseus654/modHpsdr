@@ -141,7 +141,7 @@ namespace Layout
 
     public class Schematic : ICloneable
     {
-        public class Element : ICloneable
+        public class Element : ICloneable, IEquatable<Element>
         {
             public readonly string name;
             public string nodeId;
@@ -215,6 +215,29 @@ namespace Layout
                 string result = String.Format("{0} {1}", Utilities.ElementTypeName(this.type), this.name);
                 if (this.nodeId != null) result += String.Format("[{0}]", this.nodeId);
                 return result;
+            }
+
+            public override bool Equals(object obj)
+            {
+                Element other = obj as Element;
+                if (other == null) return false;
+                return Equals(other);
+            }
+
+            public bool Equals(Element obj)
+            {
+                if (this.circuitId != 0 && this.circuitId == obj.circuitId) return true;
+                if (this.type != obj.type || !this.name.Equals(obj.name)) return false;
+                if (this.nodeId != null && (obj.nodeId == null || !this.nodeId.Equals(obj.nodeId))) return false;
+                return true;
+            }
+
+            public override int GetHashCode()
+            {
+                if (this.circuitId != 0) return this.circuitId.GetHashCode();
+                int hash = this.type.GetHashCode() ^ this.name.GetHashCode();
+                if (this.nodeId != null) hash = hash ^ this.nodeId.GetHashCode();
+                return hash;
             }
 
             public void populateAvail(sharptest.ModLibrary library)
@@ -321,7 +344,9 @@ namespace Layout
             }
             public override bool Equals(object obj)
             {
-                return Equals(obj as EndpointKey);
+                EndpointKey other = obj as EndpointKey;
+                if (other == null) return false;
+                return Equals(other);
             }
             public bool Equals(EndpointKey obj)
             {
@@ -464,7 +489,7 @@ namespace Layout
             public abstract override int GetHashCode();
         }
 
-        public class LinkTypeFailure : ResolveFailureReason
+        public class LinkTypeFailure : ResolveFailureReason, IEquatable<LinkTypeFailure>
         {
             public readonly EndpointKey fromEP;
             public readonly signals.EType fromType;
@@ -484,8 +509,13 @@ namespace Layout
             {
                 LinkTypeFailure other = obj as LinkTypeFailure;
                 if (other == null) return false;
-                return this.fromEP.Equals(other.fromEP) && this.fromType == other.fromType &&
-                    this.toEP.Equals(other.toEP) && this.toType == other.toType;
+                return this.Equals(other);
+            }
+
+            public bool Equals(LinkTypeFailure obj)
+            {
+                return this.fromEP.Equals(obj.fromEP) && this.fromType == obj.fromType &&
+                    this.toEP.Equals(obj.toEP) && this.toType == obj.toType;
             }
 
             public override int GetHashCode()
@@ -503,7 +533,7 @@ namespace Layout
             }
         }
 
-        public class CannotResolveElement : ResolveFailureReason
+        public class CannotResolveElement : ResolveFailureReason, IEquatable<CannotResolveElement>
         {
             public readonly Element elm;
 
@@ -517,7 +547,12 @@ namespace Layout
             {
                 CannotResolveElement other = obj as CannotResolveElement;
                 if (other == null) return false;
-                return this.elm.Equals(other.elm);
+                return this.Equals(other);
+            }
+
+            public bool Equals(CannotResolveElement obj)
+            {
+                return this.elm.Equals(obj.elm);
             }
 
             public override int GetHashCode()

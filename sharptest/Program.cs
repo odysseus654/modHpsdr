@@ -19,12 +19,14 @@ namespace sharptest
         void Run()
         {
             library = new ModLibrary();
+            Console.Out.WriteLine("Loading modules");
 #if DEBUG
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug", library);
 #else
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Release", library);
 #endif
 
+            Console.Out.WriteLine("Building schematic");
             Layout.Schematic schem = new Layout.Schematic();
             Layout.Schematic.Element radioElem = new Layout.Schematic.Element(Layout.ElementType.Module, "radio");
             Layout.Schematic.Element frameElem = new Layout.Schematic.Element(Layout.ElementType.Module, "make frame");
@@ -44,10 +46,28 @@ namespace sharptest
             schem.connect(fftElem, 0, mag2Func, 0);
             schem.connect(mag2Func, 0, dbFunc, 0);
             schem.connect(dbFunc, 0, waterfallElem, 0);
-            List<Layout.Schematic> options = schem.resolve(library);
+
+            Console.Out.WriteLine("Resolving schematic");
+            List<Layout.Schematic> options;
+            try
+            {
+                options = schem.resolve(library);
+            }
+            catch (Layout.Schematic.ResolveFailure fail)
+            {
+                Console.Out.WriteLine("Schematic could not be resolved:");
+                foreach (KeyValuePair<Layout.Schematic.ResolveFailureReason, bool> entry in fail.reasons)
+                {
+                    Console.Out.WriteLine("\t{0}", entry.Key.Message);
+                }
+                return;
+            }
+
+            Console.Out.WriteLine("Building circuit");
             circuit = options[0].construct();
             using (circuit)
             {
+                Console.Out.WriteLine("Configuring circuit");
                 signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
                 signals.IAttributes attrs = hpsdr.Attributes;
                 signals.OnChanged evt = new signals.OnChanged(OnChanged);
@@ -64,8 +84,11 @@ namespace sharptest
 
                 canvas = new Canvas();
                 canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
+
+                Console.Out.WriteLine("Powering circuit");
                 canvasThread = canvas.Start();
                 canvasThread.Join();
+                Console.Out.WriteLine("Shutting down circuit");
                 circuit.Stop();
   //            stream.Stop();
 
