@@ -319,97 +319,81 @@ HRESULT CDirectxScope::drawRect()
 
 HRESULT CDirectxScope::drawText()
 {
-	if(!m_dataRate) return S_FALSE;
-	__int64 minFreq = m_dataFrequency - m_dataRate;
-	short majDig, numDig;
-	long digMag;
-	TCHAR majChar;
-	if(minFreq >= 1000000000)
+	enum { EST_LABEL_COUNT = 5 };
+
+	struct TMajorDigitDef {
+		__int64 freq;
+		short dig;
+		TCHAR ch;
+	};
+
+	struct TMinorDigitDef {
+		long mag;
+		short dig;
+	};
+
+	const static TMajorDigitDef MAJOR_DIG[] = {
+		{ 1000000000, 9, _T('G') },
+		{    1000000, 6, _T('M') },
+		{       1000, 3, _T('k') },
+		{          0, 1, _T('.') }
+	};
+
+	const static TMinorDigitDef MINOR_DIG[] = {
+		{ 1000000000, 9 },
+		{  100000000, 8 },
+		{   10000000, 7 },
+		{    1000000, 6 },
+		{     100000, 5 },
+		{      10000, 4 },
+		{       1000, 3 },
+		{        100, 2 },
+		{         10, 1 },
+		{          0, 0 },
+	};
+
+	if(m_dataRate <= 0) return S_FALSE;
+	__int64 minFreq = m_dataFrequency;
+	long dataWidth = m_dataRate;
+	__int64 maxFreq = m_dataFrequency + dataWidth;
+	if(m_bIsComplexInput)
 	{
-		majDig = 9;
-		majChar = _T('G');
+		minFreq -= dataWidth;
+		dataWidth *= 2;
 	}
-	else if(minFreq >= 1000000)
+
+	const TMajorDigitDef* major = MAJOR_DIG;
+	while(max(minFreq,dataWidth) < major->freq) major++;
+
+	long minIncr = dataWidth / EST_LABEL_COUNT;
+	int minIdx=0;
+	while(minIncr*2 < MINOR_DIG[minIdx].mag) minIdx++;
+	minIncr = MINOR_DIG[minIdx].mag;
+	short minorDig = MINOR_DIG[minIdx].dig;
+	if(dataWidth / minIncr > EST_LABEL_COUNT*2)
 	{
-		majDig = 6;
-		majChar = _T('M');
+		minIncr *= 2;
 	}
-	else if(minFreq >= 1000)
+	else if(2* dataWidth / minIncr < EST_LABEL_COUNT)
 	{
-		majDig = 1000;
-		majChar = _T('k');
+		minIncr /= 2;
+		minorDig++;
 	}
-	else
-	{
-		majDig = 1;
-		majChar = _T('.');
-	}
-	long minIncr = m_dataRate / 5;
-	if(minIncr >= 1000000000)
-	{
-		digMag = 1000000000;
-		numDig = 9;
-	}
-	else if(minIncr >= 100000000)
-	{
-		digMag = 100000000;
-		numDig = 8;
-	}
-	else if(minIncr >= 10000000)
-	{
-		digMag = 10000000;
-		numDig = 7;
-	}
-	else if(minIncr >= 1000000)
-	{
-		digMag = 1000000;
-		numDig = 6;
-	}
-	else if(minIncr >= 100000)
-	{
-		digMag = 100000;
-		numDig = 5;
-	}
-	else if(minIncr >= 10000)
-	{
-		digMag = 10000;
-		numDig = 4;
-	}
-	else if(minIncr >= 1000)
-	{
-		digMag = 1000;
-		numDig = 3;
-	}
-	else if(minIncr >= 100)
-	{
-		digMag = 100;
-		numDig = 2;
-	}
-	else if(minIncr >= 10)
-	{
-		digMag = 10;
-		numDig = 1;
-	}
-	else
-	{
-		digMag = 1;
-		numDig = 0;
-	}
-	if(numDig > majDig) numDig = majDig;
-	minIncr += minIncr % digMag;
+	minorDig = min(major->dig, minorDig);
 
 	D3DXCOLOR minColor(0.7f,0.7f,0.7f,1.0f);
 	D3DXCOLOR maxColor(1.0f,1.0f,1.0f,1.0f);
 	D3DXCOLOR dotColor(1.0f,1.0f,1.0f,1.0f);
 
-	__int64 maxFreq = m_dataFrequency + m_dataRate;
 	TCHAR charBuf[11];
-	for(__int64 thisFreq = minFreq + (minFreq % digMag); thisFreq <= maxFreq; thisFreq += minIncr)
+	__int64 thisFreq = minFreq;
+	if(thisFreq % minIncr) thisFreq += minIncr - (thisFreq % minIncr);
+	for(; thisFreq <= maxFreq; thisFreq += minIncr)
 	{
 		_stprintf_s(charBuf, _countof(charBuf), _T("%I64d"), thisFreq);
 		short freqLen = _tcslen(charBuf);
-		short majLen = max(freqLen - majDig, 0);
-		short minLen = max(min(majDig, freqLen) - numDig, 0);
+		short majLen = max(freqLen - major->dig, 0);
+		short minLen = max(min(major->dig, freqLen) - minorDig, 0);
 
 		SIZE majSize, dotSize, minSize;
 		memset(&majSize, 0, sizeof(majSize));
@@ -425,7 +409,7 @@ HRESULT CDirectxScope::drawText()
 		}
 		if(FAILED(hR)) return hR;
 
-		hR = m_dotFont.CalcSize(&majChar, 1, dotSize);
+		hR = m_dotFont.CalcSize(&major->ch, 1, dotSize);
 		if(FAILED(hR)) return hR;
 
 		if(minLen)
@@ -460,7 +444,7 @@ HRESULT CDirectxScope::drawText()
 		rect.bottom = majSize.cy;
 		rect.left = rect.right;
 		rect.right = rect.left + dotSize.cx;
-		hR = m_dotFont.DrawText(*this, &majChar, 1, rect, dotColor);
+		hR = m_dotFont.DrawText(*this, &major->ch, 1, rect, dotColor);
 		if(FAILED(hR)) return hR;
 
 		if(minLen)
