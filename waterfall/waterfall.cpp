@@ -378,7 +378,7 @@ HRESULT CDirectxWaterfall::preDrawFrame()
 
 HRESULT CDirectxWaterfall::drawRect()
 {
-	// Build our piel shader
+	// Build our pixel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
 	ID3D10SamplerState* psSamp[] = { m_pValSampler, m_pColorSampler };
 	m_pDevice->PSSetShader(m_pPS);
@@ -397,15 +397,17 @@ void CDirectxWaterfall::setHeight(const short& newHeight)
 	initDataTexture();
 }
 
+static inline double scale(double val, double high)
+{
+	return val <= 0.0 ? 0.0 : val >= 1.0 ? high : val * high + 0.5;
+}
+
 void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 {
 	if(size && size != m_frameWidth)
 	{
-		if(size && size != m_frameWidth)
-		{
-			m_frameWidth = size;
-			initDataTexture();
-		}
+		m_frameWidth = size;
+		initDataTexture();
 	}
 
 	// shift the data up one row
@@ -450,15 +452,15 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 				UINT halfWidth = m_dataTexWidth / 2;
 				unsigned short* dest = newLine + halfWidth;
 				unsigned short* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 
 				dest = newLine;
 				destEnd = newLine + halfWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 			} else {
 				unsigned short* dest = newLine;
 				unsigned short* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 			}
 		}
 		break;
@@ -472,15 +474,15 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 				UINT halfWidth = m_dataTexWidth / 2;
 				unsigned char* dest = newLine + halfWidth;
 				unsigned char* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 
 				dest = newLine;
 				destEnd = newLine + halfWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 			} else {
 				unsigned char* dest = newLine;
 				unsigned char* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
+				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 			}
 		}
 		break;

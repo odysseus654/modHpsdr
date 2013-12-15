@@ -131,6 +131,10 @@ HRESULT CDirectxScope::initTexture()
 		BlendState.DestBlendAlpha = D3D10_BLEND_ZERO;
 		BlendState.BlendOpAlpha = D3D10_BLEND_OP_ADD;
 		BlendState.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
+		if(m_driverLevel < 10)
+		{
+			BlendState.BlendEnable[3] = BlendState.BlendEnable[2] = BlendState.BlendEnable[1] = TRUE;
+		}
  
 		hR = m_pDevice->CreateBlendState(&BlendState, m_pBlendState.inref());
 		if(FAILED(hR)) return hR;

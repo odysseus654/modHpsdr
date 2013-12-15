@@ -267,7 +267,14 @@ HRESULT CDirectxWaveform::preDrawFrame()
 	UINT subr = D3D10CalcSubresource(0, 0, 0);
 	HRESULT hR = m_dataTex->Map(subr, D3D10_MAP_WRITE_DISCARD, 0, &mappedDataTex);
 	if(FAILED(hR)) return hR;
-	memcpy(mappedDataTex.pData, m_dataTexData, m_dataTexElemSize*m_dataTexWidth);
+	if(m_bIsComplexInput)
+	{
+		UINT halfWidth = m_dataTexWidth / 2;
+		memcpy(((char*)mappedDataTex.pData) + halfWidth*m_dataTexElemSize, m_dataTexData, m_dataTexElemSize*halfWidth);
+		memcpy(mappedDataTex.pData, ((char*)m_dataTexData) + halfWidth*m_dataTexElemSize, m_dataTexElemSize*halfWidth);
+	} else {
+		memcpy(mappedDataTex.pData, m_dataTexData, m_dataTexElemSize*m_dataTexWidth);
+	}
 	m_dataTex->Unmap(subr);
 
 	return S_OK;
@@ -275,7 +282,7 @@ HRESULT CDirectxWaveform::preDrawFrame()
 
 HRESULT CDirectxWaveform::drawRect()
 {
-	// Build our piel shader
+	// Build our pixel shader
 	m_pDevice->PSSetShader(m_pShadowPS);
 	if(!m_bUsingDX9Shader)
 	{
@@ -294,15 +301,17 @@ HRESULT CDirectxWaveform::drawRect()
 	return CDirectxScope::drawRect();
 }
 
+static inline double scale(double val, double high)
+{
+	return val <= 0.0 ? 0.0 : val >= 1.0 ? high : val * high + 0.5;
+}
+
 void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
 {
 	if(size && size != m_frameWidth)
 	{
-		if(size && size != m_frameWidth)
-		{
-			m_frameWidth = size;
-			initDataTexture();
-		}
+		m_frameWidth = size;
+		initDataTexture();
 	}
 
 	double* src = frame;
@@ -312,65 +321,29 @@ void CDirectxWaveform::onReceivedFrame(double* frame, unsigned size)
 		{
 			// convert to float
 			float* newLine = (float*)m_dataTexData;
-			if(m_bIsComplexInput)
-			{
-				UINT halfWidth = m_dataTexWidth / 2;
-				float* dest = newLine + halfWidth;
-				float* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = float(*src++);
-
-				dest = newLine;
-				destEnd = newLine + halfWidth;
-				while(dest < destEnd) *dest++ = float(*src++);
-			} else {
-				float* dest = newLine;
-				float* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = float(*src++);
-			}
+			float* dest = newLine;
+			float* destEnd = newLine + m_dataTexWidth;
+			while(dest < destEnd) *dest++ = float(*src++);
 		}
 		break;
 	case DXGI_FORMAT_R16_UNORM:
 		{
 			// convert to normalised short
-			unsigned short* newLine = (unsigned short*)m_dataTexData;
 			double range = m_psRange.maxRange - m_psRange.minRange;
-			if(m_bIsComplexInput)
-			{
-				UINT halfWidth = m_dataTexWidth / 2;
-				unsigned short* dest = newLine + halfWidth;
-				unsigned short* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
-
-				dest = newLine;
-				destEnd = newLine + halfWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
-			} else {
-				unsigned short* dest = newLine;
-				unsigned short* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned short)(MAXUINT16 * (*src++ - m_psRange.minRange) / range);
-			}
+			unsigned short* newLine = (unsigned short*)m_dataTexData;
+			unsigned short* dest = newLine;
+			unsigned short* destEnd = newLine + m_dataTexWidth;
+			while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 		}
 		break;
 	case DXGI_FORMAT_R8_UNORM:
 		{
 			// convert to normalised char
-			unsigned char* newLine = (unsigned char*)m_dataTexData;
 			double range = m_psRange.maxRange - m_psRange.minRange;
-			if(m_bIsComplexInput)
-			{
-				UINT halfWidth = m_dataTexWidth / 2;
-				unsigned char* dest = newLine + halfWidth;
-				unsigned char* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
-
-				dest = newLine;
-				destEnd = newLine + halfWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
-			} else {
-				unsigned char* dest = newLine;
-				unsigned char* destEnd = newLine + m_dataTexWidth;
-				while(dest < destEnd) *dest++ = (unsigned char)(MAXUINT8 * (*src++ - m_psRange.minRange) / range);
-			}
+			unsigned char* newLine = (unsigned char*)m_dataTexData;
+			unsigned char* dest = newLine;
+			unsigned char* destEnd = newLine + m_dataTexWidth;
+			while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 		}
 		break;
 	}
