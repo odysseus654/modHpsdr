@@ -84,11 +84,17 @@ protected:
 		{
 			if(!m_notEmpty.sleep(lock, milli)) return 0;
 		}
-		unsigned numRead = min((m_back > m_front ? m_back : m_buffer.size()) - m_front, numAvail);
+		size_type bufSize = m_buffer.size();
+		unsigned numRead = min((m_back > m_front ? m_back : bufSize) - m_front, numAvail);
 		memcpy(val, &m_buffer[m_front], sizeof(Elem) * numRead);
-		m_front = (m_front + numRead) % m_buffer.size();
-		m_notFull.wakeAll();
-		return numRead;
+		m_front = (m_front + numRead) % bufSize;
+		if(numAvail > numRead && m_back != m_front)
+		{
+			return numRead + pop_front_vector_locked(lock, val + numRead, numAvail - numRead, INFINITE);
+		} else {
+			m_notFull.wakeAll();
+			return numRead;
+		}
 	}
 
 public:
@@ -105,12 +111,13 @@ public:
 	bool push_back(const_reference val, DWORD milli = INFINITE)
 	{
 		Locker lock(m_lock);
-		while((m_back+1)%m_buffer.size() == m_front)
+		size_type bufSize = m_buffer.size()
+		while((m_back+1)%bufSize == m_front)
 		{
 			if(!m_notFull.sleep(lock, milli)) return false;
 		}
 		m_buffer[m_back] = val;
-		m_back = (m_back + 1) % m_buffer.size();
+		m_back = (m_back + 1) % bufSize;
 		m_notEmpty.wakeAll();
 		return true;
 	}
@@ -124,24 +131,31 @@ public:
 protected:
 	unsigned push_back_vector_locked(Locker& lock, pointer val, unsigned numAvail, DWORD milli = INFINITE)
 	{
-		while((m_back+1)%m_buffer.size() == m_front)
+		size_type bufSize = m_buffer.size();
+		while((m_back+1)%bufSize == m_front)
 		{
 			if(!m_notFull.sleep(lock, milli)) return 0;
 		}
-		unsigned numWrite = min((m_front > m_back ? m_front-1 : m_buffer.size()) - m_back, numAvail);
+		unsigned numWrite = min((m_front > m_back ? m_front-1 : bufSize) - m_back, numAvail);
 		memcpy(&m_buffer[m_back], val, sizeof(Elem) * numWrite);
-		m_back = (m_back + numWrite) % m_buffer.size();
-		m_notEmpty.wakeAll();
-		return numWrite;
+		m_back = (m_back + numWrite) % bufSize;
+		if(numAvail > numWrite && (m_back+1)%bufSize != m_front)
+		{
+			return numWrite + push_back_vector_locked(lock, val + numWrite, numAvail - numWrite, INFINITE);
+		} else {
+			m_notEmpty.wakeAll();
+			return numWrite;
+		}
 	}
 
 public:
 	bool push_back_noblock(const_reference val)
 	{
 		Locker lock(m_lock);
-		if((m_back+1)%m_buffer.size() == m_front) return false;
+		size_type bufSize = m_buffer.size()
+		if((m_back+1)%bufSize == m_front) return false;
 		m_buffer[m_back] = val;
-		m_back = (m_back + 1) % m_buffer.size();
+		m_back = (m_back + 1) % bufSize;
 		m_notEmpty.wakeAll();
 		return true;
 	}
@@ -195,26 +209,27 @@ public:
 		{
 			if(!m_notEmpty.sleep(lock, milli)) return 0;
 		}
-		unsigned bufSize = m_sizeBuffer[m_front];
-		if(bufSize > numAvail) return 0;
+		size_type bufSize = m_buffer.size();
+		unsigned entrySize = m_sizeBuffer[m_front];
+		if(entrySize > numAvail) return 0;
 
-		unsigned numRead = min((m_back > m_front ? m_back : m_buffer.size()) - m_front, numAvail);
+		unsigned numRead = min((m_back > m_front ? m_back : bufSize) - m_front, numAvail);
 		memcpy(val, &m_buffer[m_front], sizeof(Elem) * numRead);
-		m_front = (m_front + numRead) % m_buffer.size();
+		m_front = (m_front + numRead) % bufSize;
 
-		if(numRead < bufSize)
+		if(numRead < entrySize)
 		{
-			my_base::pop_front_vector_locked(lock, &m_buffer[numRead], bufSize-numRead, INFINITE);
+			my_base::pop_front_vector_locked(lock, val + numRead, entrySize - numRead, INFINITE);
+		} else {
+			m_notFull.wakeAll();
 		}
-		m_notFull.wakeAll();
-		return bufSize;
+		return entrySize;
 	}
 
 	bool pop_front_noblock(reference val)
 	{
 		Locker lock(m_lock);
-		if(m_back == m_front) return false;
-		if(m_sizeBuffer[m_front] != 1) return false;
+		if(m_back == m_front || m_sizeBuffer[m_front] != 1) return false;
 		val = m_buffer[m_front];
 		m_front = (m_front + 1) % m_buffer.size();
 		m_notFull.wakeAll();
@@ -224,13 +239,14 @@ public:
 	bool push_back(const_reference val, DWORD milli = INFINITE)
 	{
 		Locker lock(m_lock);
-		while((m_back+1)%m_buffer.size() == m_front)
+		size_type bufSize = m_buffer.size()
+		while((m_back+1)%bufSize == m_front)
 		{
 			if(!m_notFull.sleep(lock, milli)) return false;
 		}
 		m_sizeBuffer[m_back] = 1;
 		m_buffer[m_back] = val;
-		m_back = (m_back + 1) % m_buffer.size();
+		m_back = (m_back + 1) % bufSize;
 		m_notEmpty.wakeAll();
 		return true;
 	}
@@ -238,30 +254,33 @@ public:
 	unsigned push_back_vector(pointer val, unsigned numAvail, DWORD milli = INFINITE)
 	{
 		Locker lock(m_lock);
-		while((m_back+1)%m_buffer.size() == m_front)
+		size_type bufSize = m_buffer.size();
+		while((m_back+1)%bufSize == m_front)
 		{
 			if(!m_notFull.sleep(lock, milli)) return 0;
 		}
-		unsigned numWrite = min((m_front > m_back ? m_front-1 : m_buffer.size()) - m_back, numAvail);
+		unsigned numWrite = min((m_front > m_back ? m_front-1 : bufSize) - m_back, numAvail);
 		m_sizeBuffer[m_back] = numAvail;
 		memcpy(&m_buffer[m_back], val, sizeof(Elem) * numWrite);
-		m_back = (m_back + numWrite) % m_buffer.size();
+		m_back = (m_back + numWrite) % bufSize;
 
 		if(numWrite < numAvail)
 		{
-			my_base::push_back_vector_locked(lock, &m_buffer[numWrite], numAvail-numWrite, INFINITE);
+			my_base::push_back_vector_locked(lock, val + numWrite, numAvail-numWrite, INFINITE);
+		} else {
+			m_notEmpty.wakeAll();
 		}
-		m_notEmpty.wakeAll();
 		return numAvail;
 	}
 
 	bool push_back_noblock(const_reference val)
 	{
 		Locker lock(m_lock);
-		if((m_back+1)%m_buffer.size() == m_front) return false;
+		size_type bufSize = m_buffer.size()
+		if((m_back+1)%bufSize == m_front) return false;
 		m_sizeBuffer[m_back] = 1;
 		m_buffer[m_back] = val;
-		m_back = (m_back + 1) % m_buffer.size();
+		m_back = (m_back + 1) % bufSize;
 		m_notEmpty.wakeAll();
 		return true;
 	}
