@@ -1,7 +1,7 @@
 /*
 	buffer.h - a statically-allocated buffer intended for passing data between threads
 
-	Copyright 2012 Erik Anderson
+	Copyright 2012-2013 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
