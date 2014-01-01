@@ -18,9 +18,9 @@ const unsigned short CDirectxScope::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 
 CDirectxScope::CDirectxScope(signals::IBlockDriver* driver, bool bBottomOrigin):CDirectxBase(driver),
 	m_bIsComplexInput(true),m_bBottomOrigin(bBottomOrigin),
-	m_majFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New")),
-	m_dotFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New")),
-	m_minFont(20, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Courier New"))
+	m_majFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma")),
+	m_dotFont(10, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma")),
+	m_minFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma"))
 {
 }
 
@@ -243,6 +243,14 @@ HRESULT CDirectxScope::drawFrameContents()
 		return E_POINTER;
 	}
 
+	ID3D10BlendState* pOrigBlendState;
+	float origBlendFactor[4];
+	UINT origBlendMask;
+	m_pDevice->OMGetBlendState(&pOrigBlendState, origBlendFactor, &origBlendMask);
+	m_bBackfaceWritten = false;
+
+	clearFrame();
+
 	HRESULT hR = preDrawFrame();
 	if(FAILED(hR)) return hR;
 
@@ -259,12 +267,6 @@ HRESULT CDirectxScope::drawFrameContents()
 	m_pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
 
 	// render the frame
-	ID3D10BlendState* pOrigBlendState;
-	float origBlendFactor[4];
-	UINT origBlendMask;
-	m_pDevice->OMGetBlendState(&pOrigBlendState, origBlendFactor, &origBlendMask);
-	m_pDevice->OMSetBlendState(m_pBlendState, NULL, MAXUINT16);
-
 	m_bDrawingFonts = false;
 	m_majFont.BeginFrame();
 	m_dotFont.BeginFrame();
@@ -272,6 +274,7 @@ HRESULT CDirectxScope::drawFrameContents()
 
 	hR = drawRect();
 	if(FAILED(hR)) return hR;
+	BackfaceWritten();
 
 	hR = drawText();
 	if(FAILED(hR)) return hR;
@@ -282,6 +285,20 @@ HRESULT CDirectxScope::drawFrameContents()
 	m_minFont.EndFrame();
 
 	return S_OK;
+}
+
+void CDirectxScope::clearFrame()
+{
+	CDirectxBase::clearFrame();
+}
+
+void CDirectxScope::BackfaceWritten()
+{
+	if(!m_bBackfaceWritten)
+	{
+		m_pDevice->OMSetBlendState(m_pBlendState, NULL, MAXUINT16);
+		m_bBackfaceWritten = true;
+	}
 }
 
 HRESULT CDirectxScope::drawMonoBitmap(const ID3D10ShaderResourceViewPtr &image, const ID3D10BufferPtr& vertex,

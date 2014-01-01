@@ -43,6 +43,7 @@ private: // directx stuff
 	// Direct3d references we use
 	bool m_bBottomOrigin;
 	bool m_bDrawingFonts;
+	bool m_bBackfaceWritten;
 	ID3D10VertexShaderPtr m_pVS;
 	ID3D10PixelShaderPtr m_pBitmapPS;
 	ID3D10SamplerStatePtr m_pBitmapSampler;
@@ -66,6 +67,8 @@ protected:
 	virtual HRESULT resizeDevice();
 //	virtual HRESULT initDataTexture() PURE;
 	virtual HRESULT drawFrameContents();
+	virtual void clearFrame();
+	void BackfaceWritten();
 	virtual HRESULT preDrawFrame() PURE;
 	virtual HRESULT drawRect();
 //	virtual void onReceivedFrame(double* frame, unsigned size);

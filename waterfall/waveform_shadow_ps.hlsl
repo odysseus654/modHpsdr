@@ -25,13 +25,12 @@ float4 PS(unorm float2 p : TEXCOORD) : SV_TARGET
 	float delta = 1.0 / texture_width;
 	float tc = floor(p.x * texture_width) / texture_width;
 	float offset = (p.x - tc) / delta;
-	float valRange = maxRange - minRange;
 
 	float2 c;
 	c[0] = texValues.Sample(ValueSampleType, float2(tc, 0)).x;
 	c[1] = texValues.Sample(ValueSampleType, float2(tc + delta, 0)).x;
 	
-	float ourPos = (lerp(c[0], c[1], offset) - minRange) / valRange;
+	float ourPos = (lerp(c[0], c[1], offset) - minRange) / (maxRange - minRange);
 	clip(ourPos - p.y);
 	
 	return shadowColor;

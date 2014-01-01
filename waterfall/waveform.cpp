@@ -249,8 +249,9 @@ void CDirectxWaveform::clearFrame()
 {
 	static const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	m_pDevice->ClearRenderTargetView(m_pRenderTargetView, color);
+	BackfaceWritten();
 
-	CDirectxBase::clearFrame();
+	CDirectxScope::clearFrame();
 }
 
 HRESULT CDirectxWaveform::preDrawFrame()

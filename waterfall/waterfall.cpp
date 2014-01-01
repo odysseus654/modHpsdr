@@ -223,9 +223,16 @@ HRESULT CDirectxWaterfall::initTexture()
 		D3D10_SAMPLER_DESC samplerDesc;
 		memset(&samplerDesc, 0, sizeof(samplerDesc));
 		samplerDesc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
-		samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_BORDER;
-		samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_BORDER;
-		samplerDesc.AddressW = D3D10_TEXTURE_ADDRESS_BORDER;
+		if(m_driverLevel >= 10.0f)
+		{
+			samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_BORDER;
+			samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_BORDER;
+			samplerDesc.AddressW = D3D10_TEXTURE_ADDRESS_BORDER;
+		} else {
+			samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_CLAMP;
+			samplerDesc.AddressW = D3D10_TEXTURE_ADDRESS_CLAMP;
+		}
 		samplerDesc.ComparisonFunc = D3D10_COMPARISON_NEVER;
 		samplerDesc.MinLOD = 0.0f;
 		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
@@ -365,6 +372,7 @@ HRESULT CDirectxWaterfall::preDrawFrame()
 		return E_POINTER;
 	}
 
+	// push the radio input to the video buffers
 	D3D10_MAPPED_TEXTURE2D mappedDataTex;
 	memset(&mappedDataTex, 0, sizeof(mappedDataTex));
 	UINT subr = D3D10CalcSubresource(0, 0, 0);
@@ -411,8 +419,9 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 	}
 
 	// shift the data up one row
-	memmove(m_dataTexData, ((char*)m_dataTexData)+m_dataTexWidth*m_dataTexElemSize,
-		m_dataTexElemSize*m_dataTexWidth*(m_dataTexHeight-1));
+	unsigned byteWidth = m_dataTexWidth*m_dataTexElemSize;
+	memmove(m_dataTexData, ((char*)m_dataTexData)+byteWidth, byteWidth*(m_dataTexHeight-1));
+	void* newLine = (char*)m_dataTexData + byteWidth*(m_dataTexHeight-1);
 
 	double* src = frame;
 	switch(m_texFormat)
@@ -438,28 +447,26 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 			}
 
 			// write a new bottom line
-			D3DXFLOAT16* newLine = (D3DXFLOAT16*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
-			D3DXFloat32To16Array(newLine, m_floatStaging, m_dataTexWidth);
+			D3DXFloat32To16Array((D3DXFLOAT16*)newLine, m_floatStaging, m_dataTexWidth);
 		}
 		break;
 	case DXGI_FORMAT_R16_UNORM:
 		{
 			// convert to normalised short
-			unsigned short* newLine = (unsigned short*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
 			double range = m_psRange.maxRange - m_psRange.minRange;
 			if(m_bIsComplexInput)
 			{
 				UINT halfWidth = m_dataTexWidth / 2;
-				unsigned short* dest = newLine + halfWidth;
-				unsigned short* destEnd = newLine + m_dataTexWidth;
+				unsigned short* dest = (unsigned short*)newLine + halfWidth;
+				unsigned short* destEnd = (unsigned short*)newLine + m_dataTexWidth;
 				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 
-				dest = newLine;
-				destEnd = newLine + halfWidth;
+				dest = (unsigned short*)newLine;
+				destEnd = (unsigned short*)newLine + halfWidth;
 				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 			} else {
-				unsigned short* dest = newLine;
-				unsigned short* destEnd = newLine + m_dataTexWidth;
+				unsigned short* dest = (unsigned short*)newLine;
+				unsigned short* destEnd = (unsigned short*)newLine + m_dataTexWidth;
 				while(dest < destEnd) *dest++ = (unsigned short)scale((*src++ - m_psRange.minRange) / range, MAXUINT16);
 			}
 		}
@@ -467,21 +474,20 @@ void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 	case DXGI_FORMAT_R8_UNORM:
 		{
 			// convert to normalised char
-			unsigned char* newLine = (unsigned char*)m_dataTexData + m_dataTexWidth*(m_dataTexHeight-1);
 			double range = m_psRange.maxRange - m_psRange.minRange;
 			if(m_bIsComplexInput)
 			{
 				UINT halfWidth = m_dataTexWidth / 2;
-				unsigned char* dest = newLine + halfWidth;
-				unsigned char* destEnd = newLine + m_dataTexWidth;
+				unsigned char* dest = (unsigned char*)newLine + halfWidth;
+				unsigned char* destEnd = (unsigned char*)newLine + m_dataTexWidth;
 				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 
-				dest = newLine;
-				destEnd = newLine + halfWidth;
+				dest = (unsigned char*)newLine;
+				destEnd = (unsigned char*)newLine + halfWidth;
 				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 			} else {
-				unsigned char* dest = newLine;
-				unsigned char* destEnd = newLine + m_dataTexWidth;
+				unsigned char* dest = (unsigned char*)newLine;
+				unsigned char* destEnd = (unsigned char*)newLine + m_dataTexWidth;
 				while(dest < destEnd) *dest++ = (unsigned char)scale((*src++ - m_psRange.minRange) / range, MAXUINT8);
 			}
 		}
