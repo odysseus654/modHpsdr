@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 
 #include <d3d10_1.h>
 #include <d3dx10.h>
+
+#pragma comment(lib, "d3dx10.lib")
 
 char const * CDirectxWaterfall::NAME = "DirectX waterfall display";
 
@@ -123,7 +125,7 @@ void CDirectxWaterfall::releaseDevice()
 	m_pValSampler.Release();
 }
 
-HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D10Texture2DPtr& waterfallTex)
+HRESULT CDirectxWaterfall::buildWaterfallTexture(const CVideoDevicePtr& pDevice, ID3D10Texture2DPtr& waterfallTex)
 {
 	static const D3DVECTOR WATERFALL_POINTS[] = {
 		{ 0.0f,		0.0f,	0.0f },
@@ -192,7 +194,7 @@ HRESULT CDirectxWaterfall::buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D1
 	waterfallData.pSysMem = waterfallColors;
 	waterfallData.SysMemPitch = sizeof(waterfallColors);
 
-	HRESULT hR = pDevice->CreateTexture2D(&waterfallDesc, &waterfallData, waterfallTex.inref());
+	HRESULT hR = pDevice->CreateTexture2D(waterfallDesc, &waterfallData, waterfallTex);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
@@ -204,13 +206,13 @@ HRESULT CDirectxWaterfall::initTexture()
 	// check for texture support
 	enum { REQUIRED_SUPPORT = D3D10_FORMAT_SUPPORT_TEXTURE2D|D3D10_FORMAT_SUPPORT_SHADER_SAMPLE };
 	UINT texSupport;
-	if(m_driverLevel >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_FLOAT, &texSupport))
+	if(driverLevel() >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_FLOAT, texSupport))
 		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
 	{
 		m_bUsingDX9Shader = false;
 		m_texFormat = DXGI_FORMAT_R16_FLOAT;
 	}
-	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, &texSupport))
+	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, texSupport))
 		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
 	{
 		m_bUsingDX9Shader = true;
@@ -218,28 +220,28 @@ HRESULT CDirectxWaterfall::initTexture()
 	}
 	else
 	{
-		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, &texSupport))
+		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, texSupport))
 			&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT);
 		m_bUsingDX9Shader = true;
 		m_texFormat = DXGI_FORMAT_R8_UNORM;
 	}
 
 	// Load the shader in from the file.
-	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
+	HRESULT hR = m_pDevice->createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waterfall_ps9.cso") : _T("waterfall_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
 
 	ID3D10Texture2DPtr waterfallTex;
 	hR = buildWaterfallTexture(m_pDevice, waterfallTex);
 	if(FAILED(hR)) return hR;
 
-	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView.inref());
+	hR = m_pDevice->CreateShaderResourceView(waterfallTex, NULL, m_waterfallView);
 	if(FAILED(hR)) return hR;
 
 	{
 		D3D10_SAMPLER_DESC samplerDesc;
 		memset(&samplerDesc, 0, sizeof(samplerDesc));
 		samplerDesc.Filter = D3D10_FILTER_MIN_MAG_MIP_LINEAR;
-		if(m_driverLevel >= 10.0f)
+		if(driverLevel() >= 10.0f)
 		{
 			samplerDesc.AddressU = D3D10_TEXTURE_ADDRESS_BORDER;
 			samplerDesc.AddressV = D3D10_TEXTURE_ADDRESS_BORDER;
@@ -254,7 +256,7 @@ HRESULT CDirectxWaterfall::initTexture()
 		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
 		//samplerDesc.BorderColor = { 0.0f, 0.0f, 0.0f, 0.0f };
 
-		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pValSampler.inref());
+		hR = m_pDevice->CreateSamplerState(samplerDesc, m_pValSampler);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -269,7 +271,7 @@ HRESULT CDirectxWaterfall::initTexture()
 		samplerDesc.MinLOD = 0.0f;
 		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
 
-		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pColorSampler.inref());
+		hR = m_pDevice->CreateSamplerState(samplerDesc, m_pColorSampler);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -326,11 +328,11 @@ HRESULT CDirectxWaterfall::initDataTexture()
 		dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 		dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-		hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
+		hR = m_pDevice->CreateTexture2D(dataDesc, NULL, m_dataTex);
 		if(FAILED(hR)) return hR;
 	}
 
-	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
+	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView);
 	if(FAILED(hR)) return hR;
 
 	if(!m_bUsingDX9Shader)
@@ -347,7 +349,7 @@ HRESULT CDirectxWaterfall::initDataTexture()
 		memset(&psGlobalData, 0, sizeof(psGlobalData));
 		psGlobalData.pSysMem = &m_psRange;
 
-		hR = m_pDevice->CreateBuffer(&psGlobalBufferDesc, &psGlobalData, m_pPSGlobals.inref());
+		hR = m_pDevice->CreateBuffer(psGlobalBufferDesc, &psGlobalData, m_pPSGlobals);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -400,17 +402,17 @@ HRESULT CDirectxWaterfall::preDrawFrame()
 	return S_OK;
 }
 
-HRESULT CDirectxWaterfall::drawRect()
+HRESULT CDirectxWaterfall::drawRect(ID3D10Device1* pDevice)
 {
 	// Build our pixel shader
 	ID3D10ShaderResourceView* psResr[] = { m_dataView, m_waterfallView };
 	ID3D10SamplerState* psSamp[] = { m_pValSampler, m_pColorSampler };
-	m_pDevice->PSSetShader(m_pPS);
-	if(!m_bUsingDX9Shader) m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
-	m_pDevice->PSSetShaderResources(0, 2, psResr);
-	m_pDevice->PSSetSamplers(0, 2, psSamp);
+	pDevice->PSSetShader(m_pPS);
+	if(!m_bUsingDX9Shader) pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
+	pDevice->PSSetShaderResources(0, 2, psResr);
+	pDevice->PSSetSamplers(0, 2, psSamp);
 
-	return CDirectxScope::drawRect();
+	return CDirectxScope::drawRect(pDevice);
 }
 
 void CDirectxWaterfall::setHeight(const short& newHeight)

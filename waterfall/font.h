@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ public:
 	void BeginFrame();
 	void EndFrame();
 	HRESULT CalcSize(LPCTSTR szText, UINT uiLen, SIZE& size);
-	HRESULT DrawText(CDirectxScope& pDevice, LPCTSTR szText, UINT uiLen, const RECT& rect, const D3DXCOLOR& color);
+	HRESULT DrawText(CDirectxScope& pDevice, ID3D10Device1* pD3Device, LPCTSTR szText, UINT uiLen, const RECT& rect, const D3DXCOLOR& color);
 
 	enum { stItalic = 1, stUnderline = 2, stStrikeout = 4 };
 
@@ -71,10 +71,10 @@ private:
 		ID3D10ShaderResourceViewPtr bitmapView;
 	};
 
-	HRESULT retrieveColor(const D3DXCOLOR& color, ID3D10Device1Ptr& pDevice, const ID3D10BufferPtr*& pBuffer);
+	HRESULT retrieveColor(const D3DXCOLOR& color, ID3D10Device1* pDevice, const ID3D10BufferPtr*& pBuffer);
 	HRESULT retrieveVertex(const RECT& rect, CDirectxScope& pDevice, const ID3D10BufferPtr*& pVertex);
 	HRESULT retrieveBitmap(LPCTSTR szText, UINT uiLen, const SIZE& size,
-		ID3D10Device1Ptr& pDevice, const ID3D10ShaderResourceViewPtr*& pView);
+		ID3D10Device1* pDevice, const ID3D10ShaderResourceViewPtr*& pView);
 
 	typedef std::map<float4, TBufferStore> TColorMap;
 	typedef std::map<std::basic_string<TCHAR>, TBitmapStore> TBitmapMap;

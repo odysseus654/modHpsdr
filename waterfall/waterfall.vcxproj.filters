@@ -59,6 +59,9 @@
     <ClInclude Include="waveform.h">
       <Filter>Implementation\waveform</Filter>
     </ClInclude>
+    <ClInclude Include="device.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -81,6 +84,9 @@
     </ClCompile>
     <ClCompile Include="waveform.cpp">
       <Filter>Implementation\waveform</Filter>
+    </ClCompile>
+    <ClCompile Include="device.cpp">
+      <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -24,9 +24,6 @@
     <ClInclude Include="..\common\BlockImpl.h">
       <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="cppconv.h">
-      <Filter>Implementation</Filter>
-    </ClInclude>
     <ClInclude Include="..\common\buffer.h">
       <Filter>common</Filter>
     </ClInclude>
@@ -39,18 +36,24 @@
     <ClInclude Include="..\ext\FastDelegate.h">
       <Filter>common</Filter>
     </ClInclude>
+    <ClInclude Include="split.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\funcbase.h">
+      <Filter>common</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Infrastructure</Filter>
     </ClCompile>
-    <ClCompile Include="cppconv.cpp">
-      <Filter>Implementation</Filter>
-    </ClCompile>
     <ClCompile Include="functions.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
-    <ClCompile Include="frame.cpp">
+    <ClCompile Include="split.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+    <ClCompile Include="modules.cpp">
       <Filter>Implementation</Filter>
     </ClCompile>
   </ItemGroup>

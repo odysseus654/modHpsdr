@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -15,29 +15,7 @@
 */
 #pragma once
 #include <blockImpl.h>
-#include "unkref.h"
-#include <Unknwn.h>
-
-struct ID3D10DepthStencilState;
-struct ID3D10DepthStencilView;
-struct ID3D10Device1;
-struct ID3D10InputLayout;
-struct ID3D10PixelShader;
-struct ID3D10RenderTargetView;
-struct ID3D10Texture2D;
-struct ID3D10VertexShader;
-struct IDXGISwapChain;
-struct D3D10_INPUT_ELEMENT_DESC;
-
-typedef unk_ref_t<ID3D10DepthStencilState> ID3D10DepthStencilStatePtr;
-typedef unk_ref_t<ID3D10DepthStencilView> ID3D10DepthStencilViewPtr;
-typedef unk_ref_t<ID3D10Device1> ID3D10Device1Ptr;
-typedef unk_ref_t<ID3D10InputLayout> ID3D10InputLayoutPtr;
-typedef unk_ref_t<ID3D10PixelShader> ID3D10PixelShaderPtr;
-typedef unk_ref_t<ID3D10RenderTargetView> ID3D10RenderTargetViewPtr;
-typedef unk_ref_t<ID3D10Texture2D> ID3D10Texture2DPtr;
-typedef unk_ref_t<ID3D10VertexShader> ID3D10VertexShaderPtr;
-typedef unk_ref_t<IDXGISwapChain> IDXGISwapChainPtr;
+#include "device.h"
 
 class CDirectxBase : public CThreadBlockBase
 {
@@ -45,7 +23,7 @@ public:
 	CDirectxBase(signals::IBlockDriver* driver);
 	virtual ~CDirectxBase();
 
-	inline ID3D10Device1Ptr& device() { return m_pDevice; }
+//	inline ID3D10Device1Ptr& device() { return m_pDevice; }
 
 private:
 	CDirectxBase(const CDirectxBase& other);
@@ -58,16 +36,15 @@ public: // IBlock implementation
 	struct
 	{
 		CAttributeBase* targetWindow;
-		CRWAttribute<signals::etypBoolean>* enableVsync;
 	} attrs;
 
 	void setTargetWindow(void* const & hWnd);
 
 public:
-	class CIncoming : public CSimpleIncomingChild<signals::etypVecDouble>, public signals::IAttributeObserver
+	class CIncoming : public CSimpleIncomingChild, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL),m_lastRateAttr(NULL),
+		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(signals::etypVecDouble, parent),m_lastWidthAttr(NULL),m_lastRateAttr(NULL),
 			m_lastFreqAttr(NULL) { }
 		virtual ~CIncoming();
 
@@ -107,7 +84,6 @@ protected: // directx stuff
 	UINT m_frameWidth;
 	UINT m_screenCliWidth;
 	UINT m_screenCliHeight;
-	float m_driverLevel;
 	volatile long m_dataRate;
 	volatile __int64 m_dataFrequency;
 private: // directx stuff
@@ -117,7 +93,7 @@ private: // directx stuff
 	UINT m_screenWinHeight;
 
 protected:	// Direct3d references we use
-	ID3D10Device1Ptr m_pDevice;
+	CVideoDevicePtr m_pDevice;
 	ID3D10RenderTargetViewPtr m_pRenderTargetView;
 private:	// Direct3d references we use
 	IDXGISwapChainPtr m_pSwapChain;
@@ -127,19 +103,21 @@ private:	// Direct3d references we use
 	ID3D10DepthStencilStatePtr m_pDepthStencilState;
 
 protected:
-	HRESULT createPixelShaderFromResource(LPCTSTR fileName, ID3D10PixelShaderPtr& pShader);
-	HRESULT createVertexShaderFromResource(LPCTSTR fileName, const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs,
-		UINT NumElements, ID3D10VertexShaderPtr& pShader, ID3D10InputLayoutPtr& pInputLayout);
+	inline float driverLevel() const { return m_pDevice ? m_pDevice->driverLevel() : 0; }
+
 	virtual void buildAttrs();
 	virtual void releaseDevice();
 	virtual HRESULT initTexture() PURE;
 	virtual HRESULT resizeDevice();
 	virtual HRESULT initDataTexture() PURE;
-	virtual void clearFrame();
-	virtual HRESULT drawFrameContents() PURE;
+	virtual void clearFrame(ID3D10Device1* pDevice);
+	virtual HRESULT drawFrameContents(ID3D10Device1* pDevice) PURE;
 	HRESULT drawFrame();
+	virtual HRESULT setContext(ID3D10Device1* pDevice);
+	virtual HRESULT preDrawFrame() { return S_OK; }
 	virtual void onReceivedFrame(double* frame, unsigned size) PURE;
 private:
+	HRESULT createDevice();
 	HRESULT initDevice();
 
 	virtual void thread_run();

@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -76,8 +76,8 @@ protected:
 	virtual HRESULT initTexture();
 	virtual HRESULT initDataTexture();
 	virtual HRESULT preDrawFrame();
-	virtual HRESULT drawRect();
+	virtual HRESULT drawRect(ID3D10Device1* pDevice);
 	virtual void onReceivedFrame(double* frame, unsigned size);
 private:
-	static HRESULT buildWaterfallTexture(ID3D10Device1Ptr pDevice, ID3D10Texture2DPtr& waterfallTex);
+	static HRESULT buildWaterfallTexture(const CVideoDevicePtr& pDevice, ID3D10Texture2DPtr& waterfallTex);
 };

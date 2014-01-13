@@ -38,6 +38,9 @@
     <ClInclude Include="mt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="funcbase.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -50,6 +53,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="error.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="funcbase.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

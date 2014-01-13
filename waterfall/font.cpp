@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -94,14 +94,14 @@ HRESULT CFont::CalcSize(LPCTSTR szText, UINT uiLen, SIZE& size)
 	return S_OK;
 }
 
-HRESULT CFont::DrawText(CDirectxScope& pDevice, LPCTSTR szText, UINT uiLen, const RECT& rect, const D3DXCOLOR& color)
+HRESULT CFont::DrawText(CDirectxScope& pDevice, ID3D10Device1* pD3Device, LPCTSTR szText, UINT uiLen, const RECT& rect, const D3DXCOLOR& color)
 {
 	SIZE size;
 	size.cx = rect.right - rect.left;
 	size.cy = rect.bottom - rect.top;
 
 	const ID3D10ShaderResourceViewPtr* bitmapView = NULL;
-	HRESULT hR = retrieveBitmap(szText, uiLen, size, pDevice.device(), bitmapView);
+	HRESULT hR = retrieveBitmap(szText, uiLen, size, pD3Device, bitmapView);
 	if(FAILED(hR)) return hR;
 	ASSERT(bitmapView);
 
@@ -111,14 +111,14 @@ HRESULT CFont::DrawText(CDirectxScope& pDevice, LPCTSTR szText, UINT uiLen, cons
 	ASSERT(pVertex);
 
 	const ID3D10BufferPtr* pColor = NULL;
-	hR = retrieveColor(color, pDevice.device(), pColor);
+	hR = retrieveColor(color, pD3Device, pColor);
 	if(FAILED(hR)) return hR;
 	ASSERT(pColor);
 
-	return pDevice.drawMonoBitmap(*bitmapView, *pVertex, *pColor);
+	return pDevice.drawMonoBitmap(pD3Device, *bitmapView, *pVertex, *pColor);
 }
 
-HRESULT CFont::retrieveBitmap(LPCTSTR szText, UINT uiLen, const SIZE& size, ID3D10Device1Ptr& pDevice,
+HRESULT CFont::retrieveBitmap(LPCTSTR szText, UINT uiLen, const SIZE& size, ID3D10Device1* pDevice,
 	const ID3D10ShaderResourceViewPtr*& pView)
 {
 	std::basic_string<TCHAR> text(szText, uiLen);
@@ -254,7 +254,7 @@ HRESULT CFont::retrieveBitmap(LPCTSTR szText, UINT uiLen, const SIZE& size, ID3D
 	return S_OK;
 }
 
-HRESULT CFont::retrieveColor(const D3DXCOLOR& color, ID3D10Device1Ptr& pDevice, const ID3D10BufferPtr*& pBuffer)
+HRESULT CFont::retrieveColor(const D3DXCOLOR& color, ID3D10Device1* pDevice, const ID3D10BufferPtr*& pBuffer)
 {
 	float4 fColor = { color.r, color.g, color.b, color.a };
 	TColorMap::iterator lookup = m_colorMap.find(fColor);

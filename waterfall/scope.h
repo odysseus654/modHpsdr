@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -17,17 +17,6 @@
 #include "base.h"
 #include "font.h"
 
-enum DXGI_FORMAT;
-struct ID3D10BlendState;
-struct ID3D10Buffer;
-struct ID3D10SamplerState;
-struct ID3D10ShaderResourceView;
-
-typedef unk_ref_t<ID3D10BlendState> ID3D10BlendStatePtr;
-typedef unk_ref_t<ID3D10Buffer> ID3D10BufferPtr;
-typedef unk_ref_t<ID3D10SamplerState> ID3D10SamplerStatePtr;
-typedef unk_ref_t<ID3D10ShaderResourceView> ID3D10ShaderResourceViewPtr;
-
 class CDirectxScope : public CDirectxBase
 {
 public:
@@ -36,8 +25,8 @@ public:
 
 	HRESULT createVertexRect(float top, float left, float bottom, float right, float z,
 		bool bBottomOrigin, ID3D10BufferPtr& vertex) const;
-	HRESULT drawMonoBitmap(const ID3D10ShaderResourceViewPtr &image, const ID3D10BufferPtr& vertex,
-		const ID3D10BufferPtr& color);
+	HRESULT drawMonoBitmap(ID3D10Device1* pDevice, const ID3D10ShaderResourceViewPtr &image,
+		const ID3D10BufferPtr& vertex, const ID3D10BufferPtr& color);
 
 private:
 	CDirectxScope(const CDirectxScope& other);
@@ -81,11 +70,9 @@ protected:
 	virtual HRESULT initTexture();
 	virtual HRESULT resizeDevice();
 //	virtual HRESULT initDataTexture() PURE;
-	virtual HRESULT drawFrameContents();
-	virtual void clearFrame();
-	void BackfaceWritten();
-	virtual HRESULT preDrawFrame() PURE;
-	virtual HRESULT drawRect();
+	virtual HRESULT drawFrameContents(ID3D10Device1* pDevice);
+	void BackfaceWritten(ID3D10Device1* pDevice);
+	virtual HRESULT drawRect(ID3D10Device1* pDevice);
 //	virtual void onReceivedFrame(double* frame, unsigned size);
-	HRESULT drawText();
+	HRESULT drawText(ID3D10Device1* pDevice);
 };

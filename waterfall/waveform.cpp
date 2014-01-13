@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -81,13 +81,13 @@ HRESULT CDirectxWaveform::initTexture()
 	// check for texture support
 	enum { REQUIRED_SUPPORT = D3D10_FORMAT_SUPPORT_TEXTURE2D };
 	UINT texSupport;
-	if(m_driverLevel >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R32_FLOAT, &texSupport))
+	if(driverLevel() >= 10.0f && SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R32_FLOAT, texSupport))
 		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
 	{
 		m_bUsingDX9Shader = false;
 		m_texFormat = DXGI_FORMAT_R32_FLOAT;
 	}
-	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, &texSupport))
+	else if(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R16_UNORM, texSupport))
 		&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT)
 	{
 		m_bUsingDX9Shader = true;
@@ -95,17 +95,17 @@ HRESULT CDirectxWaveform::initTexture()
 	}
 	else
 	{
-		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, &texSupport))
+		ASSERT(SUCCEEDED(m_pDevice->CheckFormatSupport(DXGI_FORMAT_R8_UNORM, texSupport))
 			&& (texSupport & REQUIRED_SUPPORT) == REQUIRED_SUPPORT);
 		m_bUsingDX9Shader = true;
 		m_texFormat = DXGI_FORMAT_R8_UNORM;
 	}
 
 	// Load the shader in from the file.
-	HRESULT hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_ps9.cso") : _T("waveform_ps.cso"), m_pPS);
+	HRESULT hR = m_pDevice->createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_ps9.cso") : _T("waveform_ps.cso"), m_pPS);
 	if(FAILED(hR)) return hR;
 
-	hR = createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_shadow_ps9.cso") : _T("waveform_shadow_ps.cso"), m_pShadowPS);
+	hR = m_pDevice->createPixelShaderFromResource(m_bUsingDX9Shader ? _T("waveform_shadow_ps9.cso") : _T("waveform_shadow_ps.cso"), m_pShadowPS);
 	if(FAILED(hR)) return hR;
 
 	{
@@ -119,7 +119,7 @@ HRESULT CDirectxWaveform::initTexture()
 		samplerDesc.MinLOD = 0.0f;
 		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
 
-		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pPSSampler.inref());
+		hR = m_pDevice->CreateSamplerState(samplerDesc, m_pPSSampler);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -175,11 +175,11 @@ HRESULT CDirectxWaveform::initDataTexture()
 		dataDesc.BindFlags = D3D10_BIND_SHADER_RESOURCE;
 		dataDesc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
 
-		hR = m_pDevice->CreateTexture2D(&dataDesc, NULL, m_dataTex.inref());
+		hR = m_pDevice->CreateTexture2D(dataDesc, NULL, m_dataTex);
 		if(FAILED(hR)) return hR;
 	}
 
-	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView.inref());
+	hR = m_pDevice->CreateShaderResourceView(m_dataTex, NULL, m_dataView);
 	if(FAILED(hR)) return hR;
 
 	{
@@ -195,7 +195,7 @@ HRESULT CDirectxWaveform::initDataTexture()
 		memset(&psGlobalData, 0, sizeof(psGlobalData));
 		psGlobalData.pSysMem = &m_psGlobals;
 
-		hR = m_pDevice->CreateBuffer(&psGlobalBufferDesc, &psGlobalData, m_pPSGlobals.inref());
+		hR = m_pDevice->CreateBuffer(psGlobalBufferDesc, &psGlobalData, m_pPSGlobals);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -213,7 +213,7 @@ HRESULT CDirectxWaveform::initDataTexture()
 		memset(&psGlobalData, 0, sizeof(psGlobalData));
 		psGlobalData.pSysMem = &m_psRange;
 
-		hR = m_pDevice->CreateBuffer(&psGlobalBufferDesc, &psGlobalData, m_pPSRangeGlobals.inref());
+		hR = m_pDevice->CreateBuffer(psGlobalBufferDesc, &psGlobalData, m_pPSRangeGlobals);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -261,13 +261,13 @@ HRESULT CDirectxWaveform::resizeDevice()
 	return hR;
 }
 
-void CDirectxWaveform::clearFrame()
+void CDirectxWaveform::clearFrame(ID3D10Device1* pDevice)
 {
 	static const float color[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-	m_pDevice->ClearRenderTargetView(m_pRenderTargetView, color);
-	BackfaceWritten();
+	pDevice->ClearRenderTargetView(m_pRenderTargetView, color);
+	BackfaceWritten(pDevice);
 
-	CDirectxScope::clearFrame();
+	CDirectxScope::clearFrame(pDevice);
 }
 
 HRESULT CDirectxWaveform::preDrawFrame()
@@ -297,25 +297,25 @@ HRESULT CDirectxWaveform::preDrawFrame()
 	return S_OK;
 }
 
-HRESULT CDirectxWaveform::drawRect()
+HRESULT CDirectxWaveform::drawRect(ID3D10Device1* pDevice)
 {
 	// Build our pixel shader
-	m_pDevice->PSSetShader(m_pShadowPS);
+	pDevice->PSSetShader(m_pShadowPS);
 	if(!m_bUsingDX9Shader)
 	{
 		ID3D10Buffer* psResr[] = { m_pPSGlobals, m_pPSRangeGlobals };
-		m_pDevice->PSSetConstantBuffers(0, 2, psResr);
+		pDevice->PSSetConstantBuffers(0, 2, psResr);
 	} else {
-		m_pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
+		pDevice->PSSetConstantBuffers(0, 1, m_pPSGlobals.ref());
 	}
-	m_pDevice->PSSetShaderResources(0, 1, m_dataView.ref());
-	m_pDevice->PSSetSamplers(0, 1, m_pPSSampler.ref());
+	pDevice->PSSetShaderResources(0, 1, m_dataView.ref());
+	pDevice->PSSetSamplers(0, 1, m_pPSSampler.ref());
 
-	HRESULT hR = CDirectxScope::drawRect();
+	HRESULT hR = CDirectxScope::drawRect(pDevice);
 	if(FAILED(hR)) return hR;
 
-	m_pDevice->PSSetShader(m_pPS);
-	return CDirectxScope::drawRect();
+	pDevice->PSSetShader(m_pPS);
+	return CDirectxScope::drawRect(pDevice);
 }
 
 static inline double scale(double val, double high)

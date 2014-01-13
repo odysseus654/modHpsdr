@@ -106,10 +106,10 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class CIncoming : public CSimpleIncomingChild<signals::etypVecCmplDbl>, public signals::IAttributeObserver
+	class CIncoming : public CSimpleIncomingChild, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(parent),m_lastWidthAttr(NULL) { }
+		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(signals::etypVecCmplDbl, parent),m_lastWidthAttr(NULL) { }
 		virtual ~CIncoming();
 		virtual const char* EPName()				{ return EP_NAME; }
 		virtual const char* EPDescr()				{ return EP_DESCR; }

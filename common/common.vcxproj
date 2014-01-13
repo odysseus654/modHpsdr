@@ -76,6 +76,7 @@
     <ClInclude Include="BlockImpl.h" />
     <ClInclude Include="buffer.h" />
     <ClInclude Include="error.h" />
+    <ClInclude Include="funcbase.h" />
     <ClInclude Include="mt.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
@@ -83,6 +84,7 @@
   <ItemGroup>
     <ClCompile Include="BlockImpl.cpp" />
     <ClCompile Include="error.cpp" />
+    <ClCompile Include="funcbase.cpp" />
     <ClCompile Include="mt.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

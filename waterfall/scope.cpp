@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ HRESULT CDirectxScope::createVertexRect(float top, float left, float bottom, flo
 	memset(&vertexData, 0, sizeof(vertexData));
 	vertexData.pSysMem = vertices;
 
-	return m_pDevice->CreateBuffer(&vertexBufferDesc, &vertexData, vertex.inref());
+	return m_pDevice->CreateBuffer(vertexBufferDesc, &vertexData, vertex);
 }
 
 HRESULT CDirectxScope::initTexture()
@@ -108,10 +108,10 @@ HRESULT CDirectxScope::initTexture()
 	};
 
 	// Load the shader in from the file.
-	HRESULT hR = createVertexShaderFromResource(_T("ortho_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
+	HRESULT hR = m_pDevice->createVertexShaderFromResource(_T("ortho_vs.cso"), vdesc, 2, m_pVS, m_pInputLayout);
 	if(FAILED(hR)) return hR;
 
-	hR = createPixelShaderFromResource(_T("mono_bitmap_ps.cso"), m_pBitmapPS);
+	hR = m_pDevice->createPixelShaderFromResource(_T("mono_bitmap_ps.cso"), m_pBitmapPS);
 	if(FAILED(hR)) return hR;
 
 	// Now create the vertex buffer.
@@ -131,7 +131,7 @@ HRESULT CDirectxScope::initTexture()
 		memset(&indexData, 0, sizeof(indexData));
 		indexData.pSysMem = VERTEX_INDICES;
 
-		hR = m_pDevice->CreateBuffer(&indexBufferDesc, &indexData, m_pVertexIndexBuffer.inref());
+		hR = m_pDevice->CreateBuffer(indexBufferDesc, &indexData, m_pVertexIndexBuffer);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -146,12 +146,12 @@ HRESULT CDirectxScope::initTexture()
 		BlendState.DestBlendAlpha = D3D10_BLEND_ZERO;
 		BlendState.BlendOpAlpha = D3D10_BLEND_OP_ADD;
 		BlendState.RenderTargetWriteMask[0] = D3D10_COLOR_WRITE_ENABLE_ALL;
-		if(m_driverLevel < 10)
+		if(driverLevel() < 10)
 		{
 			BlendState.BlendEnable[3] = BlendState.BlendEnable[2] = BlendState.BlendEnable[1] = TRUE;
 		}
  
-		hR = m_pDevice->CreateBlendState(&BlendState, m_pBlendState.inref());
+		hR = m_pDevice->CreateBlendState(BlendState, m_pBlendState);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -166,7 +166,7 @@ HRESULT CDirectxScope::initTexture()
 		samplerDesc.MinLOD = 0.0f;
 		samplerDesc.MaxLOD = D3D10_FLOAT32_MAX;
 
-		hR = m_pDevice->CreateSamplerState(&samplerDesc, m_pBitmapSampler.inref());
+		hR = m_pDevice->CreateSamplerState(samplerDesc, m_pBitmapSampler);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -190,7 +190,7 @@ HRESULT CDirectxScope::initTexture()
 		memset(&vsGlobalData, 0, sizeof(vsGlobalData));
 		vsGlobalData.pSysMem = orthoMatrix;
 
-		hR = m_pDevice->CreateBuffer(&vsGlobalBufferDesc, &vsGlobalData, m_pVSGlobals.inref());
+		hR = m_pDevice->CreateBuffer(vsGlobalBufferDesc, &vsGlobalData, m_pVSGlobals);
 		if(FAILED(hR)) return hR;
 	}
 
@@ -250,10 +250,10 @@ HRESULT CDirectxScope::resizeDevice()
 	return S_OK;
 }
 
-HRESULT CDirectxScope::drawFrameContents()
+HRESULT CDirectxScope::drawFrameContents(ID3D10Device1* pDevice)
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
-	if(!m_pDevice || !m_pVS)
+	if(!m_pDevice || !m_pVS || !pDevice)
 	{
 		return E_POINTER;
 	}
@@ -261,25 +261,22 @@ HRESULT CDirectxScope::drawFrameContents()
 	ID3D10BlendState* pOrigBlendState;
 	float origBlendFactor[4];
 	UINT origBlendMask;
-	m_pDevice->OMGetBlendState(&pOrigBlendState, origBlendFactor, &origBlendMask);
+	pDevice->OMGetBlendState(&pOrigBlendState, origBlendFactor, &origBlendMask);
 	m_bBackfaceWritten = false;
 
-	clearFrame();
-
-	HRESULT hR = preDrawFrame();
-	if(FAILED(hR)) return hR;
+	clearFrame(pDevice);
 
 	// setup the input assembler.
 	const static UINT stride = sizeof(TL_FALL_VERTEX); 
 	const static UINT offset = 0;
-	m_pDevice->IASetVertexBuffers(0, 1, m_pVertexBuffer.ref(), &stride, &offset);
-	m_pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
-	m_pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-	m_pDevice->IASetInputLayout(m_pInputLayout);
+	pDevice->IASetVertexBuffers(0, 1, m_pVertexBuffer.ref(), &stride, &offset);
+	pDevice->IASetIndexBuffer(m_pVertexIndexBuffer, DXGI_FORMAT_R16_UINT, 0);
+	pDevice->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+	pDevice->IASetInputLayout(m_pInputLayout);
 
 	// Build our vertex shader
-	m_pDevice->VSSetShader(m_pVS);
-	m_pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
+	pDevice->VSSetShader(m_pVS);
+	pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
 
 	// render the frame
 	m_bDrawingFonts = false;
@@ -287,14 +284,14 @@ HRESULT CDirectxScope::drawFrameContents()
 	m_dotFont.BeginFrame();
 	m_minFont.BeginFrame();
 
-	hR = drawRect();
+	HRESULT hR = drawRect(pDevice);
 	if(FAILED(hR)) return hR;
-	BackfaceWritten();
+	BackfaceWritten(pDevice);
 
-	hR = drawText();
+	hR = drawText(pDevice);
 	if(FAILED(hR)) return hR;
 
-	m_pDevice->OMSetBlendState(pOrigBlendState, origBlendFactor, origBlendMask);
+	pDevice->OMSetBlendState(pOrigBlendState, origBlendFactor, origBlendMask);
 	m_majFont.EndFrame();
 	m_dotFont.EndFrame();
 	m_minFont.EndFrame();
@@ -302,27 +299,22 @@ HRESULT CDirectxScope::drawFrameContents()
 	return S_OK;
 }
 
-void CDirectxScope::clearFrame()
-{
-	CDirectxBase::clearFrame();
-}
-
-void CDirectxScope::BackfaceWritten()
+void CDirectxScope::BackfaceWritten(ID3D10Device1* pDevice)
 {
 	if(!m_bBackfaceWritten)
 	{
-		m_pDevice->OMSetBlendState(m_pBlendState, NULL, MAXUINT16);
+		pDevice->OMSetBlendState(m_pBlendState, NULL, MAXUINT16);
 		m_bBackfaceWritten = true;
 	}
 }
 
-HRESULT CDirectxScope::drawMonoBitmap(const ID3D10ShaderResourceViewPtr &image, const ID3D10BufferPtr& vertex,
-	const ID3D10BufferPtr& color)
+HRESULT CDirectxScope::drawMonoBitmap(ID3D10Device1* pDevice, const ID3D10ShaderResourceViewPtr &image,
+	const ID3D10BufferPtr& vertex, const ID3D10BufferPtr& color)
 {
 	// setup the input assembler.
 	const static UINT stride = sizeof(TL_FALL_VERTEX); 
 	const static UINT offset = 0;
-	m_pDevice->IASetVertexBuffers(0, 1, vertex.ref(), &stride, &offset);
+	pDevice->IASetVertexBuffers(0, 1, vertex.ref(), &stride, &offset);
 
 	if(!m_bDrawingFonts)
 	{
@@ -335,25 +327,25 @@ HRESULT CDirectxScope::drawMonoBitmap(const ID3D10ShaderResourceViewPtr &image, 
 	//	m_pDevice->VSSetConstantBuffers(0, 1, m_pVSGlobals.ref());
 
 		// Build the pixel shader
-		m_pDevice->PSSetShader(m_pBitmapPS);
-		m_pDevice->PSSetSamplers(2, 1, m_pBitmapSampler.ref());
+		pDevice->PSSetShader(m_pBitmapPS);
+		pDevice->PSSetSamplers(2, 1, m_pBitmapSampler.ref());
 
 		m_bDrawingFonts = true;
 	}
 
-	m_pDevice->PSSetShaderResources(2, 1, image.ref());
-	m_pDevice->PSSetConstantBuffers(2, 1, color.ref());
-	m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
+	pDevice->PSSetShaderResources(2, 1, image.ref());
+	pDevice->PSSetConstantBuffers(2, 1, color.ref());
+	pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
 	return S_OK;
 }
 
-HRESULT CDirectxScope::drawRect()
+HRESULT CDirectxScope::drawRect(ID3D10Device1* pDevice)
 {
-	m_pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
+	pDevice->DrawIndexed(_countof(VERTEX_INDICES), 0, 0);
 	return S_OK;
 }
 
-HRESULT CDirectxScope::drawText()
+HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 {
 	enum { EST_LABEL_COUNT = 5 };
 
@@ -470,9 +462,9 @@ HRESULT CDirectxScope::drawText()
 		rect.right = majSize.cx + drawLeft;
 		if(majLen)
 		{
-			hR = m_majFont.DrawText(*this, charBuf, majLen, rect, maxColor);
+			hR = m_majFont.DrawText(*this, pDevice, charBuf, majLen, rect, maxColor);
 		} else {
-			hR = m_majFont.DrawText(*this, _T("0"), 1, rect, maxColor);
+			hR = m_majFont.DrawText(*this, pDevice, _T("0"), 1, rect, maxColor);
 		}
 		if(FAILED(hR)) return hR;
 
@@ -480,7 +472,7 @@ HRESULT CDirectxScope::drawText()
 		rect.bottom = majSize.cy;
 		rect.left = rect.right;
 		rect.right = rect.left + dotSize.cx;
-		hR = m_dotFont.DrawText(*this, &major->ch, 1, rect, dotColor);
+		hR = m_dotFont.DrawText(*this, pDevice, &major->ch, 1, rect, dotColor);
 		if(FAILED(hR)) return hR;
 
 		if(minLen)
@@ -489,7 +481,7 @@ HRESULT CDirectxScope::drawText()
 			rect.bottom = minSize.cy;
 			rect.left = rect.right;
 			rect.right = rect.left + minSize.cx;
-			hR = m_minFont.DrawText(*this, charBuf + majLen, minLen, rect, minColor);
+			hR = m_minFont.DrawText(*this, pDevice, charBuf + majLen, minLen, rect, minColor);
 			if(FAILED(hR)) return hR;
 		}
 	}

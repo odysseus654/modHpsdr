@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -83,8 +83,8 @@ protected:
 	virtual HRESULT resizeDevice();
 	virtual HRESULT initTexture();
 	virtual HRESULT initDataTexture();
-	virtual void clearFrame();
+	virtual void clearFrame(ID3D10Device1* pDevice);
 	virtual HRESULT preDrawFrame();
-	virtual HRESULT drawRect();
+	virtual HRESULT drawRect(ID3D10Device1* pDevice);
 	virtual void onReceivedFrame(double* frame, unsigned size);
 };

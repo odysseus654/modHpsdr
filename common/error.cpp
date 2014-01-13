@@ -52,6 +52,24 @@ __declspec(noreturn) void ThrowLastError(DWORD err)
 	}
 }
 
+__declspec(noreturn) void ThrowHRESULT(long err)
+{
+	LPSTR lpMsgBuf = "Unknown error";
+	if (FormatMessageA(
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			NULL, err, 0,
+			(LPSTR)&lpMsgBuf, 0, NULL))
+	{
+		std::string errStr = lpMsgBuf;
+		LocalFree(lpMsgBuf);
+		throw hresult_exception(err, errStr.c_str());
+	} else {
+		throw hresult_exception(err);
+	}
+}
+
 __declspec(noreturn) void ThrowErrnoError(int err)
 {
 #pragma warning(push)

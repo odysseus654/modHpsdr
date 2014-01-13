@@ -46,6 +46,10 @@ public:
 		if(bLocked) lock();
 	}
 
+	inline Locker():m_lock(NULL),m_bLocked(false)
+	{
+	}
+
 	~Locker()
 	{
 		unlock();

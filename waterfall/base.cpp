@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -20,15 +20,6 @@
 #include "base.h"
 
 #include <d3d10_1.h>
-#include <d3dx10.h>
-#pragma comment(lib, "d3d10_1.lib")
-#pragma comment(lib, "d3dx10.lib")
-
-extern HMODULE gl_DllModule;
-
-typedef unk_ref_t<ID3D10Blob> ID3D10BlobPtr;
-typedef unk_ref_t<IDXGIFactory> IDXGIFactoryPtr;
-typedef unk_ref_t<IDXGIAdapter> IDXGIAdapterPtr;
 
 const char* CDirectxBase::CIncoming::EP_NAME = "in";
 const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
@@ -38,7 +29,7 @@ const char* CDirectxBase::CIncoming::EP_DESCR = "Display incoming endpoint";
 #pragma warning(push)
 #pragma warning(disable: 4355)
 CDirectxBase::CDirectxBase(signals::IBlockDriver* driver):CThreadBlockBase(driver),m_incoming(this),
-	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),m_driverLevel(0),
+	 m_hOutputWin(NULL),m_screenCliWidth(0),m_screenCliHeight(0),m_screenWinWidth(0),
 	 m_screenWinHeight(0),m_pOldWinProc(NULL),m_frameWidth(0),m_dataRate(0),m_dataFrequency(0)
 {
 	startThread();
@@ -87,8 +78,6 @@ void CDirectxBase::buildAttrs()
 {
 	attrs.targetWindow = addLocalAttr(true, new CAttr_callback<signals::etypWinHdl,CDirectxBase>
 		(*this, "targetWindow", "Window to display waterfall on", &CDirectxBase::setTargetWindow, NULL));
-	attrs.enableVsync = addLocalAttr(true, new CRWAttribute<signals::etypBoolean>
-		("enableVsync", "Use monitor vsync on display", false));
 }
 
 void CDirectxBase::releaseDevice()
@@ -103,7 +92,6 @@ void CDirectxBase::releaseDevice()
 		}
 		m_hOutputWin = NULL;
 	}
-	if(m_pDevice) m_pDevice->ClearState();
 	m_pSwapChain.Release();
 	m_pDepthView.Release();
 	m_pDepthStencilState.Release();
@@ -124,53 +112,41 @@ void CDirectxBase::setTargetWindow(void* const & newTarg)
 		SetWindowLongPtr(m_hOutputWin, GWLP_WNDPROC, (LONG)&WindowProcCatcher);
 		SetWindowLongPtr(m_hOutputWin, GWL_USERDATA, (LONG)this);
 
-		HRESULT hR = initDevice();
+		HRESULT hR = createDevice();
+		if(SUCCEEDED(hR)) hR = initDevice();
 		if(SUCCEEDED(hR)) hR = initTexture();
-		if(FAILED(hR)) ThrowLastError(hR);
+		if(FAILED(hR)) ThrowHRESULT(hR);
 	}
 }
 
-HRESULT CDirectxBase::createPixelShaderFromResource(LPCTSTR fileName, ID3D10PixelShaderPtr& pShader)
+HRESULT CDirectxBase::createDevice()
 {
-	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
-	if(!hResource) return HRESULT_FROM_WIN32(GetLastError());
-
-	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
-	if(!hLoadedResource) return HRESULT_FROM_WIN32(GetLastError());
-
-	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
-	if(!dwSize) return HRESULT_FROM_WIN32(GetLastError());
-
-	LPVOID pLockedResource = LockResource(hLoadedResource);
-	if(!pLockedResource) return E_UNEXPECTED;
-
-	return m_pDevice->CreatePixelShader(pLockedResource, dwSize, pShader.inref());
-}
-
-HRESULT CDirectxBase::createVertexShaderFromResource(LPCTSTR fileName, const D3D10_INPUT_ELEMENT_DESC *pInputElementDescs,
-		UINT NumElements, ID3D10VertexShaderPtr& pShader, ID3D10InputLayoutPtr& pInputLayout)
-{
-	HRSRC hResource = FindResource(gl_DllModule, fileName, RT_RCDATA);
-	if(!hResource) return HRESULT_FROM_WIN32(GetLastError());
-
-	HGLOBAL hLoadedResource = LoadResource(gl_DllModule, hResource);
-	if(!hLoadedResource) return HRESULT_FROM_WIN32(GetLastError());
-
-	DWORD dwSize = SizeofResource(gl_DllModule, hResource);
-	if(!dwSize) return HRESULT_FROM_WIN32(GetLastError());
-
-	LPVOID pLockedResource = LockResource(hLoadedResource);
-	if(!pLockedResource) return E_UNEXPECTED;
-
-	HRESULT hR = m_pDevice->CreateVertexShader(pLockedResource, dwSize, pShader.inref());
-	if(FAILED(hR)) return hR;
-
-	return m_pDevice->CreateInputLayout(pInputElementDescs, NumElements, pLockedResource, dwSize, pInputLayout.inref());
+	return GetVideoDevice(m_pDevice);
 }
 
 HRESULT CDirectxBase::initDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
+	D3D10_DEPTH_STENCIL_DESC depthStencilDesc;
+	memset(&depthStencilDesc, 0, sizeof(depthStencilDesc));
+	depthStencilDesc.DepthEnable = FALSE;
+	depthStencilDesc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ALL;
+	depthStencilDesc.DepthFunc = D3D10_COMPARISON_LESS;
+	depthStencilDesc.StencilEnable = true;
+	depthStencilDesc.StencilReadMask = 0xFF;
+	depthStencilDesc.StencilWriteMask = 0xFF;
+	depthStencilDesc.FrontFace.StencilFailOp = D3D10_STENCIL_OP_KEEP; // Stencil operations if pixel is front-facing.
+	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D10_STENCIL_OP_INCR;
+	depthStencilDesc.FrontFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
+	depthStencilDesc.FrontFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
+	depthStencilDesc.BackFace.StencilFailOp = D3D10_STENCIL_OP_KEEP; // Stencil operations if pixel is back-facing.
+	depthStencilDesc.BackFace.StencilDepthFailOp = D3D10_STENCIL_OP_DECR;
+	depthStencilDesc.BackFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
+	depthStencilDesc.BackFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
+	
+	HRESULT hR = m_pDevice->CreateDepthStencilState(depthStencilDesc, m_pDepthStencilState);
+	if(FAILED(hR)) return hR;
+
 	{
 		RECT rect;
 		if(!GetClientRect(m_hOutputWin, &rect)) return HRESULT_FROM_WIN32(GetLastError());
@@ -196,9 +172,9 @@ HRESULT CDirectxBase::initDevice()
 	{
 		sd.BufferDesc.RefreshRate.Numerator = iRefresh;
 		sd.BufferDesc.RefreshRate.Denominator = 1;
-	} else {
-		sd.BufferDesc.RefreshRate.Numerator = 0;
-		sd.BufferDesc.RefreshRate.Denominator = 0;
+//	} else {
+//		sd.BufferDesc.RefreshRate.Numerator = 0;
+//		sd.BufferDesc.RefreshRate.Denominator = 0;
 	}
 	sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 //	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
@@ -211,72 +187,13 @@ HRESULT CDirectxBase::initDevice()
 	sd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 	sd.Windowed = TRUE;
 
-#ifdef _DEBUG
-	UINT DX_FLAGS = D3D10_CREATE_DEVICE_DEBUG;
-#else
-	UINT DX_FLAGS = 0;
-#endif
-	D3D10_FEATURE_LEVEL1 level = D3D10_FEATURE_LEVEL_10_1;
-
-	HRESULT hR;
-	for(;;)
-	{
-		HRESULT hR = D3D10CreateDeviceAndSwapChain1(NULL, D3D10_DRIVER_TYPE_HARDWARE,
-			NULL, DX_FLAGS, level, D3D10_1_SDK_VERSION, &sd, m_pSwapChain.inref(), m_pDevice.inref());
-		if(SUCCEEDED(hR)) break;
-
-#ifdef _DEBUG
-		if((hR == E_FAIL || hR == DXGI_ERROR_UNSUPPORTED) && (DX_FLAGS & D3D10_CREATE_DEVICE_DEBUG))
-		{
-			// no debug layer available?
-			DX_FLAGS &= ~D3D10_CREATE_DEVICE_DEBUG;
-			continue;
-		}
-		DX_FLAGS |= D3D10_CREATE_DEVICE_DEBUG;
-#endif
-		switch(level)
-		{
-		case D3D10_FEATURE_LEVEL_10_1:
-			level = D3D10_FEATURE_LEVEL_10_0;
-			continue;
-		case D3D10_FEATURE_LEVEL_10_0:
-			level = D3D10_FEATURE_LEVEL_9_3;
-			continue;
-		case D3D10_FEATURE_LEVEL_9_3:
-			level = D3D10_FEATURE_LEVEL_9_2;
-			continue;
-		case D3D10_FEATURE_LEVEL_9_2:
-			level = D3D10_FEATURE_LEVEL_9_1;
-			continue;
-		};
-
-		// request failed
-		return hR;
-	}
-
-	switch(level)
-	{
-	case D3D10_FEATURE_LEVEL_9_1:
-		m_driverLevel = 9.1f;
-		break;
-	case D3D10_FEATURE_LEVEL_9_2:
-		m_driverLevel = 9.2f;
-		break;
-	case D3D10_FEATURE_LEVEL_9_3:
-		m_driverLevel = 9.3f;
-		break;
-	case D3D10_FEATURE_LEVEL_10_0:
-		m_driverLevel = 10.0f;
-		break;
-	case D3D10_FEATURE_LEVEL_10_1:
-		m_driverLevel = 10.1f;
-		break;
-	}
+	hR = m_pDevice->CreateSwapChain(sd, m_pSwapChain);
+	if(FAILED(hR)) return hR;
 
 	ID3D10Texture2DPtr backBuffer;
 	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(backBuffer.inref()));
 	if(FAILED(hR)) return hR;
-	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
+	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC depthBufferDesc;
@@ -293,46 +210,11 @@ HRESULT CDirectxBase::initDevice()
 	depthBufferDesc.Width = m_screenCliWidth;
 
 	ID3D10Texture2DPtr depthBuffer;
-	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, depthBuffer.inref());
+	hR = m_pDevice->CreateTexture2D(depthBufferDesc, NULL, depthBuffer);
 	if(FAILED(hR)) return hR;
 
-	D3D10_DEPTH_STENCIL_DESC depthStencilDesc;
-	memset(&depthStencilDesc, 0, sizeof(depthStencilDesc));
-	depthStencilDesc.DepthEnable = FALSE;
-	depthStencilDesc.DepthWriteMask = D3D10_DEPTH_WRITE_MASK_ALL;
-	depthStencilDesc.DepthFunc = D3D10_COMPARISON_LESS;
-	depthStencilDesc.StencilEnable = true;
-	depthStencilDesc.StencilReadMask = 0xFF;
-	depthStencilDesc.StencilWriteMask = 0xFF;
-	depthStencilDesc.FrontFace.StencilFailOp = D3D10_STENCIL_OP_KEEP; // Stencil operations if pixel is front-facing.
-	depthStencilDesc.FrontFace.StencilDepthFailOp = D3D10_STENCIL_OP_INCR;
-	depthStencilDesc.FrontFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
-	depthStencilDesc.FrontFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
-	depthStencilDesc.BackFace.StencilFailOp = D3D10_STENCIL_OP_KEEP; // Stencil operations if pixel is back-facing.
-	depthStencilDesc.BackFace.StencilDepthFailOp = D3D10_STENCIL_OP_DECR;
-	depthStencilDesc.BackFace.StencilPassOp = D3D10_STENCIL_OP_KEEP;
-	depthStencilDesc.BackFace.StencilFunc = D3D10_COMPARISON_ALWAYS;
-	
-	hR = m_pDevice->CreateDepthStencilState(&depthStencilDesc, m_pDepthStencilState.inref());
+	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView);
 	if(FAILED(hR)) return hR;
-
-	m_pDevice->OMSetDepthStencilState(m_pDepthStencilState, 1);
-
-	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
-	if(FAILED(hR)) return hR;
-
-	m_pDevice->OMSetRenderTargets(1, m_pRenderTargetView.ref(), m_pDepthView);
-
-	// Setup the viewport for rendering.
-	D3D10_VIEWPORT viewport;
-	memset(&viewport, 0, sizeof(viewport));
-	viewport.Width = m_screenCliWidth;
-	viewport.Height = m_screenCliHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-	m_pDevice->RSSetViewports(1, &viewport);
 
 	return S_OK;
 }
@@ -353,7 +235,7 @@ HRESULT CDirectxBase::resizeDevice()
 	}
 
 	// Release all outstanding references to the swap chain's buffers.
-	m_pDevice->OMSetRenderTargets(0, NULL, NULL);
+	m_pDevice->ClearFocus(this);
 	m_pRenderTargetView.Release();
 	m_pDepthView.Release();
 
@@ -367,7 +249,7 @@ HRESULT CDirectxBase::resizeDevice()
 	hR = m_pSwapChain->GetBuffer(0, __uuidof(ID3D10Texture2D), reinterpret_cast<void**>(backBuffer.inref()));
 	if(FAILED(hR)) return hR;
 
-	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView.inref());
+	hR = m_pDevice->CreateRenderTargetView(backBuffer, NULL, m_pRenderTargetView);
 	if(FAILED(hR)) return hR;
 
 	D3D10_TEXTURE2D_DESC depthBufferDesc;
@@ -384,25 +266,11 @@ HRESULT CDirectxBase::resizeDevice()
 	depthBufferDesc.Width = m_screenCliWidth;
 
 	ID3D10Texture2DPtr depthBuffer;
-	hR = m_pDevice->CreateTexture2D(&depthBufferDesc, NULL, depthBuffer.inref());
+	hR = m_pDevice->CreateTexture2D(depthBufferDesc, NULL, depthBuffer);
 	if(FAILED(hR)) return hR;
 
-	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView.inref());
+	hR = m_pDevice->CreateDepthStencilView(depthBuffer, NULL, m_pDepthView);
 	if(FAILED(hR)) return hR;
-
-	ID3D10RenderTargetView* targs = m_pRenderTargetView;
-	m_pDevice->OMSetRenderTargets(1, &targs, m_pDepthView);
-
-	// Setup the viewport for rendering.
-	D3D10_VIEWPORT viewport;
-	memset(&viewport, 0, sizeof(viewport));
-	viewport.Width = m_screenCliWidth;
-	viewport.Height = m_screenCliHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
-//	viewport.TopLeftX = 0;
-//	viewport.TopLeftY = 0;
-	m_pDevice->RSSetViewports(1, &viewport);
 
 	return S_OK;
 }
@@ -607,18 +475,47 @@ HRESULT CDirectxBase::drawFrame()
 		return E_POINTER;
 	}
 
-	clearFrame();
-
-	HRESULT hR = drawFrameContents();
+	HRESULT hR = preDrawFrame();
 	if(FAILED(hR)) return hR;
 
-	hR = m_pSwapChain->Present(attrs.enableVsync && attrs.enableVsync->nativeGetValue() ? 1 : 0, 0);
+	Locker devLock;
+	ID3D10Device1* pDevice = NULL;
+	if(m_pDevice->BeginDraw(this, pDevice, devLock))
+	{
+		setContext(pDevice);
+	}
+
+	clearFrame(pDevice);
+
+	hR = drawFrameContents(pDevice);
+	if(FAILED(hR)) return hR;
+
+	hR = m_pSwapChain->Present(0, 0);
 	if(FAILED(hR)) return hR;
 
 	return S_OK;
 }
 
-void CDirectxBase::clearFrame()
+HRESULT CDirectxBase::setContext(ID3D10Device1* pDevice)
 {
-	m_pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
+	pDevice->OMSetDepthStencilState(m_pDepthStencilState, 1);
+	pDevice->OMSetRenderTargets(1, m_pRenderTargetView.ref(), m_pDepthView);
+
+	// Setup the viewport for rendering.
+	D3D10_VIEWPORT viewport;
+	memset(&viewport, 0, sizeof(viewport));
+	viewport.Width = m_screenCliWidth;
+	viewport.Height = m_screenCliHeight;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	pDevice->RSSetViewports(1, &viewport);
+
+	return S_OK;
+}
+
+void CDirectxBase::clearFrame(ID3D10Device1* pDevice)
+{
+	pDevice->ClearDepthStencilView(m_pDepthView, D3D10_CLEAR_DEPTH, 1.0f, 0);
 }
