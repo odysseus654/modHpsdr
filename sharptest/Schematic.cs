@@ -990,7 +990,10 @@ namespace Layout
             }
             foreach (KeyValuePair<Element, bool> entry in recurseList)
             {
-                resolveNeighbors(library, entry.Key);
+                if (entry.Key.availObjects.Count == 1)
+                {
+                    resolveNeighbors(library, entry.Key);
+                }
             }
         }
 

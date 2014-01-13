@@ -18,7 +18,7 @@
 //
 
 #include "stdafx.h"
-#include "cppconv.h"
+#include "funcbase.h"
 
 // ---------------------------------------------------------------------------- class InputFunctionBase
 

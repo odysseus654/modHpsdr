@@ -56,7 +56,6 @@ public:
 //	virtual unsigned Release() = 0;
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
-//	virtual signals::IEPBuffer* CreateBuffer() = 0;
 
 	void MergeRemoteAttrs(std::map<std::string,signals::IAttribute*>& attrs, unsigned flags);
 	signals::IAttribute* RemoteGetByName(const char* name);
@@ -67,7 +66,7 @@ protected:
 private:
 	CInEndpointBase(const CInEndpointBase& other);
 	CInEndpointBase& operator=(const CInEndpointBase& other);
-private:
+protected:
 	RWLock m_connRecvLock;
 	Condition m_connRecvConnected;
 	signals::IEPRecvFrom* m_connRecv;
@@ -181,15 +180,15 @@ private:
 	CInEndpointBase& m_src;
 };
 
-template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
 class CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
 {	// This class is assumed to be a static (non-dynamic) member of its parent
 protected:
-	inline CSimpleIncomingChild(signals::IBlock* parent):m_parent(parent) { }
+	inline CSimpleIncomingChild(signals::EType type, signals::IBlock* parent):m_type(type),m_parent(parent) { }
 public:
 	virtual ~CSimpleIncomingChild() {}
 
 protected:
+	const signals::EType m_type;
 	signals::IBlock* m_parent;
 
 private:
@@ -201,15 +200,8 @@ public: // CInEndpointBase interface
 //	virtual const char* EPDescr()				{ return EP_DESCR; }
 	virtual unsigned AddRef()					{ return m_parent->AddRef(); }
 	virtual unsigned Release()					{ return m_parent->Release(); }
-	virtual signals::EType Type()				{ return ET; }
+	virtual signals::EType Type()				{ return m_type; }
 	virtual signals::IAttributes* Attributes()	{ return this; }
-
-	virtual signals::IEPBuffer* CreateBuffer()
-	{
-		signals::IEPBuffer* buff = new CEPBuffer<ET>(DEFAULT_BUFSIZE);
-		buff->AddRef(NULL);
-		return buff;
-	}
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
@@ -785,7 +777,7 @@ public: // IEPSendTo
 
 	virtual signals::IAttributes* InputAttributes()
 	{
-		return m_oep ? m_iep->Attributes() : NULL;
+		return m_iep ? m_iep->Attributes() : NULL;
 	}
 
 public: // IEPRecvFrom
@@ -806,9 +798,16 @@ public: // IEPRecvFrom
 		else return 0; // implicit translation not yet supported
 	}
 
+	virtual signals::IEPBuffer* CreateBuffer()
+	{
+		signals::IEPBuffer* buff = new CEPBuffer<ET>(buffer.capacity());
+		buff->AddRef(NULL);
+		return buff;
+	}
+
 	virtual signals::IAttributes* OutputAttributes()
 	{
-		return m_iep ? m_oep->Attributes() : NULL;
+		return m_oep ? m_oep->Attributes() : NULL;
 	}
 
 //	virtual unsigned AddRef()							{ return CRefcountObject::AddRef(); }

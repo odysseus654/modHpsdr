@@ -23,6 +23,7 @@ namespace sharptest
     class Canvas : Form
     {
         public Control panel1;
+        public Control panel2;
 
         public Canvas()
         {
@@ -46,19 +47,27 @@ namespace sharptest
         private void InitializeForm()
         {
             this.panel1 = new Control();
+            this.panel2 = new Control();
             this.SuspendLayout();
 
             // panel1
             this.panel1.Location = new Point(21, 20);
-            this.panel1.Size = new Size(600, 400);
+            this.panel1.Size = new Size(600, 300);
             this.panel1.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
             this.panel1.TabIndex = 0;
+
+            // panel2
+            this.panel2.Location = new Point(21, 330);
+            this.panel2.Size = new Size(600, 300);
+            this.panel2.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
+            this.panel2.TabIndex = 1;
 
             // Outer Form
             this.AutoScaleDimensions = new SizeF(6F, 13F);
             this.AutoScaleMode = AutoScaleMode.Font;
-            this.ClientSize = new Size(700, 500);
+            this.ClientSize = new Size(700, 650);
             this.Controls.Add(this.panel1);
+            this.Controls.Add(this.panel2);
             this.Text = "Canvas";
 
             this.ResumeLayout(false);

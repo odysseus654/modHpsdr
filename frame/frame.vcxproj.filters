@@ -1,0 +1,59 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Infrastructure">
+      <UniqueIdentifier>{7f99983e-ec59-4d7c-9ab8-6170dbf57580}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="common">
+      <UniqueIdentifier>{1c2a9891-33f0-401a-be2f-d5eb9385edf0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Implementation">
+      <UniqueIdentifier>{3c093dde-9786-46ef-9a1b-fec0e3febcbf}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stdafx.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Infrastructure</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\block.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\BlockImpl.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\buffer.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\error.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\common\mt.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="..\ext\FastDelegate.h">
+      <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="make_frame.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+    <ClInclude Include="divide_by_n.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="stdafx.cpp">
+      <Filter>Infrastructure</Filter>
+    </ClCompile>
+    <ClCompile Include="modules.cpp">
+      <Filter>Implementation</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="frame32.def">
+      <Filter>Infrastructure</Filter>
+    </None>
+  </ItemGroup>
+</Project>

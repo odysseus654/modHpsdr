@@ -251,7 +251,7 @@ namespace cppProxy
 
     public static class Native
     {
-        public interface IBlockDriver
+        public interface IBlockDriver // holds a ref to IModule
         {
             IntPtr Name();
             IntPtr Description();
@@ -262,7 +262,7 @@ namespace cppProxy
             IntPtr Fingerprint();
         };
 
-        public interface IBlock
+        public interface IBlock // refcounted, also holds a ref to IBlockDriver
         {
             uint AddRef();
             uint Release();
@@ -278,7 +278,7 @@ namespace cppProxy
             void Stop();
         };
 
-        public interface IAttributes
+        public interface IAttributes // no references?!?
         {
             uint Itemize(IntPtr attrs, uint availElem, uint flags);
             IntPtr GetByName(IntPtr name);
@@ -286,7 +286,7 @@ namespace cppProxy
             void Unobserve(IntPtr obs);
         };
 
-        public interface IAttribute
+        public interface IAttribute // no references?!?
         {
             IntPtr Name();
             IntPtr Description();
@@ -299,7 +299,7 @@ namespace cppProxy
             uint options(IntPtr values, IntPtr opts, uint availElem);
         };
 
-        public interface IInEndpoint
+        public interface IInEndpoint // refcounted
         {
             uint AddRef();
             uint Release();
@@ -310,10 +310,9 @@ namespace cppProxy
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr recv);
             [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
             [return: MarshalAs(UnmanagedType.Bool)] bool Disconnect();
-            IntPtr CreateBuffer();
         }
 
-        public interface IOutEndpoint
+        public interface IOutEndpoint // reference to IModule
         {
             IntPtr EPName();
             IntPtr EPDescr();
@@ -325,7 +324,7 @@ namespace cppProxy
             IntPtr CreateBuffer();
         };
 
-        public interface IEPSendTo
+        public interface IEPSendTo // refcounted
         {
             uint Write([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
             uint AddRef(IntPtr iep);
@@ -333,16 +332,17 @@ namespace cppProxy
             IntPtr InputAttributes();
         };
 
-        public interface IEPRecvFrom
+        public interface IEPRecvFrom // reference to IBlockDriver
         {
             uint Read([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numAvail,
                 [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
             IntPtr OutputAttributes();
+            IntPtr CreateBuffer();
         };
 
-        public interface IEPBuffer : IEPSendTo, IEPRecvFrom
+        public interface IEPBuffer : IEPSendTo, IEPRecvFrom // refcounted, reference to IModule
         {
             [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
             uint Capacity();
@@ -355,7 +355,7 @@ namespace cppProxy
             void OnDetached(IntPtr attr);
         };
 
-	    public interface IFunctionSpec
+        public interface IFunctionSpec // reference to IModule
 	    {
 		    IntPtr Name();
 		    IntPtr Description();
@@ -363,7 +363,7 @@ namespace cppProxy
             IntPtr Fingerprint();
         };
 
-	    public interface IFunction
+	    public interface IFunction // refcounted, reference to IFunctionSpec
 	    {
 		    IntPtr Spec();
 		    uint AddRef();
@@ -372,16 +372,16 @@ namespace cppProxy
 		    IntPtr Output();
 	    };
 
-	    public interface IInputFunction : IInEndpoint, IEPRecvFrom
+        public interface IInputFunction : IInEndpoint, IEPRecvFrom // CppProxyInEndpoint, reference to IModule
 	    {
 	    };
 
-	    public interface IOutputFunction : IOutEndpoint, IEPSendTo
+	    public interface IOutputFunction : IOutEndpoint, IEPSendTo // refcounted, reference to IModule
 	    {
 	    };
     }
 
-    class CppProxyModuleDriver : signals.IModule
+    class CppProxyModuleDriver : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, signals.IModule
     {
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern IntPtr LoadLibrary(string dllToLoad);
@@ -814,7 +814,7 @@ namespace cppProxy
                                 if (ptrArr[idx] != IntPtr.Zero)
                                 {
                                     signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyInEndpoint(m_driver.Module, ptrArr[idx]);
+                                    if (newObj == null) newObj = new CppProxyInEndpoint(ptrArr[idx]);
                                     m_incoming[idx] = newObj;
                                 }
                             }
@@ -1207,18 +1207,15 @@ namespace cppProxy
     class CppProxyInEndpoint : signals.IInEndpoint
     {
         private Native.IInEndpoint m_native;
-        private readonly signals.IModule m_module;
         private IntPtr m_nativeRef;
         private string m_name;
         private string m_descr;
         private signals.EType m_type;
         private signals.IAttributes m_attrs = null;
 
-        public CppProxyInEndpoint(signals.IModule module, IntPtr native)
+        public CppProxyInEndpoint(IntPtr native)
         {
-            if (module == null) throw new ArgumentNullException("module");
             if (native == IntPtr.Zero) throw new ArgumentNullException("native");
-            m_module = module;
             m_nativeRef = native;
             Registration.storeObject(native, this);
             m_native = (Native.IInEndpoint)CppNativeProxy.CreateCallout(native, typeof(Native.IInEndpoint));
@@ -1278,15 +1275,6 @@ namespace cppProxy
         public signals.EType Type { get { return m_type; } }
         public bool isConnected { get { return m_native.isConnected(); } }
         public bool Disconnect() { return m_native.Disconnect(); }
-
-        public signals.IEPBuffer CreateBuffer()
-        {
-            IntPtr pBuf = m_native.CreateBuffer();
-            if (pBuf == IntPtr.Zero) return null;
-            signals.IEPBuffer buff = (signals.IEPBuffer)Registration.retrieveObject(pBuf);
-            if (m_attrs == null) buff = new CppProxyBuffer(m_module, pBuf);
-            return buff;
-        }
 
         public bool Connect(signals.IEPRecvFrom recv)
         {
@@ -1379,7 +1367,7 @@ namespace cppProxy
             IntPtr pBuf = m_native.CreateBuffer();
             if (pBuf == IntPtr.Zero) return null;
             signals.IEPBuffer buff = (signals.IEPBuffer)Registration.retrieveObject(pBuf);
-            if (m_attrs == null) buff = new CppProxyBuffer(m_module, pBuf);
+            if (buff == null) buff = new CppProxyBuffer(m_module, pBuf);
             return buff;
         }
 
@@ -1558,6 +1546,15 @@ namespace cppProxy
             }
         }
 
+        public signals.IEPBuffer CreateBuffer()
+        {
+            IntPtr pBuf = m_native.CreateBuffer();
+            if (pBuf == IntPtr.Zero) return null;
+            signals.IEPBuffer buff = (signals.IEPBuffer)Registration.retrieveObject(pBuf);
+            if (buff == null) buff = new CppProxyBuffer(m_driver.Module, pBuf);
+            return buff;
+        }
+
         public signals.IAttributes OutputAttributes
         {
             get
@@ -1674,6 +1671,15 @@ namespace cppProxy
             {
                 Marshal.FreeHGlobal(buff);
             }
+        }
+
+        public signals.IEPBuffer CreateBuffer()
+        {
+            IntPtr pBuf = m_native.CreateBuffer();
+            if (pBuf == IntPtr.Zero) return null;
+            signals.IEPBuffer buff = (signals.IEPBuffer)Registration.retrieveObject(pBuf);
+            if (buff == null) buff = new CppProxyBuffer(m_module, pBuf);
+            return buff;
         }
 
         public signals.IAttributes InputAttributes
@@ -1850,6 +1856,7 @@ namespace cppProxy
 	{
         private Native.IEPRecvFrom m_nativeRecv;
         private IntPtr m_nativeRecvRef;
+        private readonly signals.IModule m_module;
         private signals.EType m_recvType = signals.EType.None;
         private ProxyTypes.ITypeMarshaller m_recvTypeInfo = null;
         public const int DEFAULT_BUFFER = 100;
@@ -1857,8 +1864,11 @@ namespace cppProxy
         private signals.IAttributes m_attrs = null;
 
         public CppProxyInputFunction(signals.IModule module, IntPtr native)
-            :base(module, native)
+            :base(native)
         {
+            if (module == null) throw new ArgumentNullException("module");
+            if (native == IntPtr.Zero) throw new ArgumentNullException("native");
+            m_module = module;
             m_nativeRecvRef = new IntPtr(native.ToInt64() + IntPtr.Size);
             m_nativeRecv = (Native.IEPRecvFrom)CppNativeProxy.CreateCallout(m_nativeRecvRef, typeof(Native.IEPRecvFrom));
         }
@@ -1889,6 +1899,15 @@ namespace cppProxy
             {
                 Marshal.FreeHGlobal(buff);
             }
+        }
+
+        public signals.IEPBuffer CreateBuffer()
+        {
+            IntPtr pBuf = m_nativeRecv.CreateBuffer();
+            if (pBuf == IntPtr.Zero) return null;
+            signals.IEPBuffer buff = (signals.IEPBuffer)Registration.retrieveObject(pBuf);
+            if (buff == null) buff = new CppProxyBuffer(m_module, pBuf);
+            return buff;
         }
 
         public signals.IAttributes OutputAttributes

@@ -122,6 +122,7 @@ namespace signals
 	{
 		void Read(EType type, out object[] buffer, bool bReadAll, int msTimeout);
         IAttributes OutputAttributes { get; }
+        IEPBuffer CreateBuffer();
     };
 
     public interface IEPBuffer : IEPSendTo, IEPRecvFrom
@@ -140,7 +141,6 @@ namespace signals
 		bool Connect(IEPRecvFrom recv);
         bool isConnected { get; }
 		bool Disconnect();
-		IEPBuffer CreateBuffer();
 	};
 
     public interface IOutEndpoint : IDisposable

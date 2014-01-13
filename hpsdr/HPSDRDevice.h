@@ -220,10 +220,10 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class Transmitter : public CSimpleIncomingChild<signals::etypComplex, 48000>
+	class Transmitter : public CSimpleIncomingChild
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Transmitter(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
+		inline Transmitter(signals::IBlock* parent):CSimpleIncomingChild(signals::etypComplex, parent) { }
 		void buildAttrs(const CHpsdrDevice& parent);
 		virtual const char* EPName()	{ return EP_NAME; }
 		virtual const char* EPDescr()	{ return EP_DESCR; }
@@ -242,10 +242,10 @@ public:
 		Transmitter& operator=(const Transmitter& other);
 	};
 
-	class Speaker : public CSimpleIncomingChild<signals::etypLRSingle, 48000>
+	class Speaker : public CSimpleIncomingChild
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline Speaker(signals::IBlock* parent):CSimpleIncomingChild(parent) { }
+		inline Speaker(signals::IBlock* parent):CSimpleIncomingChild(signals::etypLRSingle, parent) { }
 		void buildAttrs(const CHpsdrDevice& parent);
 		virtual const char* EPName()	{ return EP_NAME; }
 		virtual const char* EPDescr()	{ return EP_DESCR; }

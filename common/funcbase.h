@@ -14,7 +14,7 @@
 	limitations under the License.
 */
 #pragma once
-#include <blockImpl.h>
+#include "blockImpl.h"
 
 class InputFunctionBase : public signals::IInputFunction
 {
@@ -36,12 +36,12 @@ public: // IInEndpoint implementaton
 //	virtual signals::EType Type() = 0;
 	virtual BOOL isConnected()		{ return !!m_readFrom; }
 	virtual BOOL Disconnect()		{ return Connect(NULL); }
-//	virtual signals::IEPBuffer* CreateBuffer() = 0;
 	virtual signals::IAttributes* Attributes() { return m_readTo ? m_readTo->Attributes() : NULL; }
 	virtual BOOL Connect(signals::IEPRecvFrom* recv);
 
 public: // IEPRecvFrom implementaton
 //	virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout) = 0;
+//	virtual signals::IEPBuffer* CreateBuffer() = 0;
 	virtual signals::IAttributes* OutputAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
 	virtual void onSinkConnected(signals::IInEndpoint* src);
 	virtual void onSinkDisconnected(signals::IInEndpoint* src);
@@ -77,60 +77,45 @@ public: // IEPSendTo implementaton
 };
 
 #pragma warning(disable: 4355)
-template<signals::EType INN, signals::EType OUTT, typename OPER>
+template<signals::EType INN, signals::EType OUTT, typename Derived>
 //	std::unary_function<typename StoreType<in>::type, typename StoreType<out>::type> oper
-class Function : public signals::IFunctionSpec
+class FunctionBase : public signals::IFunctionSpec
 {
 protected:
-	class Instance;
-
-	typedef Function<INN, OUTT, OPER> my_type;
 	typedef typename StoreType<INN>::type in_type;
 	typedef typename StoreType<OUTT>::type out_type;
 
-public:
-	inline Function(const char* name, const char* descr, OPER oper = OPER())
-		:m_name(name),m_descr(descr),m_oper(oper)
+	inline FunctionBase(const char* name, const char* descr)
+		:m_name(name),m_descr(descr)
 	{}
 
+public:
 	virtual const char* Name()			{ return m_name; }
 	virtual const char* Description()	{ return m_descr; }
 	virtual const unsigned char* Fingerprint() { return FINGERPRINT; }
 
 	virtual signals::IFunction* Create()
 	{
-		signals::IFunction* func = new Instance(this);
+		signals::IFunction* func = static_cast<Derived*>(this)->CreateImpl();
 		func->AddRef();
 		return func;
 	}
 
 protected:
+	template<typename OPER>
 	class InputFunction : public InputFunctionBase
 	{
 	protected:
 		typedef std::vector<in_type> TInBuffer;
 		TInBuffer m_buffer;
+		OPER& m_oper;
 
 	public:
-		inline InputFunction(Instance* parent, my_type* spec)
-			:InputFunctionBase(parent, spec) {}
+		inline InputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec, OPER& oper)
+			:InputFunctionBase(parent, spec),m_oper(oper) {}
 
 	public: // IInEndpoint implementaton
 		virtual signals::EType Type()	{ return INN; }
-
-		virtual signals::IEPBuffer* CreateBuffer()
-		{
-			if(!m_readTo) return NULL;
-			signals::IEPBuffer* buff = m_readTo->CreateBuffer();
-			if(!buff) return NULL;
-			ASSERT(buff->Type() == OUTT);
-			unsigned capacity = buff->Capacity();
-			buff->Release(NULL);
-
-			buff = new CEPBuffer<INN>(capacity);
-			buff->AddRef(NULL);
-			return buff;
-		}
 
 	public: // IEPReceiver implementaton
 		virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
@@ -141,24 +126,40 @@ protected:
 
 			if(m_buffer.size() < numAvail) m_buffer.resize(numAvail);
 			unsigned numElem = m_readFrom->Read(INN, &m_buffer[0], numAvail, bFillAll, msTimeout);
-			OPER& oper(((my_type*)m_spec)->m_oper);
 			for(unsigned idx=0; idx < numElem; idx++)
 			{
-				nativeBuff[idx] = oper(m_buffer[idx]);
+				nativeBuff[idx] = m_oper(m_buffer[idx]);
 			}
 			return numElem;
 		}
+
+		virtual signals::IEPBuffer* CreateBuffer()
+		{
+			if(!m_readFrom) return NULL;
+			signals::IEPBuffer* buff = m_readFrom->CreateBuffer();
+			if(!buff) return NULL;
+			ASSERT(buff->Type() == INN);
+			if(INN == OUTT) return buff;
+			unsigned capacity = buff->Capacity();
+			buff->Release(NULL);
+
+			buff = new CEPBuffer<OUTT>(capacity);
+			buff->AddRef(NULL);
+			return buff;
+		}
 	};
 
+	template<typename OPER>
 	class OutputFunction : public OutputFunctionBase
 	{
 	protected:
 		typedef std::vector<out_type> TOutBuffer;
 		TOutBuffer m_buffer;
+		OPER& m_oper;
 
 	public:
-		inline OutputFunction(Instance* parent, my_type* spec)
-			:OutputFunctionBase(parent, spec) {}
+		inline OutputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec, OPER& oper)
+			:OutputFunctionBase(parent, spec), m_oper(oper) {}
 
 	public: // IOutEndpoint implementaton
 		virtual signals::EType Type()	{ return OUTT; }
@@ -169,6 +170,7 @@ protected:
 			signals::IEPBuffer* buff = m_writeFrom->CreateBuffer();
 			if(!buff) return NULL;
 			ASSERT(buff->Type() == INN);
+			if(INN == OUTT) return buff;
 			unsigned capacity = buff->Capacity();
 			buff->Release(NULL);
 			buff = new CEPBuffer<OUTT>(capacity);
@@ -184,40 +186,73 @@ protected:
 			in_type* nativeBuff = (in_type*)buffer;
 
 			if(m_buffer.size() < numElem) m_buffer.resize(numElem);
-			OPER& oper(((my_type*)m_spec)->m_oper);
 			for(unsigned idx=0; idx < numElem; idx++)
 			{
-				m_buffer[idx] = oper(nativeBuff[idx]);
+				m_buffer[idx] = m_oper(nativeBuff[idx]);
 			}
 			return m_writeTo->Write(OUTT, &m_buffer[0], numElem, msTimeout);
 		}
 	};
 
-	class Instance : public CRefcountObject, public signals::IFunction
+	class InstanceBase : public CRefcountObject, public signals::IFunction
 	{
 	public:
-		inline Instance(Function* spec)
-			:m_spec(spec),m_input(this,spec),m_output(this,spec)
-		{}
+		inline InstanceBase(FunctionBase* spec):m_spec(spec) {}
 
 		virtual signals::IFunctionSpec* Spec()			{ return m_spec; }
 		virtual unsigned AddRef()						{ return CRefcountObject::AddRef(); }
 		virtual unsigned Release()						{ return CRefcountObject::Release(); }
-		virtual signals::IInputFunction* Input()		{ AddRef(); return &m_input; }
-		virtual signals::IOutputFunction* Output()		{ AddRef(); return &m_output; }
+		//virtual signals::IInputFunction* Input()		{ AddRef(); return &m_input; }
+		//virtual signals::IOutputFunction* Output()		{ AddRef(); return &m_output; }
 
 	protected:
-		Function* m_spec;
-		InputFunction m_input;
-		OutputFunction m_output;
+		FunctionBase* m_spec;
+		//INP_FUNC m_input;
+		//OUT_FUNC m_output;
 	};
 
-protected:
-	OPER m_oper;
+private:
 	const char* m_name;
 	const char* m_descr;
 	static const unsigned char FINGERPRINT[];
 };
 
 template<signals::EType INN, signals::EType OUTT, typename OPER>
-const unsigned char Function<INN,OUTT,OPER>::FINGERPRINT[] = { (unsigned char)INN, (unsigned char)OUTT };
+//	std::unary_function<typename StoreType<in>::type, typename StoreType<out>::type> oper
+class Function : public FunctionBase<INN,OUTT,Function<INN,OUTT,OPER> >
+{
+private:
+	typedef Function<INN, OUTT, OPER> my_type;
+
+protected:
+	class Instance : public InstanceBase
+	{
+	public:
+		inline Instance(Function* spec)
+			:InstanceBase(spec),m_input(this,spec,spec->m_oper),m_output(this,spec,spec->m_oper)
+		{}
+
+		virtual signals::IInputFunction* Input()		{ AddRef(); return &m_input; }
+		virtual signals::IOutputFunction* Output()		{ AddRef(); return &m_output; }
+
+	protected:
+		InputFunction<OPER> m_input;
+		OutputFunction<OPER> m_output;
+	};
+
+public:
+	signals::IFunction* CreateImpl()
+	{
+		return new Instance(this);
+	}
+
+	inline Function(const char* name, const char* descr, const OPER& oper = OPER())
+		:FunctionBase(name, descr), m_oper(oper)
+	{}
+
+protected:
+	OPER m_oper;
+};
+
+template<signals::EType INN, signals::EType OUTT, typename Derived>
+const unsigned char FunctionBase<INN,OUTT,Derived>::FINGERPRINT[] = { (unsigned char)INN, (unsigned char)OUTT };

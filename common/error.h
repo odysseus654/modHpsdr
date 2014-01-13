@@ -16,7 +16,14 @@
 #pragma once
 #include <stdexcept>
 
-class socket_exception : public std::runtime_error
+__interface IError
+{
+	const char* errorType();
+	unsigned int errorCode();
+	const char* errorMessage();
+};
+
+class socket_exception : public std::runtime_error, public IError
 {
 public:
 	int code;
@@ -26,9 +33,13 @@ public:
 	inline socket_exception(int err)
 		:std::runtime_error(""),code(err)
 	{}
+
+	virtual const char* errorMessage() { return what(); }
+	virtual const char* errorType()    { return "socket_exception"; }
+	virtual unsigned int errorCode()   { return code; }
 };
 
-class lasterr_exception : public std::runtime_error
+class lasterr_exception : public std::runtime_error, public IError
 {
 public:
 	DWORD code;
@@ -38,9 +49,29 @@ public:
 	inline lasterr_exception(int err)
 		:std::runtime_error(""),code(err)
 	{}
+
+	virtual const char* errorMessage() { return what(); }
+	virtual const char* errorType()    { return "lasterr_exception"; }
+	virtual unsigned int errorCode()   { return code; }
 };
 
-class errno_exception : public std::runtime_error
+class hresult_exception : public std::runtime_error, public IError
+{
+public:
+	long hr;
+	inline hresult_exception(long err, const char* str)
+		:std::runtime_error(str),hr(err)
+	{}
+	inline hresult_exception(long err)
+		:std::runtime_error(""),hr(err)
+	{}
+
+	virtual const char* errorMessage() { return what(); }
+	virtual const char* errorType()    { return "hresult_exception"; }
+	virtual unsigned int errorCode()   { return hr; }
+};
+
+class errno_exception : public std::runtime_error, public IError
 {
 public:
 	int code;
@@ -50,8 +81,13 @@ public:
 	inline errno_exception(int err)
 		:std::runtime_error(""),code(err)
 	{}
+
+	virtual const char* errorMessage() { return what(); }
+	virtual const char* errorType()    { return "errno_exception"; }
+	virtual unsigned int errorCode()   { return code; }
 };
 
 __declspec(noreturn) void ThrowSocketError(int err);
 __declspec(noreturn) void ThrowLastError(DWORD err);
 __declspec(noreturn) void ThrowErrnoError(int err);
+__declspec(noreturn) void ThrowHRESULT(long hr);

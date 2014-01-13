@@ -1,0 +1,5 @@
+LIBRARY frame
+
+EXPORTS
+	QueryFunctions
+	QueryDrivers

@@ -28,8 +28,9 @@ namespace sharptest
 
         private ModLibrary library;
         Canvas canvas;
-        Thread canvasThread;
         Layout.Circuit circuit;
+        EventWaitHandle canvasConstructedEvent;
+        int canvasBindCount;
 
         void Run()
         {
@@ -47,20 +48,29 @@ namespace sharptest
             Layout.Schematic.Element frameElem = new Layout.Schematic.Element(Layout.ElementType.Module, "make frame");
             Layout.Schematic.Element fftElem = new Layout.Schematic.Element(Layout.ElementType.Module, "fft");
             Layout.Schematic.Element mag2Func = new Layout.Schematic.Element(Layout.ElementType.Function, "mag^2");
+            Layout.Schematic.Element divideByN = new Layout.Schematic.Element(Layout.ElementType.Function, "divide by N");
             Layout.Schematic.Element dbFunc = new Layout.Schematic.Element(Layout.ElementType.Function, "dB");
-            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waveform");
+            Layout.Schematic.Element splitterElem = new Layout.Schematic.Element(Layout.ElementType.Module, "splitter");
+            Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
+            Layout.Schematic.Element waveformElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waveform");
 
             schem.add(fftElem);
             schem.add(frameElem);
             schem.add(mag2Func);
             schem.add(dbFunc);
+            schem.add(divideByN);
             schem.add(waterfallElem);
+            schem.add(waveformElem);
+            schem.add(splitterElem);
             schem.add(radioElem);
             schem.connect(radioElem, "recv1", frameElem, 0);
             schem.connect(frameElem, 0, fftElem, 0);
-            schem.connect(fftElem, 0, mag2Func, 0);
+            schem.connect(fftElem, 0, divideByN, 0);
+            schem.connect(divideByN, 0, mag2Func, 0);
             schem.connect(mag2Func, 0, dbFunc, 0);
-            schem.connect(dbFunc, 0, waterfallElem, 0);
+            schem.connect(dbFunc, 0, splitterElem, 0);
+            schem.connect(splitterElem, 0, waterfallElem, 0);
+            schem.connect(splitterElem, 1, waveformElem, 0);
 
             Console.Out.WriteLine("Resolving schematic");
             List<Layout.Schematic> options;
@@ -98,11 +108,20 @@ namespace sharptest
   //            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
 
                 canvas = new Canvas();
+
+                // start the canvas thread, wait for all the objects to be bound
+                canvasConstructedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
+                canvasBindCount = 2;
                 canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
+                canvas.panel2.HandleCreated += new EventHandler(panel2_HandleCreated);
+                Thread canvasThread = canvas.Start();
+                canvasConstructedEvent.WaitOne();
+                canvasConstructedEvent = null;
 
                 Console.Out.WriteLine("Powering circuit");
-                canvasThread = canvas.Start();
+                circuit.Start();
                 canvasThread.Join();
+
                 Console.Out.WriteLine("Shutting down circuit");
                 circuit.Stop();
   //            stream.Stop();
@@ -113,11 +132,20 @@ namespace sharptest
 
         void panel1_HandleCreated(object sender, EventArgs e)
         {
-            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waveform");
+            Layout.ElemKey waveformElem = new Layout.ElemKey(Layout.ElementType.Module, "waveform");
+            List<Layout.Circuit.Element> lookup = circuit.Find(waveformElem);
+            signals.IBlock waveform = (signals.IBlock)lookup[0].obj;
+            waveform.Attributes["targetWindow"].Value = canvas.panel1.Handle;
+            if (Interlocked.Decrement(ref canvasBindCount) == 0) canvasConstructedEvent.Set();
+        }
+        
+        void panel2_HandleCreated(object sender, EventArgs e)
+        {
+            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waterfall");
             List<Layout.Circuit.Element> lookup = circuit.Find(waterfallElem);
             signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
-            waterfall.Attributes["targetWindow"].Value = canvas.panel1.Handle;
-            circuit.Start();
+            waterfall.Attributes["targetWindow"].Value = canvas.panel2.Handle;
+            if (Interlocked.Decrement(ref canvasBindCount) == 0) canvasConstructedEvent.Set();
         }
 
         protected object st_screenLock = new object();

@@ -102,6 +102,7 @@ namespace signals
 		void onSinkConnected(IInEndpoint* src);
 		void onSinkDisconnected(IInEndpoint* src);
 		IAttributes* OutputAttributes();
+		IEPBuffer* CreateBuffer();
 	};
 
 	__interface IEPBuffer : public IEPSendTo, public IEPRecvFrom
@@ -122,7 +123,6 @@ namespace signals
 		BOOL Connect(IEPRecvFrom* recv);
 		BOOL isConnected();
 		BOOL Disconnect();
-		IEPBuffer* CreateBuffer();
 	};
 
 	__interface IOutEndpoint
