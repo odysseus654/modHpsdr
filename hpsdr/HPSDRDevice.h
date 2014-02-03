@@ -194,7 +194,7 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class WideReceiver : public CSimpleOutgoingChild<signals::etypSingle, 48000>
+	class WideReceiver : public CSimpleOutgoingChild<signals::etypVecSingle, 48000>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline WideReceiver(signals::IBlock* parent):m_parent(parent) { }
@@ -207,6 +207,7 @@ public:
 		{
 			CEventAttribute* sync_fault;
 			CAttributeBase* rate;
+			CAttributeBase* blockSize;
 		} attrs;
 
 	private:

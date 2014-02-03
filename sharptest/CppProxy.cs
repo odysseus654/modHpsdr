@@ -20,31 +20,6 @@ using System.IO;
 
 namespace cppProxy
 {
-    static class Utilities
-    {
-        private static unsafe int getStringLength(IntPtr strz)
-        {
-            if(strz == IntPtr.Zero) throw new ArgumentNullException("strz");
-            int strlen = 0;
-            for (byte* native = (byte*)strz.ToPointer(); *native != 0; native++, strlen++) ;
-            return strlen;
-        }
-
-        public static string getString(IntPtr strz)
-        {
-            if (strz == IntPtr.Zero) return null;
-            return getString(strz, getStringLength(strz));
-        }
-
-        public static string getString(IntPtr strz, int strlen)
-        {
-            if (strz == IntPtr.Zero) return null;
-            byte[] strArray = new byte[strlen];
-            Marshal.Copy(strz, strArray, 0, strlen);
-            return System.Text.Encoding.UTF8.GetString(strArray);
-        }
-    }
-
     class Registration
     {
         private static WeakValuedDictionary<IntPtr, object> m_universe = new WeakValuedDictionary<IntPtr, object>();

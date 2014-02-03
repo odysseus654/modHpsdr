@@ -45,13 +45,6 @@ CDirectxScope::~CDirectxScope()
 	releaseDevice();
 }
 
-void CDirectxScope::buildAttrs()
-{
-	CDirectxBase::buildAttrs();
-	attrs.isComplexInput = addLocalAttr(true, new CAttr_callback<signals::etypBoolean,CDirectxScope>
-		(*this, "isComplexInput", "Input is based on complex data", &CDirectxScope::setIsComplexInput, true));
-}
-
 void CDirectxScope::releaseDevice()
 {
 	// ASSUMES m_refLock IS HELD BY CALLER
@@ -197,7 +190,7 @@ HRESULT CDirectxScope::initTexture()
 	return initDataTexture();
 }
 
-void CDirectxScope::setIsComplexInput(const unsigned char& bComplex)
+void CDirectxScope::setIsComplexInput(bool bComplex)
 {
 	if(!!bComplex != m_bIsComplexInput)
 	{
@@ -356,7 +349,7 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 	};
 
 	struct TMinorDigitDef {
-		long mag;
+		__int64 mag;
 		short dig;
 	};
 
@@ -382,7 +375,7 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 
 	if(m_dataRate <= 0) return S_FALSE;
 	__int64 minFreq = m_dataFrequency;
-	long dataWidth = m_dataRate;
+	__int64 dataWidth = m_dataRate / 2;
 	__int64 maxFreq = m_dataFrequency + dataWidth;
 	if(m_bIsComplexInput)
 	{
@@ -393,7 +386,7 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 	const TMajorDigitDef* major = MAJOR_DIG;
 	while(max(minFreq,dataWidth) < major->freq) major++;
 
-	long minIncr = dataWidth / EST_LABEL_COUNT;
+	__int64 minIncr = dataWidth / EST_LABEL_COUNT;
 	int minIdx=0;
 	while(minIncr*2 < MINOR_DIG[minIdx].mag) minIdx++;
 	minIncr = MINOR_DIG[minIdx].mag;

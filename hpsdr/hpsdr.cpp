@@ -62,45 +62,66 @@ protected:
 	static std::string valueToString(signals::EType type, const void* value)
 	{
 		char buffer[200];
+		if(type == signals::etypEvent) return "(fired)";
 		if(!value) return "(null)";
 		switch(type)
 		{
-		case signals::etypEvent:
-			return "(fired)";
+		case signals::etypWinHdl:
+			sprintf_s(buffer, _countof(buffer), "(HWND)%08X", (int)*(HANDLE*)value);
+			break;
 		case signals::etypBoolean:
+		case signals::etypVecBoolean:
 			return *(unsigned char*)value ? "(boolean)true" : "(boolean)false";
 		case signals::etypByte:
+		case signals::etypVecByte:
 			sprintf_s(buffer, _countof(buffer), "(byte)%d", (int)*(unsigned char*)value);
 			break;
 		case signals::etypShort:
+		case signals::etypVecShort:
 			sprintf_s(buffer, _countof(buffer), "(short)%d", (int)*(short*)value);
 			break;
 		case signals::etypLong:
+		case signals::etypVecLong:
 			sprintf_s(buffer, _countof(buffer), "(long)%d", (int)*(long*)value);
 			break;
+		case signals::etypInt64:
+		case signals::etypVecInt64:
+			sprintf_s(buffer, _countof(buffer), "(int64)%I64d", *(__int64*)value);
+			break;
 		case signals::etypSingle:
+		case signals::etypVecSingle:
 			sprintf_s(buffer, _countof(buffer), "(single)%f", (double)*(float*)value);
 			break;
 		case signals::etypDouble:
+		case signals::etypVecDouble:
 			sprintf_s(buffer, _countof(buffer), "(double)%f", *(double*)value);
 			break;
 		case signals::etypString:
 			return std::string("(string)") + (char*)value;
-		default:
-			sprintf_s(buffer, _countof(buffer), "(unknown type %d)", (int)type);
-			break;
 		case signals::etypComplex:
+		case signals::etypVecComplex:
 			{
 				std::complex<float>* pComplex = (std::complex<float>*)value;
 				sprintf_s(buffer, _countof(buffer), "(complex) <real: %f, imag: %f>", (double)pComplex->real(), (double)pComplex->imag());
 				break;
 			}
+		case signals::etypCmplDbl:
+		case signals::etypVecCmplDbl:
+			{
+				std::complex<double>* pComplex = (std::complex<double>*)value;
+				sprintf_s(buffer, _countof(buffer), "(complex) <real: %f, imag: %f>", pComplex->real(), pComplex->imag());
+				break;
+			}
 		case signals::etypLRSingle:
+		case signals::etypVecLRSingle:
 			{
 				std::complex<float>* pComplex = (std::complex<float>*)value;
 				sprintf_s(buffer, _countof(buffer), "(left/right) <left: %f, right: %f>", (double)pComplex->real(), (double)pComplex->imag());
 				break;
 			}
+		default:
+			sprintf_s(buffer, _countof(buffer), "(unknown type %d)", (int)type);
+			break;
 		}
 		return buffer;
 	}

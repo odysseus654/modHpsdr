@@ -44,8 +44,8 @@ public:
 	class CIncoming : public CSimpleIncomingChild, public signals::IAttributeObserver
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(signals::etypVecDouble, parent),m_lastWidthAttr(NULL),m_lastRateAttr(NULL),
-			m_lastFreqAttr(NULL) { }
+		inline CIncoming(CDirectxBase* parent):CSimpleIncomingChild(signals::etypVecDouble, parent),
+			m_lastWidthAttr(NULL),m_lastRateAttr(NULL),m_lastFreqAttr(NULL),m_isComplexAttr(NULL) { }
 		virtual ~CIncoming();
 
 	private:
@@ -68,6 +68,7 @@ public:
 		signals::IAttribute* m_lastWidthAttr;
 		signals::IAttribute* m_lastRateAttr;
 		signals::IAttribute* m_lastFreqAttr;
+		signals::IAttribute* m_isComplexAttr;
 	};
 
 private:
@@ -84,7 +85,7 @@ protected: // directx stuff
 	UINT m_frameWidth;
 	UINT m_screenCliWidth;
 	UINT m_screenCliHeight;
-	volatile long m_dataRate;
+	volatile __int64 m_dataRate;
 	volatile __int64 m_dataFrequency;
 private: // directx stuff
 	HWND m_hOutputWin;
@@ -105,6 +106,7 @@ private:	// Direct3d references we use
 protected:
 	inline float driverLevel() const { return m_pDevice ? m_pDevice->driverLevel() : 0; }
 
+	virtual void setIsComplexInput(bool bComplex) {}
 	virtual void buildAttrs();
 	virtual void releaseDevice();
 	virtual HRESULT initTexture() PURE;

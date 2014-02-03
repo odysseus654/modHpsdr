@@ -33,12 +33,7 @@ private:
 	CDirectxScope& operator=(const CDirectxScope& other);
 
 public: // IBlock implementation
-	void setIsComplexInput(const unsigned char& bComplex);
-
-	struct
-	{
-		CAttributeBase* isComplexInput;
-	} attrs;
+	virtual void setIsComplexInput(bool bComplex);
 
 protected: // directx stuff
 	bool m_bIsComplexInput;
@@ -65,7 +60,6 @@ private: // directx stuff
 	CFont m_majFont, m_dotFont, m_minFont;
 
 protected:
-	virtual void buildAttrs();
 	virtual void releaseDevice();
 	virtual HRESULT initTexture();
 	virtual HRESULT resizeDevice();

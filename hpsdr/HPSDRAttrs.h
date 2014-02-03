@@ -286,7 +286,7 @@ public:
 
 	virtual bool isValidValue(const store_type& newVal) const { return refObject.isValidValue(newVal); }
 
-	virtual void OnChanged(IAttribute* attr, const void* value)
+	virtual void OnChanged(IAttribute* attr, const void*)
 	{
 		ReadLocker lock(m_proxyLock);
 		ASSERT(attr == proxyObject && proxyObject);

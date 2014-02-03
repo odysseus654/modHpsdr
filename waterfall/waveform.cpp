@@ -1,5 +1,5 @@
 /*
-	Copyright 2013-2014 Erik Anderson
+	Copyright 2013 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -59,9 +59,9 @@ void CDirectxWaveform::buildAttrs()
 {
 	CDirectxBase::buildAttrs();
 	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaveform>
-		(*this, "minRange", "Weakest signal to display", &CDirectxWaveform::setMinRange, -200.0f));
+		(*this, "minRange", "Weakest signal to display", &CDirectxWaveform::setMinRange, -300.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaveform>
-		(*this, "maxRange", "Strongest signal to display", &CDirectxWaveform::setMaxRange, -50.0f));
+		(*this, "maxRange", "Strongest signal to display", &CDirectxWaveform::setMaxRange, -100.0f));
 }
 
 void CDirectxWaveform::releaseDevice()

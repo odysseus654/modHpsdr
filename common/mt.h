@@ -126,7 +126,7 @@ private:
 class ReadLocker
 {
 public:
-	explicit inline ReadLocker(RWLock& l, bool bLocked = true):m_lock(&l),m_bLocked(false)
+	explicit inline ReadLocker(const RWLock& l, bool bLocked = true):m_lock(const_cast<RWLock*>(&l)),m_bLocked(false)
 	{
 		if(bLocked) lock();
 	}

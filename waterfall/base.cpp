@@ -309,6 +309,11 @@ void CDirectxBase::CIncoming::DetachAttributes()
 		m_lastFreqAttr->Unobserve(this);
 		m_lastFreqAttr = NULL;
 	}
+	if(m_isComplexAttr)
+	{
+		m_isComplexAttr->Unobserve(this);
+		m_isComplexAttr = NULL;
+	}
 }
 
 void CDirectxBase::CIncoming::AttachAttributes(signals::IEPRecvFrom *conn)
@@ -329,10 +334,20 @@ void CDirectxBase::CIncoming::AttachAttributes(signals::IEPRecvFrom *conn)
 	if(!m_lastRateAttr)
 	{
 		signals::IAttribute* attr = attrs->GetByName("rate");
-		if(attr && attr->Type() == signals::etypLong)
+		if(attr && (attr->Type() == signals::etypLong || attr->Type() == signals::etypInt64))
 		{
 			m_lastRateAttr = attr;
 			m_lastRateAttr->Observe(this);
+			OnChanged(attr, attr->getValue());
+		}
+	}
+	if(!m_isComplexAttr)
+	{
+		signals::IAttribute* attr = attrs->GetByName("isComplexInput");
+		if(attr && attr->Type() == signals::etypBoolean)
+		{
+			m_isComplexAttr = attr;
+			m_isComplexAttr->Observe(this);
 			OnChanged(attr, attr->getValue());
 		}
 	}
@@ -350,9 +365,9 @@ void CDirectxBase::CIncoming::AttachAttributes(signals::IEPRecvFrom *conn)
 
 void CDirectxBase::CIncoming::OnChanged(signals::IAttribute* attr, const void* value)
 {
+	CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
 	if(attr == m_lastWidthAttr)
 	{
-		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
 		long width;
 		if(attr->Type() == signals::etypShort)
 		{
@@ -370,18 +385,30 @@ void CDirectxBase::CIncoming::OnChanged(signals::IAttribute* attr, const void* v
 			}
 		}
 	}
-	else if(attr == m_lastRateAttr && attr->Type() == signals::etypLong)
+	else if(attr == m_lastRateAttr)
 	{
-		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
-		long rate = *(long*)value;
+		__int64 rate;
+		signals::EType type = attr->Type();
+		if(type == signals::etypLong)
+		{
+			rate = *(long*)value;
+		}
+		else if(type == signals::etypInt64)
+		{
+			rate = *(__int64*)value;
+		}
 		if(rate > 0)
 		{
-			InterlockedExchange(&base->m_dataRate, rate);
+			InterlockedExchange64(&base->m_dataRate, rate);
 		}
+	}
+	else if(attr == m_isComplexAttr && attr->Type() == signals::etypBoolean)
+	{
+		unsigned char isComplex = *(unsigned char*)value;
+		base->setIsComplexInput(!!isComplex);
 	}
 	else if(attr == m_lastFreqAttr)
 	{
-		CDirectxBase* base = static_cast<CDirectxBase*>(m_parent);
 		__int64 freq;
 		signals::EType type = attr->Type();
 		if(type == signals::etypLong)
@@ -408,6 +435,10 @@ void CDirectxBase::CIncoming::OnDetached(signals::IAttribute* attr)
 	else if(attr == m_lastRateAttr)
 	{
 		m_lastRateAttr = NULL;
+	}
+	else if(attr == m_isComplexAttr)
+	{
+		m_isComplexAttr = NULL;
 	}
 	else if(attr == m_lastFreqAttr)
 	{

@@ -1,5 +1,5 @@
 /*
-	Copyright 2013-2014 Erik Anderson
+	Copyright 2013 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -108,7 +108,7 @@ void CDirectxWaterfall::buildAttrs()
 	attrs.height = addLocalAttr(true, new CAttr_callback<signals::etypShort,CDirectxWaterfall>
 		(*this, "height", "Rows of history to display", &CDirectxWaterfall::setHeight, 512));
 	attrs.minRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
-		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -200.0f));
+		(*this, "minRange", "Weakest signal to display", &CDirectxWaterfall::setMinRange, -300.0f));
 	attrs.maxRange = addLocalAttr(true, new CAttr_callback<signals::etypSingle,CDirectxWaterfall>
 		(*this, "maxRange", "Strongest signal to display", &CDirectxWaterfall::setMaxRange, -100.0f));
 }

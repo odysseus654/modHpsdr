@@ -324,131 +324,153 @@ template<> struct StoreType<signals::etypBoolean>
 {
 	typedef unsigned char type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypWinHdl>
 {
 	typedef HANDLE type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypByte>
 {
 	typedef unsigned char type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypShort>
 {
 	typedef short type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypLong>
 {
 	typedef long type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypInt64>
 {
 	typedef __int64 type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypSingle>
 {
 	typedef float type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypDouble>
 {
 	typedef double type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypComplex>
 {
 	typedef std::complex<float> type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypCmplDbl>
 {
 	typedef std::complex<double> type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypString>
 {
 	typedef std::string type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypLRSingle>
 {
 	typedef std::complex<float> type;
 	typedef Buffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypVecBoolean>
 {
 	typedef unsigned char type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecByte>
 {
 	typedef unsigned char type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecShort>
 {
 	typedef short type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecLong>
 {
 	typedef long type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecInt64>
 {
 	typedef __int64 type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 	
 template<> struct StoreType<signals::etypVecSingle>
 {
 	typedef float type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecDouble>
 {
 	typedef double type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 1 };
 };
 
 template<> struct StoreType<signals::etypVecComplex>
 {
 	typedef std::complex<float> type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypVecCmplDbl>
 {
 	typedef std::complex<double> type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 template<> struct StoreType<signals::etypVecLRSingle>
 {
 	typedef std::complex<float> type;
 	typedef VectorBuffer<type> buffer_type;
+	enum { is_blittable = 0 };
 };
 
 #pragma warning(push)
@@ -673,7 +695,7 @@ public:
 	inline CEventAttribute(const char* pName, const char* pDescr)
 		:CAttributeBase(pName, pDescr), m_func(this, &CEventAttribute::catcher) { }
 	virtual ~CEventAttribute()			{ }
-	virtual signals::EType Type()		{ return signals::etypNone; }
+	virtual signals::EType Type()		{ return signals::etypEvent; }
 	virtual BOOL isReadOnly() const		{ return false; }
 	virtual const void* getValue()		{ return NULL; }
 	virtual BOOL setValue(const void* newVal) { UNUSED_ALWAYS(newVal); fire(); return true; }

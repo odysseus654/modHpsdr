@@ -307,6 +307,7 @@ void CHpsdrEthernet::thread_recv()
 {
 	ThreadBase::SetThreadName("Metis Receive Thread");
 	byte message[1032];
+	float wideBuff[4096];
 
 	fd_set fds;
 
@@ -340,22 +341,22 @@ void CHpsdrEthernet::thread_recv()
 					{
 						m_wideStarting = false;
 						m_lastWideSeq = seq;
+						short frame = seq&7;
 						byte* wideSrc = message + 8;
-						float wideBuff[512];
-						float* wideDest = wideBuff;
+						float* wideDest = wideBuff + 512*frame;
 						for(int i=0; i < 512; i++)
 						{
 							*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
 							wideSrc += 2;
 						}
-						if(!m_wideRecv.Write(signals::etypSingle, &wideBuff, _countof(wideBuff), 0)
+						if(frame == 7 && !m_wideRecv.Write(signals::etypVecSingle, &wideBuff, _countof(wideBuff), 0)
 							&& m_wideRecv.isConnected())
 						{
 							attrs.wide_sync_fault->fire();
 						}
 					}
 					break;
-				case 6: // endpoint 4: IQ + mic data
+				case 6: // endpoint 6: IQ + mic data
 					{
 						unsigned numSamples = receive_frame(message+8);
 						if(numSamples)

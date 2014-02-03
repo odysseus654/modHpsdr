@@ -42,6 +42,9 @@
     <ClInclude Include="divide_by_n.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="real_chop.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

@@ -371,7 +371,9 @@ const char* CHpsdrDevice::WideReceiver::EP_DESCR = "Received wideband raw ADC sa
 void CHpsdrDevice::WideReceiver::buildAttrs(const CHpsdrDevice& parent)
 {
 	attrs.sync_fault = addRemoteAttr("syncFault", parent.attrs.wide_sync_fault);
-	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypLong>("rate", "Data rate", 48000));
+	attrs.rate = addLocalAttr(true, new CROAttribute<signals::etypInt64>("rate", "Sampling rate", 122880000));
+	attrs.blockSize = addLocalAttr(true, new CROAttribute<signals::etypLong>
+		("blockSize", "Number of samples to process in each block", 4096));
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Transmitter
@@ -399,7 +401,7 @@ void CHpsdrDevice::Microphone::buildAttrs(const CHpsdrDevice& parent)
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Speaker
 
-const char* CHpsdrDevice::Speaker::EP_NAME = "speak";
+const char* CHpsdrDevice::Speaker::EP_NAME = "speaker";
 const char* CHpsdrDevice::Speaker::EP_DESCR = "Speaker audio output";
 
 void CHpsdrDevice::Speaker::buildAttrs(const CHpsdrDevice& parent)

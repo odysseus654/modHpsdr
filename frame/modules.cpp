@@ -1,5 +1,5 @@
 /*
-	Copyright 2013 Erik Anderson
+	Copyright 2013-2014 Erik Anderson
 
 	Licensed under the Apache License, Version 2.0 (the "License");
 	you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 #include "stdafx.h"
 #include "divide_by_n.h"
 #include "make_frame.h"
+#include "real_chop.h"
 
 FrameFunctionBase<signals::etypVecByte, DivideByN<unsigned char> > divideByN_byte;
 FrameFunctionBase<signals::etypVecShort, DivideByN<short> > divideByN_short;
@@ -26,6 +27,17 @@ FrameFunctionBase<signals::etypVecDouble, DivideByN<double> > divideByN_double;
 FrameFunctionBase<signals::etypVecComplex, DivideByN<std::complex<float>,float> > divideByN_cpx;
 FrameFunctionBase<signals::etypVecCmplDbl, DivideByN<std::complex<double>,double> > divideByN_cpxdbl;
 FrameFunctionBase<signals::etypVecLRSingle, DivideByN<std::complex<float>,float> > divideByN_lr;
+
+ChopRealFrame<signals::etypVecBoolean> chop_bool;
+ChopRealFrame<signals::etypVecByte> chop_byte;
+ChopRealFrame<signals::etypVecShort> chop_short;
+ChopRealFrame<signals::etypVecLong> chop_long;
+ChopRealFrame<signals::etypVecInt64> chop_int64;
+ChopRealFrame<signals::etypVecSingle> chop_float;
+ChopRealFrame<signals::etypVecDouble> chop_double;
+ChopRealFrame<signals::etypVecComplex> chop_cpx;
+ChopRealFrame<signals::etypVecCmplDbl> chop_cpxdbl;
+ChopRealFrame<signals::etypVecLRSingle> chop_lr;
 
 CFrameBuilderDriver<signals::etypBoolean> frame_bool;
 CFrameBuilderDriver<signals::etypByte> frame_byte;
@@ -50,6 +62,10 @@ signals::IFunctionSpec* FUNCTIONS[] =
 	// divide by N
 	&divideByN_byte, &divideByN_short, &divideByN_long, &divideByN_int64, &divideByN_float, &divideByN_double,
 	&divideByN_cpx, &divideByN_cpxdbl, &divideByN_lr,
+
+	// chop real frame
+	&chop_bool, &chop_byte, &chop_short, &chop_long, &chop_int64, &chop_float, &chop_double,
+	&chop_cpx, &chop_cpxdbl, &chop_lr
 };
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)

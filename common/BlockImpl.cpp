@@ -210,39 +210,37 @@ unsigned CCascadedAttributesBase::Itemize(signals::IAttribute** attrs, unsigned 
 	{
 		return CAttributesBase::Itemize(attrs, availElem, flags);
 	}
+
+	typedef std::map<std::string,signals::IAttribute*> TStringMapToAttr;
+	TStringMapToAttr foundAttrs;
+
+	if(flags & signals::flgIncludeHidden)
+	{
+		for(TVoidMapToAttr::const_iterator trans=m_attributes.begin(); trans != m_attributes.end(); trans++)
+		{
+			foundAttrs.insert(TStringMapToAttr::value_type(trans->second->Name(), trans->second));
+		}
+	}
 	else
 	{
-		typedef std::map<std::string,signals::IAttribute*> TStringMapToAttr;
-		TStringMapToAttr foundAttrs;
-
-		if(flags & signals::flgIncludeHidden)
+		for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
 		{
-			for(TVoidMapToAttr::const_iterator trans=m_attributes.begin(); trans != m_attributes.end(); trans++)
-			{
-				foundAttrs.insert(TStringMapToAttr::value_type(trans->second->Name(), trans->second));
-			}
+			foundAttrs.insert(TStringMapToAttr::value_type((*trans)->Name(), *trans));
 		}
-		else
-		{
-			for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
-			{
-				foundAttrs.insert(TStringMapToAttr::value_type((*trans)->Name(), *trans));
-			}
-		}
-		m_src.MergeRemoteAttrs(foundAttrs, flags);
-
-		if(attrs && availElem)
-		{
-			unsigned i;
-			TStringMapToAttr::const_iterator trans;
-			for(i=0, trans=foundAttrs.begin(); i < availElem && trans != foundAttrs.end(); i++, trans++)
-			{
-				signals::IAttribute* attr = trans->second;
-				attrs[i] = attr;
-			}
-		}
-		return foundAttrs.size();
 	}
+	m_src.MergeRemoteAttrs(foundAttrs, flags);
+
+	if(attrs && availElem)
+	{
+		unsigned i;
+		TStringMapToAttr::const_iterator trans;
+		for(i=0, trans=foundAttrs.begin(); i < availElem && trans != foundAttrs.end(); i++, trans++)
+		{
+			signals::IAttribute* attr = trans->second;
+			attrs[i] = attr;
+		}
+	}
+	return foundAttrs.size();
 }
 
 signals::IAttribute* CCascadedAttributesBase::GetByName(const char* name)
