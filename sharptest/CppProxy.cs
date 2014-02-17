@@ -59,6 +59,9 @@ namespace cppProxy
             int size(object val);
             object fromNative(IntPtr val);
             void toNative(object src, IntPtr dest);
+            Array makePinnableArray(int cnt);
+            Array toPinnableArray(Array src);
+            Array fromPinnableArray(Array pin, int cnt);
         };
 
         private class Handle : ITypeMarshaller
@@ -66,76 +69,243 @@ namespace cppProxy
             public int size(object val) { return IntPtr.Size; }
             public object fromNative(IntPtr val) { return Marshal.ReadIntPtr(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteIntPtr(dest, (IntPtr)src); }
+            public Array makePinnableArray(int cnt) { return new IntPtr[cnt]; }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                IntPtr[] outBuff = new IntPtr[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = (IntPtr)src.GetValue(idx);
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                IntPtr[] outBuff = new IntPtr[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
+            }
         };
 
-        private class Boolean : ITypeMarshaller
+        private class Boolean : Byte
         {
-            public int size(object val) { return sizeof(byte); }
-            public object fromNative(IntPtr val) { return Marshal.ReadByte(val) != 0; }
-            public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)((bool)src ? 1 : 0)); }
+            public new object fromNative(IntPtr val) { return Marshal.ReadByte(val) != 0; }
+            public new void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)(Convert.ToBoolean(src) ? 1 : 0)); }
+
+            public new Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                byte[] outBuff = new byte[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = (byte)(Convert.ToBoolean(src.GetValue(idx)) ? 1 : 0);
+                }
+                return outBuff;
+            }
+
+            public new Array fromPinnableArray(Array pin, int cnt)
+            {
+                byte[] byteBuff = (byte[])pin;
+                bool[] buff = new bool[cnt];
+                for (int idx = 0; idx < cnt; idx++)
+                {
+                    buff[idx] = byteBuff[idx] != 0;
+                }
+                return buff;
+            }
         };
 
         private class Byte : ITypeMarshaller
         {
             public int size(object val) { return sizeof(byte); }
             public object fromNative(IntPtr val) { return Marshal.ReadByte(val); }
-            public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)src); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, Convert.ToByte(src)); }
+            public Array makePinnableArray(int cnt) { return new byte[cnt]; }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                byte[] outBuff = new byte[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToByte(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                byte[] outBuff = new byte[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
+            }
         };
 
         private class Short : ITypeMarshaller
         {
             public int size(object val) { return sizeof(short); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt16(val); }
-            public void toNative(object src, IntPtr dest) { Marshal.WriteInt16(dest, (short)src); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteInt16(dest, Convert.ToInt16(src)); }
+            public Array makePinnableArray(int cnt) { return new short[cnt]; }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                short[] outBuff = new short[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToInt16(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                short[] outBuff = new short[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
+            }
         };
 
         private class Long : ITypeMarshaller
         {
             public int size(object val) { return sizeof(int); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt32(val); }
-            public void toNative(object src, IntPtr dest) { Marshal.WriteInt32(dest, (int)src); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteInt32(dest, Convert.ToInt32(src)); }
+            public Array makePinnableArray(int cnt) { return new int[cnt]; }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                int[] outBuff = new int[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToInt32(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                int[] outBuff = new int[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
+            }
         };
 
         private class Int64 : ITypeMarshaller
         {
             public int size(object val) { return sizeof(long); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt64(val); }
-            public void toNative(object src, IntPtr dest) { Marshal.WriteInt64(dest, (long)src); }
+            public void toNative(object src, IntPtr dest) { Marshal.WriteInt64(dest, Convert.ToInt64(src)); }
+            public Array makePinnableArray(int cnt) { return new long[cnt]; }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                long[] outBuff = new long[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToInt64(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                long[] outBuff = new long[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
+            }
         };
 
         private class Single : ITypeMarshaller
         {
             public int size(object val) { return sizeof(float); }
+            public Array makePinnableArray(int cnt) { return new float[cnt]; }
+
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy(new float[] { Convert.ToSingle(src) }, 0, dest, 1);
+            }
+
             public object fromNative(IntPtr val)
             {
                 float[] buff = new float[1];
                 Marshal.Copy(val, buff, 0, 1);
                 return buff[0];
             }
-            public void toNative(object src, IntPtr dest)
+
+            public Array toPinnableArray(Array src)
             {
-                Marshal.Copy(new float[] { (float)src }, 0, dest, 1);
+                int len = src.Length;
+                float[] outBuff = new float[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToSingle(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                float[] outBuff = new float[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
             }
         };
 
         private class Double : ITypeMarshaller
         {
             public int size(object val) { return sizeof(double); }
+            public Array makePinnableArray(int cnt) { return new double[cnt]; }
+
+            public void toNative(object src, IntPtr dest)
+            {
+                Marshal.Copy(new double[] { Convert.ToDouble(src) }, 0, dest, 1);
+            }
+
             public object fromNative(IntPtr val)
             {
                 double[] buff = new double[1];
                 Marshal.Copy(val, buff, 0, 1);
                 return buff[0];
             }
-            public void toNative(object src, IntPtr dest)
+
+            public Array toPinnableArray(Array src)
             {
-                Marshal.Copy(new double[] { (double)src }, 0, dest, 1);
+                int len = src.Length;
+                double[] outBuff = new double[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    outBuff[idx] = Convert.ToDouble(src.GetValue(idx));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == pin.Length) return pin;
+                double[] outBuff = new double[cnt];
+                Array.Copy(pin, outBuff, cnt);
+                return outBuff;
             }
         };
 
         private class Complex : ITypeMarshaller
         {
             public int size(object val) { return 2*sizeof(float); }
+            public Array makePinnableArray(int cnt) { return new float[cnt * 2]; }
+
             public object fromNative(IntPtr val)
             {
                 float[] buff = new float[2];
@@ -144,13 +314,44 @@ namespace cppProxy
             }
             public void toNative(object src, IntPtr dest)
             {
-                Marshal.Copy((float[])src, 0, dest, 2);
+                float[] val = new float[2] {
+                    Convert.ToSingle(((Array)src).GetValue(0)),
+                    Convert.ToSingle(((Array)src).GetValue(1))
+                };
+                Marshal.Copy(val, 0, dest, 2);
+            }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                float[] outBuff = new float[len * 2];
+                for (int inRef = 0, outRef = 0; inRef < len; inRef++, outRef += 2)
+                {
+                    Array inVal = (Array)src.GetValue(inRef);
+                    outBuff[outRef] = Convert.ToSingle(inVal.GetValue(0));
+                    outBuff[outRef + 1] = Convert.ToSingle(inVal.GetValue(1));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == 0) return new Array[0];
+                float[] nativeBuff = (float[])pin;
+                Array[] outBuff = new Array[cnt];
+                for (int inRef = 0, outRef = 0; outRef < cnt; inRef += 2, outRef++)
+                {
+                    outBuff[outRef] = new float[2] { nativeBuff[inRef], nativeBuff[inRef + 1] };
+                }
+                return outBuff;
             }
         };
 
         private class ComplexDouble : ITypeMarshaller
         {
             public int size(object val) { return 2*sizeof(double); }
+            public Array makePinnableArray(int cnt) { return new double[cnt * 2]; }
+
             public object fromNative(IntPtr val)
             {
                 double[] buff = new double[2];
@@ -159,15 +360,48 @@ namespace cppProxy
             }
             public void toNative(object src, IntPtr dest)
             {
-                Marshal.Copy((double[])src, 0, dest, 2);
+                double[] val = new double[2] {
+                    Convert.ToDouble(((Array)src).GetValue(0)),
+                    Convert.ToDouble(((Array)src).GetValue(1))
+                };
+                Marshal.Copy(val, 0, dest, 2);
+            }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                double[] outBuff = new double[len * 2];
+                for (int inRef = 0, outRef = 0; inRef < len; inRef++, outRef += 2)
+                {
+                    Array inVal = (Array)src.GetValue(inRef);
+                    outBuff[outRef] = Convert.ToDouble(inVal.GetValue(0));
+                    outBuff[outRef + 1] = Convert.ToDouble(inVal.GetValue(1));
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == 0) return new Array[0];
+                double[] nativeBuff = (double[])pin;
+                Array[] outBuff = new Array[cnt];
+                for (int inRef = 0, outRef = 0; outRef < cnt; inRef += 2, outRef++)
+                {
+                    outBuff[outRef] = new double[2] { nativeBuff[inRef], nativeBuff[inRef + 1] };
+                }
+                return outBuff;
             }
         };
 
         private class String : ITypeMarshaller
         {
+            public Array makePinnableArray(int cnt) { throw new NotSupportedException("String arrays are not supported."); }
+            public Array toPinnableArray(Array src) { throw new NotSupportedException("String arrays are not supported."); }
+            public Array fromPinnableArray(Array pin, int cnt) { throw new NotSupportedException("String arrays are not supported."); }
+
             public int size(object val)
             {
-                return sizeof(byte) * (System.Text.Encoding.UTF8.GetByteCount((string)val) + 1);
+                return sizeof(byte) * (System.Text.Encoding.UTF8.GetByteCount(Convert.ToString(val)) + 1);
             }
             public object fromNative(IntPtr val)
             {
@@ -175,7 +409,7 @@ namespace cppProxy
             }
             public void toNative(object src, IntPtr dest)
             {
-                byte[] strBytes = System.Text.Encoding.UTF8.GetBytes((string)src);
+                byte[] strBytes = System.Text.Encoding.UTF8.GetBytes(Convert.ToString(src));
                 Marshal.Copy(strBytes, 0, dest, strBytes.Length);
                 Marshal.WriteByte(dest, strBytes.Length, 0);
             }
@@ -411,26 +645,25 @@ namespace cppProxy
                     }
                     else
                     {
-                        IntPtr driverBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numDrivers);
+                        IntPtr[] ptrArr = new IntPtr[numDrivers];
+                        GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
                         try
                         {
-                            queryDrivers.DynamicInvoke(new object[] { driverBuff, numDrivers });
-                            IntPtr[] ptrArr = new IntPtr[numDrivers];
-                            Marshal.Copy(driverBuff, ptrArr, 0, (int)numDrivers);
-                            m_drivers = new CppProxyBlockDriver[numDrivers];
-                            for (int idx = 0; idx < numDrivers; idx++)
-                            {
-                                if (ptrArr[idx] != IntPtr.Zero)
-                                {
-                                    signals.IBlockDriver newObj = (signals.IBlockDriver)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyBlockDriver(this, ptrArr[idx]);
-                                    m_drivers[idx] = newObj;
-                                }
-                            }
+                            queryDrivers.DynamicInvoke(new object[] { pin.AddrOfPinnedObject(), numDrivers });
                         }
                         finally
                         {
-                            Marshal.FreeHGlobal(driverBuff);
+                            pin.Free();
+                        }
+                        m_drivers = new CppProxyBlockDriver[numDrivers];
+                        for (int idx = 0; idx < numDrivers; idx++)
+                        {
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IBlockDriver newObj = (signals.IBlockDriver)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyBlockDriver(this, ptrArr[idx]);
+                                m_drivers[idx] = newObj;
+                            }
                         }
                     }
                 }
@@ -452,26 +685,25 @@ namespace cppProxy
                     }
                     else
                     {
-                        IntPtr functionBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numFunctions);
+                        IntPtr[] ptrArr = new IntPtr[numFunctions];
+                        GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
                         try
                         {
-                            queryFunctions.DynamicInvoke(new object[] { functionBuff, numFunctions });
-                            IntPtr[] ptrArr = new IntPtr[numFunctions];
-                            Marshal.Copy(functionBuff, ptrArr, 0, (int)numFunctions);
-                            m_functions = new CppProxyFunctionSpec[numFunctions];
-                            for (int idx = 0; idx < numFunctions; idx++)
-                            {
-                                if (ptrArr[idx] != IntPtr.Zero)
-                                {
-                                    signals.IFunctionSpec newObj = (signals.IFunctionSpec)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyFunctionSpec(this, ptrArr[idx]);
-                                    m_functions[idx] = newObj;
-                                }
-                            }
+                            queryFunctions.DynamicInvoke(new object[] { pin.AddrOfPinnedObject(), numFunctions });
                         }
                         finally
                         {
-                            Marshal.FreeHGlobal(functionBuff);
+                            pin.Free();
+                        }
+                        m_functions = new CppProxyFunctionSpec[numFunctions];
+                        for (int idx = 0; idx < numFunctions; idx++)
+                        {
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IFunctionSpec newObj = (signals.IFunctionSpec)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyFunctionSpec(this, ptrArr[idx]);
+                                m_functions[idx] = newObj;
+                            }
                         }
                     }
                 }
@@ -602,28 +834,28 @@ namespace cppProxy
         public signals.IBlock[] Discover()
         {   // discovery can be expensive, so we just use a large buffer rather than call things multiple times
             if (!m_canDiscover) throw new NotSupportedException("Driver cannot discover objects.");
-            IntPtr discoverBuff = Marshal.AllocHGlobal(IntPtr.Size * BufferSize);
+            IntPtr[] ptrArr = new IntPtr[BufferSize];
+            GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
+            uint numObj;
             try
             {
-                uint numObj = m_native.Discover(discoverBuff, (uint)BufferSize);
-                IntPtr[] ptrArr = new IntPtr[numObj];
-                if(numObj > 0) Marshal.Copy(discoverBuff, ptrArr, 0, (int)numObj);
-                signals.IBlock[] objArr = new signals.IBlock[numObj];
-                for (int idx = 0; idx < numObj; idx++)
-                {
-                    if (ptrArr[idx] != IntPtr.Zero)
-                    {
-                        signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null) newObj = new CppProxyBlock(this, null, ptrArr[idx]);
-                        objArr[idx] = newObj;
-                    }
-                }
-                return objArr;
+                numObj = m_native.Discover(pin.AddrOfPinnedObject(), (uint)BufferSize);
             }
             finally
             {
-                Marshal.FreeHGlobal(discoverBuff);
+                pin.Free();
             }
+            signals.IBlock[] objArr = new signals.IBlock[numObj];
+            for (int idx = 0; idx < numObj; idx++)
+            {
+                if (ptrArr[idx] != IntPtr.Zero)
+                {
+                    signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
+                    if (newObj == null) newObj = new CppProxyBlock(this, null, ptrArr[idx]);
+                    objArr[idx] = newObj;
+                }
+            }
+            return objArr;
         }
     };
 
@@ -735,27 +967,26 @@ namespace cppProxy
                     }
                     else
                     {
-                        IntPtr childBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numChildren);
+                        IntPtr[] ptrArr = new IntPtr[numChildren];
+                        GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
                         try
                         {
-                            m_native.Children(childBuff, numChildren);
-                            IntPtr[] ptrArr = new IntPtr[numChildren];
-                            Marshal.Copy(childBuff, ptrArr, 0, (int)numChildren);
-                            m_children = new CppProxyBlock[numChildren];
-                            for (int idx = 0; idx < numChildren; idx++)
-                            {
-
-                                if (ptrArr[idx] != IntPtr.Zero)
-                                {
-                                    signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
-                                    m_children[idx] = newObj;
-                                }
-                            }
+                            m_native.Children(pin.AddrOfPinnedObject(), numChildren);
                         }
                         finally
                         {
-                            Marshal.FreeHGlobal(childBuff);
+                            pin.Free();
+                        }
+                        m_children = new CppProxyBlock[numChildren];
+                        for (int idx = 0; idx < numChildren; idx++)
+                        {
+
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IBlock newObj = (signals.IBlock)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyBlock(m_driver, this, ptrArr[idx]);
+                                m_children[idx] = newObj;
+                            }
                         }
                     }
                 }
@@ -776,27 +1007,26 @@ namespace cppProxy
                     }
                     else
                     {
-                        IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                        IntPtr[] ptrArr = new IntPtr[numEP];
+                        GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
                         try
                         {
-                            m_native.Incoming(epBuff, numEP);
-                            IntPtr[] ptrArr = new IntPtr[numEP];
-                            Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
-                            m_incoming = new CppProxyInEndpoint[numEP];
-                            for (int idx = 0; idx < numEP; idx++)
-                            {
-
-                                if (ptrArr[idx] != IntPtr.Zero)
-                                {
-                                    signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyInEndpoint(ptrArr[idx]);
-                                    m_incoming[idx] = newObj;
-                                }
-                            }
+                            m_native.Incoming(pin.AddrOfPinnedObject(), numEP);
                         }
                         finally
                         {
-                            Marshal.FreeHGlobal(epBuff);
+                            pin.Free();
+                        }
+                        m_incoming = new CppProxyInEndpoint[numEP];
+                        for (int idx = 0; idx < numEP; idx++)
+                        {
+
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IInEndpoint newObj = (signals.IInEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyInEndpoint(ptrArr[idx]);
+                                m_incoming[idx] = newObj;
+                            }
                         }
                     }
                 }
@@ -817,27 +1047,26 @@ namespace cppProxy
                     }
                     else
                     {
-                        IntPtr epBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numEP);
+                        IntPtr[] ptrArr = new IntPtr[numEP];
+                        GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
                         try
                         {
-                            m_native.Outgoing(epBuff, numEP);
-                            IntPtr[] ptrArr = new IntPtr[numEP];
-                            Marshal.Copy(epBuff, ptrArr, 0, (int)numEP);
-                            m_outgoing = new CppProxyOutEndpoint[numEP];
-                            for (int idx = 0; idx < numEP; idx++)
-                            {
-
-                                if (ptrArr[idx] != IntPtr.Zero)
-                                {
-                                    signals.IOutEndpoint newObj = (signals.IOutEndpoint)Registration.retrieveObject(ptrArr[idx]);
-                                    if (newObj == null) newObj = new CppProxyOutEndpoint(m_driver.Module, ptrArr[idx]);
-                                    m_outgoing[idx] = newObj;
-                                }
-                            }
+                            m_native.Outgoing(pin.AddrOfPinnedObject(), numEP);
                         }
                         finally
                         {
-                            Marshal.FreeHGlobal(epBuff);
+                            pin.Free();
+                        }
+                        m_outgoing = new CppProxyOutEndpoint[numEP];
+                        for (int idx = 0; idx < numEP; idx++)
+                        {
+
+                            if (ptrArr[idx] != IntPtr.Zero)
+                            {
+                                signals.IOutEndpoint newObj = (signals.IOutEndpoint)Registration.retrieveObject(ptrArr[idx]);
+                                if (newObj == null) newObj = new CppProxyOutEndpoint(m_driver.Module, ptrArr[idx]);
+                                m_outgoing[idx] = newObj;
+                            }
                         }
                     }
                 }
@@ -924,56 +1153,56 @@ namespace cppProxy
         {
             uint numAttr = m_native.Itemize(IntPtr.Zero, 0, 0);
             if (numAttr == 0) return ((IList<signals.IAttribute>)new signals.IAttribute[0]).GetEnumerator();
-            IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
+            IntPtr[] ptrArr = new IntPtr[numAttr];
+            GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
+            uint numObj;
             try
             {
-                uint numObj = m_native.Itemize(attrBuff, numAttr, 0);
-                IntPtr[] ptrArr = new IntPtr[numObj];
-                Marshal.Copy(attrBuff, ptrArr, 0, (int)numObj);
-                signals.IAttribute[] attrArray = new signals.IAttribute[numObj];
-                for (int idx = 0; idx < numObj; idx++)
-                {
-                    if (ptrArr[idx] != IntPtr.Zero)
-                    {
-                        signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
-                        attrArray[idx] = newObj;
-                    }
-                }
-                return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
+                numObj = m_native.Itemize(pin.AddrOfPinnedObject(), numAttr, 0);
             }
             finally
             {
-                Marshal.FreeHGlobal(attrBuff);
+                pin.Free();
             }
+            signals.IAttribute[] attrArray = new signals.IAttribute[numObj];
+            for (int idx = 0; idx < numObj; idx++)
+            {
+                if (ptrArr[idx] != IntPtr.Zero)
+                {
+                    signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
+                    if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
+                    attrArray[idx] = newObj;
+                }
+            }
+            return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
         }
 
         public IEnumerator<signals.IAttribute> Itemize(signals.EAttrEnumFlags flags)
         {
             uint numAttr = m_native.Itemize(IntPtr.Zero, 0, (uint)flags);
             if (numAttr == 0) return ((IList<signals.IAttribute>)new signals.IAttribute[0]).GetEnumerator();
-            IntPtr attrBuff = Marshal.AllocHGlobal(IntPtr.Size * (int)numAttr);
+            IntPtr[] ptrArr = new IntPtr[numAttr];
+            GCHandle pin = GCHandle.Alloc(ptrArr, GCHandleType.Pinned);
+            uint numObj;
             try
             {
-                uint numObj = m_native.Itemize(attrBuff, numAttr, (uint)flags);
-                IntPtr[] ptrArr = new IntPtr[numObj];
-                Marshal.Copy(attrBuff, ptrArr, 0, (int)numObj);
-                signals.IAttribute[] attrArray = new signals.IAttribute[numObj];
-                for (int idx = 0; idx < numObj; idx++)
-                {
-                    if (ptrArr[idx] != IntPtr.Zero)
-                    {
-                        signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
-                        if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
-                        attrArray[idx] = newObj;
-                    }
-                }
-                return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
+                numObj = m_native.Itemize(pin.AddrOfPinnedObject(), numAttr, (uint)flags);
             }
             finally
             {
-                Marshal.FreeHGlobal(attrBuff);
+                pin.Free();
             }
+            signals.IAttribute[] attrArray = new signals.IAttribute[numObj];
+            for (int idx = 0; idx < numObj; idx++)
+            {
+                if (ptrArr[idx] != IntPtr.Zero)
+                {
+                    signals.IAttribute newObj = (signals.IAttribute)Registration.retrieveObject(ptrArr[idx]);
+                    if (newObj == null) newObj = new CppProxyAttribute(ptrArr[idx]);
+                    attrArray[idx] = newObj;
+                }
+            }
+            return ((IList<signals.IAttribute>)attrArray).GetEnumerator();
         }
 
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
@@ -1148,33 +1377,31 @@ namespace cppProxy
                 opts = null;
                 return;
             }
-            IntPtr valList = Marshal.AllocHGlobal(IntPtr.Size * (int)numOpt);
-            IntPtr optList = Marshal.AllocHGlobal(IntPtr.Size * (int)numOpt);
+            IntPtr[] valArr = new IntPtr[numOpt];
+            IntPtr[] optArr = new IntPtr[numOpt];
+            GCHandle valPin = GCHandle.Alloc(valArr, GCHandleType.Pinned);
+            GCHandle optPin = GCHandle.Alloc(optArr, GCHandleType.Pinned);
             try
             {
-                m_native.options(valList, optList, numOpt);
-                IntPtr[] valArr = new IntPtr[numOpt];
-                Marshal.Copy(valList, valArr, 0, (int)numOpt);
-                IntPtr[] optArr = new IntPtr[numOpt];
-                Marshal.Copy(optList, optArr, 0, (int)numOpt);
-                values = new object[numOpt];
-                opts = new string[numOpt];
-                for (uint idx = 0; idx < numOpt; idx++)
-                {
-                    if (valArr[idx] != null)
-                    {
-                        values[idx] = m_typeInfo.fromNative(valArr[idx]);
-                    }
-                    if (optArr[idx] != null)
-                    {
-                        opts[idx] = Utilities.getString(optArr[idx]);
-                    }
-                }
+                m_native.options(valPin.AddrOfPinnedObject(), optPin.AddrOfPinnedObject(), numOpt);
             }
             finally
             {
-                Marshal.FreeHGlobal(valList);
-                Marshal.FreeHGlobal(optList);
+                valPin.Free();
+                optPin.Free();
+            }
+            values = new object[numOpt];
+            opts = new string[numOpt];
+            for (uint idx = 0; idx < numOpt; idx++)
+            {
+                if (valArr[idx] != null)
+                {
+                    values[idx] = m_typeInfo.fromNative(valArr[idx]);
+                }
+                if (optArr[idx] != null)
+                {
+                    opts[idx] = Utilities.getString(optArr[idx]);
+                }
             }
         }
     }
@@ -1435,7 +1662,7 @@ namespace cppProxy
             }
         }
 
-        public int Write(signals.EType type, object[] values, int msTimeout)
+        public int Write(signals.EType type, Array values, int msTimeout)
         {
             if (values == null) throw new ArgumentNullException("values");
             if (type != m_type || m_typeInfo == null)
@@ -1444,20 +1671,16 @@ namespace cppProxy
                 m_typeInfo = ProxyTypes.getTypeInfo(type);
             }
             if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_typeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * values.Length);
+
+            Array pinArray = m_typeInfo.toPinnableArray(values);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
             try
             {
-                for (int idx = 0; idx < values.Length; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    m_typeInfo.toNative(values[idx], here);
-                }
-                return (int)m_native.Write(type, buff, (uint)values.Length, (uint)msTimeout);
+                return (int)m_native.Write(type, pin.AddrOfPinnedObject(), (uint)values.Length, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
         }
     }
@@ -1495,7 +1718,7 @@ namespace cppProxy
         public void Dispose() { }
         public IntPtr Native { get { return m_nativeRef; } }
 
-        public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
+        public void Read(signals.EType type, out Array values, bool bReadAll, int msTimeout)
         {
             if (type != m_type || m_typeInfo == null)
             {
@@ -1503,22 +1726,18 @@ namespace cppProxy
                 m_typeInfo = ProxyTypes.getTypeInfo(type);
             }
             if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_typeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * BufferSize);
+            Array pinArray = m_typeInfo.makePinnableArray(BufferSize);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            uint read;
             try
             {
-                uint read = m_native.Read(type, buff, (uint)BufferSize, bReadAll, (uint)msTimeout);
-                values = new object[read];
-                for (uint idx = 0; idx < read; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    values[idx] = m_typeInfo.fromNative(here);
-                }
+                read = m_native.Read(type, pin.AddrOfPinnedObject(), (uint)BufferSize, bReadAll, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
+            values = m_typeInfo.fromPinnableArray(pinArray, (int)read);
         }
 
         public signals.IEPBuffer CreateBuffer()
@@ -1606,45 +1825,37 @@ namespace cppProxy
         public IntPtr NativeSender { get { return m_nativeRef; } }
         public IntPtr NativeReceiver { get { return new IntPtr(m_nativeRef.ToInt64() + IntPtr.Size); } }
 
-        public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
+        public void Read(signals.EType type, out Array values, bool bReadAll, int msTimeout)
         {
             if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_typeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * BufferSize);
+
+            Array pinArray = m_typeInfo.makePinnableArray(BufferSize);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            uint read;
             try
             {
-                uint read = m_native.Read(m_type, buff, (uint)BufferSize, bReadAll, (uint)msTimeout);
-                values = new object[read];
-                for (uint idx = 0; idx < read; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    values[idx] = m_typeInfo.fromNative(here);
-                }
+                read = m_native.Read(m_type, pin.AddrOfPinnedObject(), (uint)BufferSize, bReadAll, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
+            values = m_typeInfo.fromPinnableArray(pinArray, (int)read);
         }
 
-        public int Write(signals.EType type, object[] values, int msTimeout)
+        public int Write(signals.EType type, Array values, int msTimeout)
         {
             if (values == null) throw new ArgumentNullException("values");
             if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_typeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * values.Length);
+            Array pinArray = m_typeInfo.toPinnableArray(values);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
             try
             {
-                for (int idx = 0; idx < values.Length; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    m_typeInfo.toNative(values[idx], here);
-                }
-                return (int)m_native.Write(type, buff, (uint)values.Length, (uint)msTimeout);
+                return (int)m_native.Write(type, pin.AddrOfPinnedObject(), (uint)values.Length, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
         }
 
@@ -1850,7 +2061,7 @@ namespace cppProxy
 
         public IntPtr NativeReceiver { get { return m_nativeRecvRef; } }
 
-        public void Read(signals.EType type, out object[] values, bool bReadAll, int msTimeout)
+        public void Read(signals.EType type, out Array values, bool bReadAll, int msTimeout)
         {
             if (type != m_recvType || m_recvTypeInfo == null)
             {
@@ -1858,22 +2069,19 @@ namespace cppProxy
                 m_recvTypeInfo = ProxyTypes.getTypeInfo(type);
             }
             if (m_recvTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_recvTypeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * BufferSize);
+
+            Array pinArray = m_recvTypeInfo.makePinnableArray(BufferSize);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            uint read;
             try
             {
-                uint read = m_nativeRecv.Read(type, buff, (uint)BufferSize, bReadAll, (uint)msTimeout);
-                values = new object[read];
-                for (uint idx = 0; idx < read; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    values[idx] = m_recvTypeInfo.fromNative(here);
-                }
+                read = m_nativeRecv.Read(type, pin.AddrOfPinnedObject(), (uint)BufferSize, bReadAll, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
+            values = m_recvTypeInfo.fromPinnableArray(pinArray, (int)read);
         }
 
         public signals.IEPBuffer CreateBuffer()
@@ -1939,7 +2147,7 @@ namespace cppProxy
 
         public IntPtr NativeSender { get { return m_nativeSendRef; } }
 
-        public int Write(signals.EType type, object[] values, int msTimeout)
+        public int Write(signals.EType type, Array values, int msTimeout)
         {
             if (values == null) throw new ArgumentNullException("values");
             if (type != m_sendType || m_sendTypeInfo == null)
@@ -1948,20 +2156,15 @@ namespace cppProxy
                 m_sendTypeInfo = ProxyTypes.getTypeInfo(type);
             }
             if (m_sendTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
-            int elemSize = m_sendTypeInfo.size(null);
-            IntPtr buff = Marshal.AllocHGlobal(elemSize * values.Length);
+            Array pinArray = m_sendTypeInfo.toPinnableArray(values);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
             try
             {
-                for (int idx = 0; idx < values.Length; idx++)
-                {
-                    IntPtr here = new IntPtr(buff.ToInt64() + idx * elemSize);
-                    m_sendTypeInfo.toNative(values[idx], here);
-                }
-                return (int)m_nativeSend.Write(type, buff, (uint)values.Length, (uint)msTimeout);
+                return (int)m_nativeSend.Write(type, pin.AddrOfPinnedObject(), (uint)values.Length, (uint)msTimeout);
             }
             finally
             {
-                Marshal.FreeHGlobal(buff);
+                pin.Free();
             }
         }
 

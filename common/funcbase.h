@@ -221,9 +221,6 @@ template<signals::EType INN, signals::EType OUTT, typename OPER>
 //	std::unary_function<typename StoreType<in>::type, typename StoreType<out>::type> oper
 class Function : public FunctionBase<INN,OUTT,Function<INN,OUTT,OPER> >
 {
-private:
-	typedef Function<INN, OUTT, OPER> my_type;
-
 protected:
 	class Instance : public InstanceBase
 	{

@@ -77,10 +77,10 @@ public:
 		virtual const char* EPDescr()				{ return EP_DESCR; }
 	};
 
-	class CIncoming : public CSimpleIncomingChild
+	class CIncoming : public CSimpleCascadeIncomingChild
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
-		inline CIncoming(signals::IBlock* parent):CSimpleIncomingChild(IN_TYPE, parent) { }
+		inline CIncoming(CFrameBuilder* parent):CSimpleCascadeIncomingChild(IN_TYPE, parent, parent->m_outgoing) { }
 		virtual const char* EPName()	{ return EP_NAME; }
 		virtual const char* EPDescr()	{ return EP_DESCR; }
 

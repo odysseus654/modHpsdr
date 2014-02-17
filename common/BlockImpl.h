@@ -56,9 +56,7 @@ public:
 //	virtual unsigned Release() = 0;
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
-
-	void MergeRemoteAttrs(std::map<std::string,signals::IAttribute*>& attrs, unsigned flags);
-	signals::IAttribute* RemoteGetByName(const char* name);
+	signals::IAttributes* RemoteAttributes();
 
 protected:
 	virtual void OnConnection(signals::IEPRecvFrom*) { }
@@ -87,6 +85,7 @@ public:
 //	virtual signals::EType Type() = 0;
 //	virtual signals::IAttributes* Attributes() = 0;
 //	virtual signals::IEPBuffer* CreateBuffer() = 0;
+	signals::IAttributes* RemoteAttributes();
 protected:
 	virtual void OnConnection(signals::IEPSendTo*) { }
 	inline signals::IEPSendTo* CurrentEndpoint() const { return m_connSend; }
@@ -164,20 +163,20 @@ protected:
 	TAttrSet         m_visibleAttrs;
 };
 
+template<typename RemoteEndpoint>
 class CCascadedAttributesBase : public CAttributesBase
 {
 protected:
-	inline CCascadedAttributesBase(CInEndpointBase& src):m_src(src) {}
-public:
+	inline CCascadedAttributesBase(RemoteEndpoint& src):m_src(src) {}
+public: // CAttributesBase implementaton
 	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags);
 	virtual signals::IAttribute* GetByName(const char* name);
-
+	signals::IAttribute* RemoteGetByName(const char* name);
 private:
-	CCascadedAttributesBase(const CCascadedAttributesBase& other);
-	CCascadedAttributesBase& operator=(const CCascadedAttributesBase& other);
-
+	CCascadedAttributesBase(const CCascadedAttributesBase<RemoteEndpoint>& other);
+	CCascadedAttributesBase& operator=(const CCascadedAttributesBase<RemoteEndpoint>& other);
 private:
-	CInEndpointBase& m_src;
+	RemoteEndpoint& m_src;
 };
 
 class CSimpleIncomingChild : public CInEndpointBase, public CAttributesBase
@@ -194,6 +193,31 @@ protected:
 private:
 	CSimpleIncomingChild(const CSimpleIncomingChild& other);
 	CSimpleIncomingChild& operator=(const CSimpleIncomingChild& other);
+
+public: // CInEndpointBase interface
+//	virtual const char* EPName()				{ return EP_NAME; }
+//	virtual const char* EPDescr()				{ return EP_DESCR; }
+	virtual unsigned AddRef()					{ return m_parent->AddRef(); }
+	virtual unsigned Release()					{ return m_parent->Release(); }
+	virtual signals::EType Type()				{ return m_type; }
+	virtual signals::IAttributes* Attributes()	{ return this; }
+};
+
+class CSimpleCascadeIncomingChild : public CInEndpointBase, public CCascadedAttributesBase<COutEndpointBase>
+{	// This class is assumed to be a static (non-dynamic) member of its parent
+protected:
+	inline CSimpleCascadeIncomingChild(signals::EType type, signals::IBlock* parent, COutEndpointBase& src)
+		:CCascadedAttributesBase(src),m_type(type),m_parent(parent) { }
+public:
+	virtual ~CSimpleCascadeIncomingChild() {}
+
+protected:
+	const signals::EType m_type;
+	signals::IBlock* m_parent;
+
+private:
+	CSimpleCascadeIncomingChild(const CSimpleCascadeIncomingChild& other);
+	CSimpleCascadeIncomingChild& operator=(const CSimpleCascadeIncomingChild& other);
 
 public: // CInEndpointBase interface
 //	virtual const char* EPName()				{ return EP_NAME; }
@@ -231,7 +255,7 @@ public: // COutEndpointBase interface
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class CSimpleCascadeOutgoingChild : public COutEndpointBase, public CCascadedAttributesBase
+class CSimpleCascadeOutgoingChild : public COutEndpointBase, public CCascadedAttributesBase<CInEndpointBase>
 {	// This class is assumed to be a static (non-dynamic) member of its parent
 protected:
 	inline CSimpleCascadeOutgoingChild(CInEndpointBase& src):CCascadedAttributesBase(src) { }
@@ -907,3 +931,83 @@ template<class ATTR> ATTR* CAttributesBase::addRemoteAttr(const char* name, ATTR
 	}
 	return attr;
 }
+
+// ------------------------------------------------------------------------------------------------ CascadeAttributeBase
+
+template<typename RemoteEndpoint>
+unsigned CCascadedAttributesBase<RemoteEndpoint>::Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags)
+{
+	if(flags & signals::flgLocalOnly)
+	{
+		return CAttributesBase::Itemize(attrs, availElem, flags);
+	}
+
+	typedef std::map<std::string,signals::IAttribute*> TStringMapToAttr;
+	TStringMapToAttr foundAttrs;
+
+	if(flags & signals::flgIncludeHidden)
+	{
+		for(TVoidMapToAttr::const_iterator trans=m_attributes.begin(); trans != m_attributes.end(); trans++)
+		{
+			CAttributeBase* attr = trans->second;
+			foundAttrs.insert(TStringMapToAttr::value_type(attr->Name(), attr));
+		}
+	}
+	else
+	{
+		for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
+		{
+			CAttributeBase* attr = *trans;
+			foundAttrs.insert(TStringMapToAttr::value_type(attr->Name(), attr));
+		}
+	}
+
+	signals::IAttributes* rattrs = m_src.RemoteAttributes();
+	if(rattrs)
+	{
+		unsigned count = rattrs->Itemize(NULL, 0, flags);
+		signals::IAttribute** attrList = new signals::IAttribute*[count];
+		rattrs->Itemize(attrList, count, flags);
+		for(unsigned idx=0; idx < count; idx++)
+		{
+			signals::IAttribute* attr = attrList[idx];
+			std::string name = attr->Name();
+			if(foundAttrs.find(name) == foundAttrs.end())
+			{
+				foundAttrs.insert(TStringMapToAttr::value_type(name, attr));
+			}
+		}
+		delete [] attrList;
+	}
+
+	if(attrs && availElem)
+	{
+		unsigned i;
+		TStringMapToAttr::const_iterator trans;
+		for(i=0, trans=foundAttrs.begin(); i < availElem && trans != foundAttrs.end(); i++, trans++)
+		{
+			signals::IAttribute* attr = trans->second;
+			attrs[i] = attr;
+		}
+	}
+	return foundAttrs.size();
+}
+
+template<typename RemoteEndpoint>
+signals::IAttribute* CCascadedAttributesBase<RemoteEndpoint>::GetByName(const char* name)
+{
+	signals::IAttribute* attr = CAttributesBase::GetByName(name);
+	if(attr) return attr;
+	signals::IAttributes* attrs = m_src.RemoteAttributes();
+	if(!attrs) return NULL;
+	return attrs->GetByName(name);
+}
+
+template<typename RemoteEndpoint>
+signals::IAttribute* CCascadedAttributesBase<RemoteEndpoint>::RemoteGetByName(const char* name)
+{
+	signals::IAttributes* attrs = m_src.RemoteAttributes();
+	if(!attrs) return NULL;
+	return attrs->GetByName(name);
+}
+

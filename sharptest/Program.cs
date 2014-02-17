@@ -53,6 +53,10 @@ namespace sharptest
             Layout.Schematic.Element splitterElem = new Layout.Schematic.Element(Layout.ElementType.Module, "splitter");
             Layout.Schematic.Element waterfallElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waterfall");
             Layout.Schematic.Element waveformElem = new Layout.Schematic.Element(Layout.ElementType.Module, "waveform");
+//            Layout.Schematic.Element chopElem = new Layout.Schematic.Element(Layout.ElementType.Function, "chop real frame");
+            Layout.Schematic.Element frameMin = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame min");
+            Layout.Schematic.Element identityElem = new Layout.Schematic.Element(Layout.ElementType.Module, "=");
+            //            Layout.Schematic.Element frameMax = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame max");
 
             schem.add(fftElem);
             schem.add(frameElem);
@@ -63,14 +67,24 @@ namespace sharptest
             schem.add(waveformElem);
             schem.add(splitterElem);
             schem.add(radioElem);
+//            schem.add(chopElem);
+            schem.add(frameMin);
+//            schem.add(frameMax);
+            schem.add(identityElem);
             schem.connect(radioElem, "recv1", frameElem, 0);
-            schem.connect(frameElem, 0, fftElem, 0);
-            schem.connect(fftElem, 0, divideByN, 0);
-            schem.connect(divideByN, 0, mag2Func, 0);
-            schem.connect(mag2Func, 0, dbFunc, 0);
-            schem.connect(dbFunc, 0, splitterElem, 0);
-            schem.connect(splitterElem, 0, waterfallElem, 0);
+//            schem.connect(radioElem, "wide", fftElem, 0);
+            schem.connect(frameElem, fftElem);
+            schem.connect(fftElem, divideByN);
+//            schem.connect(fftElem, chopElem);
+//            schem.connect(chopElem, divideByN);
+            schem.connect(divideByN, mag2Func);
+            schem.connect(mag2Func, dbFunc);
+            schem.connect(dbFunc, splitterElem);
+            schem.connect(splitterElem, waterfallElem);
             schem.connect(splitterElem, 1, waveformElem, 0);
+            schem.connect(splitterElem, 2, frameMin, 0);
+//            schem.connect(splitterElem, 3, frameMax, 0);
+            schem.connect(frameMin, identityElem);
 
             Console.Out.WriteLine("Resolving schematic");
             List<Layout.Schematic> options;
@@ -100,12 +114,12 @@ namespace sharptest
                 attrs["recvRate"].Value = 48000;
                 attrs["Recv1Freq"].Value = 10000000;
 
-  //            signals.IBlock fft = (signals.IBlock)circuit.Entry(fftElem);
-  //            signals.IOutEndpoint fftOut = fft.Outgoing[0];
-  //            signals.IEPBuffer outBuff = fftOut.CreateBuffer();
-  //            fftOut.Connect(outBuff);
-  //            cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(fftOut.Type, outBuff);
-  //            stream.data += new cppProxy.ReceiveStream.OnReceive(OnStream);
+                signals.IBlock ident = (signals.IBlock)circuit.Entry(identityElem);
+                signals.IOutEndpoint identOut = ident.Outgoing[0];
+                signals.IEPBuffer outBuff = identOut.CreateBuffer();
+                identOut.Connect(outBuff);
+                cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(identOut.Type, outBuff);
+                stream.data += new cppProxy.ReceiveStream.OnReceive(OnStreamDetail);
 
                 canvas = new Canvas();
 
@@ -165,7 +179,7 @@ namespace sharptest
         }
 
         protected int packetsReceived = 0;
-        private void OnStream(object[] data)
+        private void OnStream(Array data)
         {
             if (data.Length != 0)
             {
@@ -173,6 +187,27 @@ namespace sharptest
                 {
 //                    Console.Out.WriteLine(String.Format("received: {0} {1}", data.Length, data[0].GetType().Name));
                     packetsReceived += data.Length;
+                }
+            }
+        }
+
+        private void OnStreamDetail(Array data)
+        {
+            if (data.Length != 0)
+            {
+                lock (st_screenLock)
+                {
+                    foreach(object value in data)
+                    {
+                        if (value == null)
+                        {
+                            Console.Out.WriteLine("received: null");
+                        }
+                        else
+                        {
+                            Console.Out.WriteLine(String.Format("received: ({0}){1}", value.GetType().Name, value));
+                        }
+                    }
                 }
             }
         }

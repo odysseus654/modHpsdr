@@ -114,13 +114,13 @@ namespace signals
 
     public interface IEPSendTo : IDisposable
 	{
-		int Write(EType type, object[] buffer, int msTimeout);
+		int Write(EType type, Array buffer, int msTimeout);
         IAttributes InputAttributes { get; }
     };
 
     public interface IEPRecvFrom : IDisposable
 	{
-		void Read(EType type, out object[] buffer, bool bReadAll, int msTimeout);
+		void Read(EType type, out Array buffer, bool bReadAll, int msTimeout);
         IAttributes OutputAttributes { get; }
         IEPBuffer CreateBuffer();
     };

@@ -20,7 +20,7 @@ namespace cppProxy
 {
     public class ReceiveStream : IDisposable
     {
-        public delegate void OnReceive(object[] values);
+        public delegate void OnReceive(Array values);
         public event OnReceive data;
         private Thread m_thread;
         private signals.EType m_type;
@@ -64,7 +64,7 @@ namespace cppProxy
         {
             for (; ; )
             {
-                object[] buffer;
+                Array buffer;
                 m_recv.Read(m_type, out buffer, false, -1);
                 if(data != null) data(buffer);
             }

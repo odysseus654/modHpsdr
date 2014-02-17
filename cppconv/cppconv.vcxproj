@@ -86,12 +86,14 @@
     <ClInclude Include="..\common\funcbase.h" />
     <ClInclude Include="..\common\mt.h" />
     <ClInclude Include="..\ext\FastDelegate.h" />
+    <ClInclude Include="identity.h" />
     <ClInclude Include="split.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="functions.cpp" />
+    <ClCompile Include="identity.cpp" />
     <ClCompile Include="modules.cpp" />
     <ClCompile Include="split.cpp" />
     <ClCompile Include="stdafx.cpp">

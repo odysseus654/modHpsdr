@@ -45,6 +45,9 @@
     <ClInclude Include="real_chop.h">
       <Filter>Implementation</Filter>
     </ClInclude>
+    <ClInclude Include="summ_frame.h">
+      <Filter>Implementation</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">

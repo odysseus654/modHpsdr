@@ -702,6 +702,11 @@ namespace Layout
             connect(new EndpointKey(from, ep1), new EndpointKey(to, ep2));
         }
 
+        public void connect(Element from, Element to)
+        {
+            connect(new EndpointKey(from, 0), new EndpointKey(to, 0));
+        }
+
         private void connect(EndpointKey fromEp, EndpointKey toEp)
         {
             if (connections.ContainsKey(fromEp))
@@ -1178,14 +1183,14 @@ namespace Layout
             radio = r;
         }
 
-        public object Entry(Schematic.Element elem)
+        public signals.ICircuitElement Entry(Schematic.Element elem)
         {
             if(elem == null) throw new ArgumentNullException("elem");
             if(elem.circuitId == 0) throw new ArgumentException("Element has no circuit ID", "elem");
             return Entry(elem.circuitId);
         }
 
-        public object Entry(int circuitId)
+        public signals.ICircuitElement Entry(int circuitId)
         {
             Element val;
             if (radio.TryGetValue(circuitId, out val))

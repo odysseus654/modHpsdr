@@ -15,6 +15,7 @@
 */
 #include "stdafx.h"
 #include "split.h"
+#include "identity.h"
 
 CSplitterDriver<signals::etypBoolean> split_bool;
 CSplitterDriver<signals::etypByte> split_byte;
@@ -37,13 +38,40 @@ CSplitterDriver<signals::etypVecComplex> split_vec_cpx;
 CSplitterDriver<signals::etypVecCmplDbl> split_vec_cpxdbl;
 CSplitterDriver<signals::etypVecLRSingle> split_vec_lr;
 
+CIdentityDriver<signals::etypBoolean> ident_bool;
+CIdentityDriver<signals::etypByte> ident_byte;
+CIdentityDriver<signals::etypShort> ident_short;
+CIdentityDriver<signals::etypLong> ident_long;
+CIdentityDriver<signals::etypInt64> ident_int64;
+CIdentityDriver<signals::etypSingle> ident_float;
+CIdentityDriver<signals::etypDouble> ident_double;
+CIdentityDriver<signals::etypComplex> ident_cpx;
+CIdentityDriver<signals::etypCmplDbl> ident_cpxdbl;
+CIdentityDriver<signals::etypLRSingle> ident_lr;
+CVecIdentityDriver<signals::etypVecBoolean> ident_vec_bool;
+CVecIdentityDriver<signals::etypVecByte> ident_vec_byte;
+CVecIdentityDriver<signals::etypVecShort> ident_vec_short;
+CVecIdentityDriver<signals::etypVecLong> ident_vec_long;
+CVecIdentityDriver<signals::etypVecInt64> ident_vec_int64;
+CVecIdentityDriver<signals::etypVecSingle> ident_vec_float;
+CVecIdentityDriver<signals::etypVecDouble> ident_vec_double;
+CVecIdentityDriver<signals::etypVecComplex> ident_vec_cpx;
+CVecIdentityDriver<signals::etypVecCmplDbl> ident_vec_cpxdbl;
+CVecIdentityDriver<signals::etypVecLRSingle> ident_vec_lr;
+
 signals::IBlockDriver* BLOCKS[] =
 {
 	// stream split
 	&split_bool, &split_byte, &split_short, &split_long, &split_int64, &split_float, &split_double,
 	&split_cpx, &split_cpxdbl, &split_lr,
 	&split_vec_bool, &split_vec_byte, &split_vec_short, &split_vec_long, &split_vec_int64, &split_vec_float, &split_vec_double,
-	&split_vec_cpx, &split_vec_cpxdbl, &split_vec_lr
+	&split_vec_cpx, &split_vec_cpxdbl, &split_vec_lr,
+
+	// identity
+	&ident_bool, &ident_byte, &ident_short, &ident_long, &ident_int64, &ident_float, &ident_double,
+	&ident_cpx, &ident_cpxdbl, &ident_lr,
+	&ident_vec_bool, &ident_vec_byte, &ident_vec_short, &ident_vec_long, &ident_vec_int64, &ident_vec_float, &ident_vec_double,
+	&ident_vec_cpx, &ident_vec_cpxdbl, &ident_vec_lr
 };
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)

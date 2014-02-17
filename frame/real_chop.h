@@ -16,15 +16,6 @@
 #pragma once
 #include <funcbase.h>
 
-template<typename Derived>
-class CascadeAttributeBase : public CAttributesBase
-{
-public: // CAttributesBase implementaton
-	virtual unsigned Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags);
-	virtual signals::IAttribute* GetByName(const char* name);
-	signals::IAttribute* RemoteGetByName(const char* name);
-};
-
 template<class AttrsType>
 class CAttr_widthProxy : public CAttribute<signals::etypLong>, public signals::IAttributeObserver
 {
@@ -59,13 +50,14 @@ protected:
 
 protected:
 	template<typename Derived>
-	class ChopAttributeBase : public CascadeAttributeBase<Derived>
+	class ChopAttributeBase : public CCascadedAttributesBase<Derived>
 	{
 	private:
 		typedef ChopAttributeBase<Derived> my_attr_type;
 
 	protected:
 		inline ChopAttributeBase()
+			:CCascadedAttributesBase<Derived>(*static_cast<Derived*>(this))
 		{
 			buildAttrs();
 		}
@@ -84,7 +76,7 @@ protected:
 
 		virtual signals::IAttribute* GetByName(const char* name)
 		{
-			signals::IAttribute* attr = CascadeAttributeBase<Derived>::GetByName(name);
+			signals::IAttribute* attr = CCascadedAttributesBase<Derived>::GetByName(name);
 			if(attr == attrs.blockSize && attrs.blockSize) attrs.blockSize->establishProxy(true);
 			return attr;
 		}
@@ -108,7 +100,7 @@ protected:
 		typedef std::vector<my_type> TInBuffer;
 		TInBuffer m_buffer;
 
-		inline signals::IAttributes* FromAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
+		inline signals::IAttributes* RemoteAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
 
 	public:
 		inline InputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec)
@@ -130,7 +122,7 @@ protected:
 
 		virtual signals::IAttributes* OutputAttributes() { return this; }
 
-		friend class CascadeAttributeBase<InputFunction>;
+		friend class CCascadedAttributesBase<InputFunction>;
 	};
 
 	class OutputFunction : public OutputFunctionBase, public ChopAttributeBase<OutputFunction>
@@ -140,7 +132,7 @@ protected:
 			:OutputFunctionBase(parent, spec) {}
 
 	protected:
-		inline signals::IAttributes* FromAttributes() { return m_writeFrom ? m_writeFrom->Attributes() : NULL; }
+		inline signals::IAttributes* RemoteAttributes() { return m_writeFrom ? m_writeFrom->Attributes() : NULL; }
 
 	public: // IOutEndpoint implementaton
 		virtual signals::EType Type()	{ return ET; }
@@ -163,7 +155,7 @@ protected:
 			return m_writeTo->Write(ET, buffer, numElem / 2, msTimeout) * 2;
 		}
 
-		friend class CascadeAttributeBase<OutputFunction>;
+		friend class CCascadedAttributesBase<OutputFunction>;
 	};
 
 	class Instance : public CRefcountObject, public signals::IFunction
@@ -197,85 +189,6 @@ private:
 	static const char* DESCR;
 	static const unsigned char FINGERPRINT[];
 };
-
-// ------------------------------------------------------------------------------------------------ CascadeAttributeBase
-
-template<typename Derived>
-unsigned CascadeAttributeBase<Derived>::Itemize(signals::IAttribute** attrs, unsigned availElem, unsigned flags)
-{
-	if(flags & signals::flgLocalOnly)
-	{
-		return CAttributesBase::Itemize(attrs, availElem, flags);
-	}
-
-	typedef std::map<std::string,signals::IAttribute*> TStringMapToAttr;
-	TStringMapToAttr foundAttrs;
-
-	if(flags & signals::flgIncludeHidden)
-	{
-		for(TVoidMapToAttr::const_iterator trans=m_attributes.begin(); trans != m_attributes.end(); trans++)
-		{
-			CAttributeBase* attr = trans->second;
-			foundAttrs.insert(TStringMapToAttr::value_type(attr->Name(), attr));
-		}
-	}
-	else
-	{
-		for(TAttrSet::const_iterator trans=m_visibleAttrs.begin(); trans != m_visibleAttrs.end(); trans++)
-		{
-			CAttributeBase* attr = *trans;
-			foundAttrs.insert(TStringMapToAttr::value_type(attr->Name(), attr));
-		}
-	}
-
-	signals::IAttributes* rattrs = static_cast<Derived*>(this)->FromAttributes();
-	if(rattrs)
-	{
-		unsigned count = rattrs->Itemize(NULL, 0, flags);
-		signals::IAttribute** attrList = new signals::IAttribute*[count];
-		rattrs->Itemize(attrList, count, flags);
-		for(unsigned idx=0; idx < count; idx++)
-		{
-			signals::IAttribute* attr = attrList[idx];
-			std::string name = attr->Name();
-			if(foundAttrs.find(name) == foundAttrs.end())
-			{
-				foundAttrs.insert(TStringMapToAttr::value_type(name, attr));
-			}
-		}
-		delete [] attrList;
-	}
-
-	if(attrs && availElem)
-	{
-		unsigned i;
-		TStringMapToAttr::const_iterator trans;
-		for(i=0, trans=foundAttrs.begin(); i < availElem && trans != foundAttrs.end(); i++, trans++)
-		{
-			signals::IAttribute* attr = trans->second;
-			attrs[i] = attr;
-		}
-	}
-	return foundAttrs.size();
-}
-
-template<typename Derived>
-signals::IAttribute* CascadeAttributeBase<Derived>::GetByName(const char* name)
-{
-	signals::IAttribute* attr = CAttributesBase::GetByName(name);
-	if(attr) return attr;
-	signals::IAttributes* attrs = static_cast<Derived*>(this)->FromAttributes();
-	if(!attrs) return NULL;
-	return attrs->GetByName(name);
-}
-
-template<typename Derived>
-signals::IAttribute* CascadeAttributeBase<Derived>::RemoteGetByName(const char* name)
-{
-	signals::IAttributes* attrs = static_cast<Derived*>(this)->FromAttributes();
-	if(!attrs) return NULL;
-	return attrs->GetByName(name);
-}
 
 // ------------------------------------------------------------------------------------------------ CAttr_widthProxy
 

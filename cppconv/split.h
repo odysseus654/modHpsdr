@@ -32,7 +32,7 @@ public: // IBlock implementation
 	virtual unsigned Outgoing(signals::IOutEndpoint** ep, unsigned availEP);
 
 public:
-	class COutgoing : public COutEndpointBase, public CCascadedAttributesBase
+	class COutgoing : public COutEndpointBase, public CCascadedAttributesBase<CInEndpointBase>
 	{	// This class is assumed to be a static (non-dynamic) member of its parent
 	public:
 		inline COutgoing(CSplitterBase* parent):CCascadedAttributesBase(parent->m_incoming),m_parent(parent) { }
@@ -188,15 +188,18 @@ void CSplitter<ET,DEFAULT_BUFSIZE>::thread_run()
 	while(threadRunning())
 	{
 		unsigned recvCount = m_incoming.Read(ET, buffer.data(), buffer.size(), FALSE, IN_BUFFER_TIMEOUT);
-		for(unsigned idx = 0; idx < numEp; idx++)
+		if(recvCount)
 		{
-			COutgoing& here = m_outgoing[idx];
-			if(here.isConnected())
+			for(unsigned idx = 0; idx < numEp; idx++)
 			{
-				unsigned outSent = here.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
-				if(outSent != recvCount)
+				COutgoing& here = m_outgoing[idx];
+				if(here.isConnected())
 				{
-					here.attrs.sync_fault->fire();
+					unsigned outSent = here.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
+					if(outSent != recvCount)
+					{
+						here.attrs.sync_fault->fire();
+					}
 				}
 			}
 		}
