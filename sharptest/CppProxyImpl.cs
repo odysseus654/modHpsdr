@@ -148,6 +148,8 @@ namespace cppProxy
             {
                 // adapted from http://rogue-modron.blogspot.com/2011/11/invoking-native.html
                 MethodInfo method = methods[idx];
+
+                // assemble the parameters
                 Type calliReturnType = GetPointerTypeIfReference(method.ReturnType);
                 ParameterInfo[] methodParms = method.GetParameters();
                 Type[] invokeParameterTypes = new Type[methodParms.Length];
@@ -158,65 +160,56 @@ namespace cppProxy
                     invokeParameterTypes[i] = methodParms[i].ParameterType;
                     calliParameterTypes[i+1] = GetPointerTypeIfReference(methodParms[i].ParameterType);
                 }
-                
+
+                // create the method
                 MethodBuilder calliMethod = typeBuilder.DefineMethod(method.Name,
                     MethodAttributes.Public | MethodAttributes.Virtual,
                     method.ReturnType, invokeParameterTypes);
                 ILGenerator generator = calliMethod.GetILGenerator();
 
-                LocalBuilder vtbl = generator.DeclareLocal(typeof(IntPtr));
-#if DEBUG
-                vtbl.SetLocalSymInfo("vtbl");
-#endif
-
-                // push "this"
+                // retrieve our stored "this"
                 generator.Emit(OpCodes.Ldarg_0);
                 generator.Emit(OpCodes.Ldfld, thisPtrRef);
+
+                // adjust "this" to find our vtbl
                 if (vtblNo != 0)
                 {
-                    generator.Emit(OpCodes.Ldc_I4, IntPtr.Size * vtblNo);
+                    Emit_Ldc_I4(generator, IntPtr.Size * vtblNo);
                     generator.Emit(OpCodes.Add);
                 }
-                generator.Emit(OpCodes.Dup);
-                generator.Emit(OpCodes.Stloc_0);
 
-                // Emits instructions for loading the parameters into the stack.
-                for (int i = 1; i < calliParameterTypes.Length; i++)
+                generator.Emit(OpCodes.Dup);
+                if (calliParameterTypes.Length > 0)
                 {
-                    switch (i)
+                    LocalBuilder vtbl = generator.DeclareLocal(typeof(IntPtr));
+#if DEBUG
+                    vtbl.SetLocalSymInfo("vtbl");
+#endif
+                    Emit_StLoc(generator, vtbl);
+
+                    // Emits instructions for loading the parameters into the stack.
+                    for (int i = 1; i < calliParameterTypes.Length; i++)
                     {
-                        case 1:
-                            generator.Emit(OpCodes.Ldarg_1);
-                            break;
-                        case 2:
-                            generator.Emit(OpCodes.Ldarg_2);
-                            break;
-                        case 3:
-                            generator.Emit(OpCodes.Ldarg_3);
-                            break;
-                        default:
-                            generator.Emit(OpCodes.Ldarg, i);
-                            break;
+                        Emit_LdArg(generator, i);
                     }
+                    Emit_LdLoc(generator, vtbl);
                 }
 
-                // Emits instruction for loading the address of the
-                //native function into the stack.
-
-                generator.Emit(OpCodes.Ldloc_0);
+                // Find the function pointer inside the selected vtbl
                 generator.Emit(OpCodes.Ldind_I);
                 if (vtblOff != 0)
                 {
-                    generator.Emit(OpCodes.Ldc_I4, IntPtr.Size * vtblOff);
+                    Emit_Ldc_I4(generator, IntPtr.Size * vtblOff);
                     generator.Emit(OpCodes.Add);
                 }
-                vtblOff++;
+                vtblOff++;  // bump function pointer index for next caller
                 generator.Emit(OpCodes.Ldind_I);
 
                 // Emits calli opcode.
+                // Note that verification throws "Expected ByRef", but this is explicitly "Correct CIL" according to Part III:3.20
                 generator.EmitCalli(OpCodes.Calli, CallingConvention.ThisCall, calliReturnType, calliParameterTypes);
 
-                // Emits instruction for returning a value.
+                // Returning to the caller, with a value if requested.
                 generator.Emit(OpCodes.Ret);
             }
         }
@@ -224,6 +217,116 @@ namespace cppProxy
         private static Type GetPointerTypeIfReference(Type type)
         {
             return type.IsByRef ? Type.GetType(type.FullName.Replace("&", "*")) : type;
+        }
+
+        private static void Emit_LdLoc(ILGenerator generator, LocalBuilder local)
+        {
+            // Helper function to generate efficient CIL for retrieving a local variable
+            switch (local.LocalIndex)
+            {
+                case 0:
+                    generator.Emit(OpCodes.Ldloc_0);
+                    break;
+                case 1:
+                    generator.Emit(OpCodes.Ldloc_1);
+                    break;
+                case 2:
+                    generator.Emit(OpCodes.Ldloc_2);
+                    break;
+                case 3:
+                    generator.Emit(OpCodes.Ldloc_3);
+                    break;
+                default:
+                    generator.Emit((local.LocalIndex < 256) ? OpCodes.Ldloc_S : OpCodes.Ldloc, local.LocalIndex);
+                    break;
+            }
+        }
+
+        private static void Emit_StLoc(ILGenerator generator, LocalBuilder local)
+        {
+            // Helper function to generate efficient CIL for storing a local variable
+            switch (local.LocalIndex)
+            {
+                case 0:
+                    generator.Emit(OpCodes.Stloc_0);
+                    break;
+                case 1:
+                    generator.Emit(OpCodes.Stloc_1);
+                    break;
+                case 2:
+                    generator.Emit(OpCodes.Stloc_2);
+                    break;
+                case 3:
+                    generator.Emit(OpCodes.Stloc_3);
+                    break;
+                default:
+                    generator.Emit((local.LocalIndex < 256) ? OpCodes.Stloc_S : OpCodes.Stloc, local.LocalIndex);
+                    break;
+            }
+        }
+
+        private static void Emit_LdArg(ILGenerator generator, int arg)
+        {
+            // Helper function to generate efficient CIL for retrieving a parameter
+            switch (arg)
+            {
+                case 0:
+                    generator.Emit(OpCodes.Ldarg_0);
+                    break;
+                case 1:
+                    generator.Emit(OpCodes.Ldarg_1);
+                    break;
+                case 2:
+                    generator.Emit(OpCodes.Ldarg_2);
+                    break;
+                case 3:
+                    generator.Emit(OpCodes.Ldarg_3);
+                    break;
+                default:
+                    generator.Emit((arg < 256) ? OpCodes.Ldarg_S : OpCodes.Ldarg, arg);
+                    break;
+            }
+        }
+
+        private static void Emit_Ldc_I4(ILGenerator generator, long val)
+        {
+            // Helper function to generate efficient CIL for using a constant int value
+            switch (val)
+            {
+                case -1:
+                    generator.Emit(OpCodes.Ldc_I4_M1);
+                    break;
+                case 0:
+                    generator.Emit(OpCodes.Ldc_I4_0);
+                    break;
+                case 1:
+                    generator.Emit(OpCodes.Ldc_I4_1);
+                    break;
+                case 2:
+                    generator.Emit(OpCodes.Ldc_I4_2);
+                    break;
+                case 3:
+                    generator.Emit(OpCodes.Ldc_I4_3);
+                    break;
+                case 4:
+                    generator.Emit(OpCodes.Ldc_I4_4);
+                    break;
+                case 5:
+                    generator.Emit(OpCodes.Ldc_I4_5);
+                    break;
+                case 6:
+                    generator.Emit(OpCodes.Ldc_I4_6);
+                    break;
+                case 7:
+                    generator.Emit(OpCodes.Ldc_I4_7);
+                    break;
+                case 8:
+                    generator.Emit(OpCodes.Ldc_I4_8);
+                    break;
+                default:
+                    generator.Emit((val >= -128 && val < 128) ? OpCodes.Ldc_I4_S : OpCodes.Ldc_I4, val);
+                    break;
+            }
         }
 
         public static Callback CreateCallin(object target, Type ifaceType)
