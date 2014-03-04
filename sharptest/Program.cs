@@ -41,6 +41,9 @@ namespace sharptest
 #else
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Release", library);
 #endif
+            canvas = new Canvas();
+            canvas.ShowDialog();
+            return;
 
             Console.Out.WriteLine("Building schematic");
             Layout.Schematic schem = new Layout.Schematic();

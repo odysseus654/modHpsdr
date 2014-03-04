@@ -73,6 +73,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is IntPtr[]) return src;
                 int len = src.Length;
                 IntPtr[] outBuff = new IntPtr[len];
                 for (int idx = 0; idx < len; idx++)
@@ -128,6 +129,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is byte[]) return src;
                 int len = src.Length;
                 byte[] outBuff = new byte[len];
                 for (int idx = 0; idx < len; idx++)
@@ -155,6 +157,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is short[]) return src;
                 int len = src.Length;
                 short[] outBuff = new short[len];
                 for (int idx = 0; idx < len; idx++)
@@ -182,6 +185,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is int[]) return src;
                 int len = src.Length;
                 int[] outBuff = new int[len];
                 for (int idx = 0; idx < len; idx++)
@@ -209,6 +213,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is long[]) return src;
                 int len = src.Length;
                 long[] outBuff = new long[len];
                 for (int idx = 0; idx < len; idx++)
@@ -246,6 +251,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is float[]) return src;
                 int len = src.Length;
                 float[] outBuff = new float[len];
                 for (int idx = 0; idx < len; idx++)
@@ -283,6 +289,7 @@ namespace cppProxy
 
             public Array toPinnableArray(Array src)
             {
+                if (src is double[]) return src;
                 int len = src.Length;
                 double[] outBuff = new double[len];
                 for (int idx = 0; idx < len; idx++)
@@ -1350,12 +1357,11 @@ namespace cppProxy
             {
                 if (m_typeInfo == null) throw new NotSupportedException("Cannot store value for this type.");
                 if (value == null) throw new ArgumentNullException("value");
-                IntPtr buff = IntPtr.Zero;
+                IntPtr buff = Marshal.AllocHGlobal(m_typeInfo.size(value));
                 try
                 {
-                    buff = Marshal.AllocHGlobal(m_typeInfo.size(value));
                     m_typeInfo.toNative(value, buff);
-                    m_native.setValue(buff);
+                    if (!m_native.setValue(buff)) throw new ArgumentOutOfRangeException("value");
                 }
                 finally
                 {
@@ -1669,8 +1675,8 @@ namespace cppProxy
             {
                 m_type = type;
                 m_typeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             }
-            if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
 
             Array pinArray = m_typeInfo.toPinnableArray(values);
             GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
@@ -1724,8 +1730,8 @@ namespace cppProxy
             {
                 m_type = type;
                 m_typeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             }
-            if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             Array pinArray = m_typeInfo.makePinnableArray(BufferSize);
             GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
             uint read;
@@ -2067,8 +2073,8 @@ namespace cppProxy
             {
                 m_recvType = type;
                 m_recvTypeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_recvTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             }
-            if (m_recvTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
 
             Array pinArray = m_recvTypeInfo.makePinnableArray(BufferSize);
             GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
@@ -2154,8 +2160,8 @@ namespace cppProxy
             {
                 m_sendType = type;
                 m_sendTypeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_sendTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             }
-            if (m_sendTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
             Array pinArray = m_sendTypeInfo.toPinnableArray(values);
             GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
             try

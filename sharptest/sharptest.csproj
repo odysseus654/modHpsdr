@@ -49,6 +49,9 @@
     <Compile Include="CppProxy.cs" />
     <Compile Include="CppProxyImpl.cs" />
     <Compile Include="CppProxyStream.cs" />
+    <Compile Include="FrequencyControl.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="ModLibrary.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
