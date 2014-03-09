@@ -53,18 +53,21 @@ namespace sharptest
             this.SuspendLayout();
 
             // panel1
+            this.panel1.Name = "panel1";
             this.panel1.Location = new Point(21, 50);
             this.panel1.Size = new Size(600, 300);
             this.panel1.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
             this.panel1.TabIndex = 1;
 
             // panel2
+            this.panel2.Name = "panel2";
             this.panel2.Location = new Point(21, 330);
             this.panel2.Size = new Size(600, 300);
             this.panel2.Anchor = AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Top | AnchorStyles.Bottom;
             this.panel2.TabIndex = 2;
 
             // freq1
+            this.freq1.Name = "freq1";
             this.freq1.Location = new Point(5, 5);
             this.freq1.Size = new Size(200, 40);
             this.panel2.Anchor = AnchorStyles.Left | AnchorStyles.Top;

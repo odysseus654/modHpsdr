@@ -37,7 +37,7 @@ namespace sharptest
             SetStyle(ControlStyles.ResizeRedraw | ControlStyles.DoubleBuffer | ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.UserPaint | ControlStyles.Selectable | ControlStyles.StandardClick, true);
 
-            Value = 10000000;
+            Value = 0;
             BackColor = Color.Black;
             ForeColor = Color.Yellow;
         }
@@ -89,6 +89,7 @@ namespace sharptest
                 else
                 {
                     long newVal = Int64.Parse(value);
+                    if (newVal < 0) throw new ArgumentOutOfRangeException();
                     newText = newVal.ToString();
                     if (newText.Length > mMaxDigits) throw new ArgumentOutOfRangeException();
 
@@ -108,7 +109,7 @@ namespace sharptest
                     }
                 }
                 base.Text = newText;
-                Invalidate();
+                if(IsHandleCreated) Invalidate();
             }
         }
 
@@ -119,6 +120,7 @@ namespace sharptest
             {
                 if (value != mValue && !ReadOnly)
                 {
+                    if (value < 0) throw new ArgumentOutOfRangeException();
                     string newText = value.ToString();
                     if (newText.Length > mMaxDigits) throw new ArgumentOutOfRangeException();
 
@@ -135,7 +137,7 @@ namespace sharptest
                     }
                     mIsEditing = false;
                     base.Text = newText;
-                    Invalidate();
+                    if (IsHandleCreated) Invalidate();
                 }
             }
         }
@@ -184,7 +186,7 @@ namespace sharptest
         public event EventHandler EditingChanged;
         protected virtual void OnEditingChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             if (EditingChanged != null) EditingChanged(this, e);
         }
 
@@ -202,7 +204,7 @@ namespace sharptest
         public event EventHandler FocusBackColorChanged;
         protected virtual void OnFocusBackColorChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             if (FocusBackColorChanged != null) FocusBackColorChanged(this, e);
         }
 
@@ -215,7 +217,7 @@ namespace sharptest
         public event EventHandler EditColorChanged;
         protected virtual void OnEditColorChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             if (EditColorChanged != null) EditColorChanged(this, e);
         }
 
@@ -316,42 +318,68 @@ namespace sharptest
 
         protected override void OnSizeChanged(EventArgs e)
         {
+            if (IsHandleCreated) CreateFonts();
+            base.OnSizeChanged(e);
+        }
+
+        protected override void OnHandleCreated(EventArgs e)
+        {
+            if (mMajorSize == null || mMinorSize == null || mMinorFont == null)
+            {
+                CreateFonts();
+            }
+            base.OnHandleCreated(e);
+        }
+
+        private void CreateFonts()
+        {
             float height = ClientRectangle.Height - Margin.Vertical;
             Font = new Font(FontFamily.GenericSansSerif, height, FontStyle.Regular, GraphicsUnit.Pixel);
             mMinorFont = new Font(FontFamily.GenericSansSerif, height * 0.6f, FontStyle.Regular, GraphicsUnit.Pixel);
             PointF origin = new PointF(0, 0);
-            using(Graphics g = CreateGraphics())
+            using (Graphics g = CreateGraphics())
             {
                 mMinorSize = g.MeasureString("0", mMinorFont, origin, StringFormat.GenericTypographic);
                 mMajorSize = g.MeasureString("0", Font, origin, StringFormat.GenericTypographic);
                 mMinorSize.Height += 4;
             }
-            base.OnSizeChanged(e);
         }
 
+        private delegate void Action();
         private void OnAttrValueChanged(signals.IAttribute attr, object value)
         {
             if (attr == mBoundAttr)
             {
-                Value = Convert.ToInt64(value);
+                Action action = delegate()
+                {
+                    Value = Convert.ToInt64(value);
+                };
+                if (InvokeRequired)
+                {
+                    Invoke(action);
+                }
+                else
+                {
+                    action();
+                }
             }
         }
 
         protected override void OnTextChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             base.OnTextChanged(e);
         }
 
         protected override void OnForeColorChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             base.OnForeColorChanged(e);
         }
 
         protected override void OnBackColorChanged(EventArgs e)
         {
-            Invalidate();
+            if (IsHandleCreated) Invalidate();
             base.OnBackColorChanged(e);
         }
 

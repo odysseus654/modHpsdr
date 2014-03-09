@@ -54,6 +54,7 @@ namespace cppProxy
 
     static class ProxyTypes
     {
+        #region Proxy type conversion
         public interface ITypeMarshaller
         {
             int size(object val);
@@ -463,6 +464,7 @@ namespace cppProxy
                     return null;
             }
         }
+        #endregion
     }
 
     public static class Native

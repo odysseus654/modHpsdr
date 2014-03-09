@@ -37,13 +37,10 @@ namespace sharptest
             library = new ModLibrary();
             Console.Out.WriteLine("Loading modules");
 #if DEBUG
-            cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Debug", library);
+            cppProxy.CppProxyModuleDriver.DoDiscovery(@"..\..\..\Debug", library);
 #else
-            cppProxy.CppProxyModuleDriver.DoDiscovery(@"D:\modules\hpsdr-mod\Release", library);
+            cppProxy.CppProxyModuleDriver.DoDiscovery(@"..\..\..\Release", library);
 #endif
-            canvas = new Canvas();
-            canvas.ShowDialog();
-            return;
 
             Console.Out.WriteLine("Building schematic");
             Layout.Schematic schem = new Layout.Schematic();
@@ -74,6 +71,7 @@ namespace sharptest
             schem.add(frameMin);
 //            schem.add(frameMax);
             schem.add(identityElem);
+
             schem.connect(radioElem, "recv1", frameElem, 0);
 //            schem.connect(radioElem, "wide", fftElem, 0);
             schem.connect(frameElem, fftElem);
@@ -106,8 +104,7 @@ namespace sharptest
             }
 
             Console.Out.WriteLine("Building circuit");
-            circuit = options[0].construct();
-            using (circuit)
+            using (circuit = options[0].construct())
             {
                 Console.Out.WriteLine("Configuring circuit");
                 signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
@@ -125,6 +122,7 @@ namespace sharptest
                 stream.data += new cppProxy.ReceiveStream.OnReceive(OnStreamDetail);
 
                 canvas = new Canvas();
+                canvas.freq1.Attribute = attrs["Recv1Freq"];
 
                 // start the canvas thread, wait for all the objects to be bound
                 canvasConstructedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
@@ -141,10 +139,9 @@ namespace sharptest
 
                 Console.Out.WriteLine("Shutting down circuit");
                 circuit.Stop();
-  //            stream.Stop();
-
-  //            Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
+                stream.Stop();
             }
+  //        Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
         }
 
         void panel1_HandleCreated(object sender, EventArgs e)
