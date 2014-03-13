@@ -65,8 +65,8 @@ namespace cppProxy
             for (; ; )
             {
                 Array buffer;
-                m_recv.Read(m_type, out buffer, false, -1);
-                if(data != null) data(buffer);
+                m_recv.Read(m_type, out buffer, false, 1000);
+                if(data != null && buffer.Length > 0) data(buffer);
             }
         }
     }

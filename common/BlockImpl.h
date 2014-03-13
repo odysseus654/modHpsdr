@@ -522,23 +522,21 @@ public:
 //	virtual BOOL setValue(const void* newVal) = 0;
 
 protected:
-	void privateSetValue(const store_type& newVal)
+	bool privateSetValue(const store_type& newVal)
 	{
-		if(newVal != m_value)
-		{
-			m_value = newVal;
-			onSetValue(newVal);
-		}
+		if(newVal == m_value) return false;
+		m_value = newVal;
+		onSetValue(newVal);
+		return true;
 	}
 
-	void privateSetValue(const store_type& newVal, Locker& lock)
+	bool privateSetValue(const store_type& newVal, Locker& lock, bool bDoNotify = true)
 	{
-		if(newVal != m_value)
-		{
-			m_value = newVal;
-			lock.unlock();
-			onSetValue(newVal);
-		}
+		if(newVal == m_value) return false;
+		m_value = newVal;
+		lock.unlock();
+		if(bDoNotify) onSetValue(newVal);
+		return true;
 	}
 
 	virtual void onSetValue(const store_type& value)
@@ -600,23 +598,21 @@ public:
 protected:
 	virtual void onSetValue(const store_type& value);
 
-	void privateSetValue(const store_type& newVal)
+	bool privateSetValue(const store_type& newVal)
 	{
-		if(newVal != m_value)
-		{
-			m_value = newVal;
-			onSetValue(newVal);
-		}
+		if(newVal == m_value) return false;
+		m_value = newVal;
+		onSetValue(newVal);
+		return true;
 	}
 
-	void privateSetValue(const store_type& newVal, Locker& lock)
+	bool privateSetValue(const store_type& newVal, Locker& lock, bool bDoNotify = true)
 	{
-		if(newVal != m_value)
-		{
-			m_value = newVal;
-			lock.unlock();
-			onSetValue(newVal);
-		}
+		if(newVal == m_value) return false;
+		m_value = newVal;
+		lock.unlock();
+		if(bDoNotify) onSetValue(newVal);
+		return true;
 	}
 
 private:
@@ -664,12 +660,19 @@ public:
 		return nativeSetValue(*(store_type*)newVal);
 	}
 
-	virtual bool nativeSetValue(const store_type& newVal)
+	bool nativeSetValue(const store_type& newVal)
 	{
 		if(!isValidValue(newVal)) return false;
 		Locker lock(m_valueLock);
 		privateSetValue(newVal, lock);
 		return true;
+	}
+
+	bool nativeSimpleSetValue(const store_type& newVal)
+	{
+		if(!isValidValue(newVal)) return false;
+		Locker lock(m_valueLock);
+		return privateSetValue(newVal, lock, false);
 	}
 
 	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }
@@ -699,12 +702,19 @@ public:
 		return nativeSetValue((const char*)newVal);
 	}
 
-	virtual bool nativeSetValue(const std::string& newVal)
+	bool nativeSetValue(const std::string& newVal)
 	{
 		if(!isValidValue(newVal)) return false;
 		Locker lock(m_valueLock);
 		privateSetValue(newVal, lock);
 		return true;
+	}
+
+	bool nativeSimpleSetValue(const std::string& newVal)
+	{
+		if(!isValidValue(newVal)) return false;
+		Locker lock(m_valueLock);
+		return privateSetValue(newVal, lock, false);
 	}
 
 	virtual bool isValidValue(const store_type& newVal) const { UNUSED_ALWAYS(newVal); return true; }

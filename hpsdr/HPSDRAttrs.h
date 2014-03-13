@@ -292,7 +292,11 @@ public:
 		ASSERT(attr == proxyObject && proxyObject);
 		if(attr == proxyObject && proxyObject)
 		{
-			nativeSetValue(proxyObject->nativeGetValue());
+			store_type newVal = proxyObject->nativeGetValue();
+			if(nativeSimpleSetValue(newVal))
+			{
+				base_type::onSetValue(newVal);
+			}
 		}
 	}
 

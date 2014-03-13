@@ -719,11 +719,11 @@ namespace Layout
             }
             if (!this.contents.ContainsValue(fromEp.elem))
             {
-                throw new ArgumentException("This connection source element is not in this circuit", "fromEp");
+                add(fromEp.elem);
             }
             if (!this.contents.ContainsValue(toEp.elem))
             {
-                throw new ArgumentException("This connection sink element is not in this circuit", "toEp");
+                add(toEp.elem);
             }
             connections.Add(fromEp, toEp);
         }

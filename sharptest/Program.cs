@@ -58,20 +58,6 @@ namespace sharptest
             Layout.Schematic.Element identityElem = new Layout.Schematic.Element(Layout.ElementType.Module, "=");
             //            Layout.Schematic.Element frameMax = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame max");
 
-            schem.add(fftElem);
-            schem.add(frameElem);
-            schem.add(mag2Func);
-            schem.add(dbFunc);
-            schem.add(divideByN);
-            schem.add(waterfallElem);
-            schem.add(waveformElem);
-            schem.add(splitterElem);
-            schem.add(radioElem);
-//            schem.add(chopElem);
-            schem.add(frameMin);
-//            schem.add(frameMax);
-            schem.add(identityElem);
-
             schem.connect(radioElem, "recv1", frameElem, 0);
 //            schem.connect(radioElem, "wide", fftElem, 0);
             schem.connect(frameElem, fftElem);

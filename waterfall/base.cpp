@@ -409,7 +409,7 @@ void CDirectxBase::CIncoming::OnChanged(signals::IAttribute* attr, const void* v
 	}
 	else if(attr == m_lastFreqAttr)
 	{
-		__int64 freq;
+		__int64 freq = 0;
 		signals::EType type = attr->Type();
 		if(type == signals::etypLong)
 		{
