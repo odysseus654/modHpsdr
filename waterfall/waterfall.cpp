@@ -430,6 +430,8 @@ static inline double scale(double val, double high)
 
 void CDirectxWaterfall::onReceivedFrame(double* frame, unsigned size)
 {
+	if(!m_pDevice) return;
+
 	if(size && size != m_frameWidth)
 	{
 		m_frameWidth = size;

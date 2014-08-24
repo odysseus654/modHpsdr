@@ -56,6 +56,9 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Schematic.cs" />
+    <Compile Include="WaveformView.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="WeakDictionary.cs" />
   </ItemGroup>
   <ItemGroup>

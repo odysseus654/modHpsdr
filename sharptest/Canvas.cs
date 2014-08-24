@@ -22,8 +22,8 @@ namespace sharptest
 {
     class Canvas : Form
     {
-        public Control panel1;
-        public Control panel2;
+        public WaveformView panel1;
+        public WaveformView panel2;
         public FrequencyControl freq1;
 
         public Canvas()
@@ -47,8 +47,8 @@ namespace sharptest
 
         private void InitializeForm()
         {
-            this.panel1 = new Control();
-            this.panel2 = new Control();
+            this.panel1 = new WaveformView();
+            this.panel2 = new WaveformView();
             this.freq1 = new FrequencyControl();
             this.SuspendLayout();
 

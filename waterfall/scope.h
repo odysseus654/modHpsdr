@@ -57,7 +57,7 @@ private: // directx stuff
 	// shader resource references
 	ID3D10BufferPtr m_pVSGlobals;
 
-	CFont m_majFont, m_dotFont, m_minFont;
+	CFont m_majFont, m_dotFont;
 
 protected:
 	virtual void releaseDevice();

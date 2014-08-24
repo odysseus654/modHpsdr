@@ -74,7 +74,6 @@ public:
 private:
 	enum
 	{
-		DEFAULT_CAPACITY = 2048,
 		IN_BUFFER_TIMEOUT = 1000
 	};
 

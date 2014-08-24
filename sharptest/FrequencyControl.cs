@@ -521,7 +521,7 @@ namespace sharptest
                     break;
 
                 case Keys.Left:
-                    if (mFocusState != FocusState.Char && mFocusState == FocusState.Insert) break;
+                    if (mFocusState != FocusState.Char && mFocusState != FocusState.Insert) break;
                     if (mFocusPos < len-1) mFocusPos++;
                     Invalidate();
                     CursorOn();
@@ -590,7 +590,7 @@ namespace sharptest
                                 if(mFocusPos >= 0)
                                 {
                                     string text = Text;
-                                    int pos = text.Length - Math.Min(mFocusPos, text.Length - 1);
+                                    int pos = text.Length - Math.Min(mFocusPos, text.Length - 1) - 1;
                                     text = text.Substring(0, pos) + text.Substring(pos + 1);
                                     try
                                     {
@@ -603,7 +603,7 @@ namespace sharptest
                                     }
                                     Invalidate();
                                     mFocusState = FocusState.Insert;
-                                    mFocusPos = pos - 1;
+                                    mFocusPos = text.Length - pos - 1;
                                     e.Handled = true;
                                 }
                                 break;
@@ -644,8 +644,8 @@ namespace sharptest
                             case FocusState.Insert:
                                 {
                                     string text = Text;
-                                    int pos = text.Length - Math.Min(Math.Max(mFocusPos, 0), text.Length-1);
-                                    text = text.Substring(0, pos) + ch + text.Substring(pos + mFocusState == FocusState.Char ? 1 : 0);
+                                    int pos = text.Length - Math.Min(Math.Max(mFocusPos, 0), text.Length-1) - 1;
+                                    text = text.Substring(0, pos) + ch + text.Substring(pos + (mFocusState == FocusState.Char ? 1 : 0));
                                     if (text.Length <= mMaxDigits)
                                     {
                                         try
@@ -682,7 +682,7 @@ namespace sharptest
                             case FocusState.Insert:
                                 {
                                     string text = Text;
-                                    int pos = text.Length - Math.Min(Math.Max(mFocusPos, 0), text.Length - 1);
+                                    int pos = text.Length - Math.Min(Math.Max(mFocusPos, 0), text.Length - 1) - 1;
                                     text = text.Substring(0, pos - 1) + text.Substring(pos);
                                     try
                                     {
@@ -693,7 +693,7 @@ namespace sharptest
                                         Editing = true;
                                         Text = text;
                                     }
-                                    mFocusPos = pos;
+                                    mFocusPos = text.Length - pos;
                                     mFocusState = FocusState.Insert;
                                     Invalidate();
                                     e.Handled = true;

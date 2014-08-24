@@ -820,6 +820,10 @@ namespace Layout
             {
                 List<Schematic> answers = new List<Schematic>();
                 ResolveFailure failure = new ResolveFailure();
+                if (elm.availObjects.Count == 0)
+                {
+                    failure.Add(new CannotResolveElement(elm));
+                }
                 foreach (signals.ICircuitConnectible avail in elm.availObjects)
                 {
                     Schematic newSchem = here.Clone();

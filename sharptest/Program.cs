@@ -26,15 +26,9 @@ namespace sharptest
             (new Program()).Run();
         }
 
-        private ModLibrary library;
-        Canvas canvas;
-        Layout.Circuit circuit;
-        EventWaitHandle canvasConstructedEvent;
-        int canvasBindCount;
-
         void Run()
         {
-            library = new ModLibrary();
+            ModLibrary library = new ModLibrary();
             Console.Out.WriteLine("Loading modules");
 #if DEBUG
             cppProxy.CppProxyModuleDriver.DoDiscovery(@"..\..\..\Debug", library);
@@ -56,7 +50,7 @@ namespace sharptest
 //            Layout.Schematic.Element chopElem = new Layout.Schematic.Element(Layout.ElementType.Function, "chop real frame");
             Layout.Schematic.Element frameMin = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame min");
             Layout.Schematic.Element identityElem = new Layout.Schematic.Element(Layout.ElementType.Module, "=");
-            //            Layout.Schematic.Element frameMax = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame max");
+//            Layout.Schematic.Element frameMax = new Layout.Schematic.Element(Layout.ElementType.FunctionOnIn, "frame max");
 
             schem.connect(radioElem, "recv1", frameElem, 0);
 //            schem.connect(radioElem, "wide", fftElem, 0);
@@ -90,7 +84,7 @@ namespace sharptest
             }
 
             Console.Out.WriteLine("Building circuit");
-            using (circuit = options[0].construct())
+            using (Layout.Circuit circuit = options[0].construct())
             {
                 Console.Out.WriteLine("Configuring circuit");
                 signals.IBlock hpsdr = (signals.IBlock)circuit.Entry(radioElem);
@@ -107,17 +101,12 @@ namespace sharptest
                 cppProxy.ReceiveStream stream = new cppProxy.ReceiveStream(identOut.Type, outBuff);
                 stream.data += new cppProxy.ReceiveStream.OnReceive(OnStreamDetail);
 
-                canvas = new Canvas();
+                Canvas canvas = new Canvas();
                 canvas.freq1.Attribute = attrs["Recv1Freq"];
+                canvas.panel1.WaveformBlock = (signals.IBlock)circuit.Entry(waveformElem);
+                canvas.panel2.WaveformBlock = (signals.IBlock)circuit.Entry(waterfallElem);
 
-                // start the canvas thread, wait for all the objects to be bound
-                canvasConstructedEvent = new EventWaitHandle(false, EventResetMode.ManualReset);
-                canvasBindCount = 2;
-                canvas.panel1.HandleCreated += new EventHandler(panel1_HandleCreated);
-                canvas.panel2.HandleCreated += new EventHandler(panel2_HandleCreated);
                 Thread canvasThread = canvas.Start();
-                canvasConstructedEvent.WaitOne();
-                canvasConstructedEvent = null;
 
                 Console.Out.WriteLine("Powering circuit");
                 circuit.Start();
@@ -128,24 +117,7 @@ namespace sharptest
                 stream.Stop();
             }
   //        Console.Out.WriteLine(String.Format("{0} received total", packetsReceived));
-        }
-
-        void panel1_HandleCreated(object sender, EventArgs e)
-        {
-            Layout.ElemKey waveformElem = new Layout.ElemKey(Layout.ElementType.Module, "waveform");
-            List<Layout.Circuit.Element> lookup = circuit.Find(waveformElem);
-            signals.IBlock waveform = (signals.IBlock)lookup[0].obj;
-            waveform.Attributes["targetWindow"].Value = canvas.panel1.Handle;
-            if (Interlocked.Decrement(ref canvasBindCount) == 0) canvasConstructedEvent.Set();
-        }
-        
-        void panel2_HandleCreated(object sender, EventArgs e)
-        {
-            Layout.ElemKey waterfallElem = new Layout.ElemKey(Layout.ElementType.Module, "waterfall");
-            List<Layout.Circuit.Element> lookup = circuit.Find(waterfallElem);
-            signals.IBlock waterfall = (signals.IBlock)lookup[0].obj;
-            waterfall.Attributes["targetWindow"].Value = canvas.panel2.Handle;
-            if (Interlocked.Decrement(ref canvasBindCount) == 0) canvasConstructedEvent.Set();
+            int _i = 0;
         }
 
         protected object st_screenLock = new object();

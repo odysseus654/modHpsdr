@@ -34,8 +34,7 @@ const unsigned short CDirectxScope::VERTEX_INDICES[4] = { 2, 0, 3, 1 };
 CDirectxScope::CDirectxScope(signals::IBlockDriver* driver, bool bBottomOrigin):CDirectxBase(driver),
 	m_bIsComplexInput(true),m_bBottomOrigin(bBottomOrigin),
 	m_majFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma")),
-	m_dotFont(10, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma")),
-	m_minFont(15, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma"))
+	m_dotFont(10, 0, FW_NORMAL, 0, DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_DONTCARE, _T("Tahoma"))
 {
 }
 
@@ -275,7 +274,6 @@ HRESULT CDirectxScope::drawFrameContents(ID3D10Device1* pDevice)
 	m_bDrawingFonts = false;
 	m_majFont.BeginFrame();
 	m_dotFont.BeginFrame();
-	m_minFont.BeginFrame();
 
 	HRESULT hR = drawRect(pDevice);
 	if(FAILED(hR)) return hR;
@@ -287,7 +285,6 @@ HRESULT CDirectxScope::drawFrameContents(ID3D10Device1* pDevice)
 	pDevice->OMSetBlendState(pOrigBlendState, origBlendFactor, origBlendMask);
 	m_majFont.EndFrame();
 	m_dotFont.EndFrame();
-	m_minFont.EndFrame();
 
 	return S_OK;
 }
@@ -435,7 +432,7 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 
 		if(minLen)
 		{
-			hR = m_minFont.CalcSize(charBuf + majLen, minLen, minSize);
+			hR = m_majFont.CalcSize(charBuf + majLen, minLen, minSize);
 			if(FAILED(hR)) return hR;
 		}
 
@@ -461,8 +458,8 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 		}
 		if(FAILED(hR)) return hR;
 
-		rect.top = majSize.cy - dotSize.cy;
-		rect.bottom = majSize.cy;
+		rect.top = majSize.cy - dotSize.cy / 2;
+		rect.bottom = rect.top + dotSize.cy;
 		rect.left = rect.right;
 		rect.right = rect.left + dotSize.cx;
 		hR = m_dotFont.DrawText(*this, pDevice, &major->ch, 1, rect, dotColor);
@@ -474,7 +471,7 @@ HRESULT CDirectxScope::drawText(ID3D10Device1* pDevice)
 			rect.bottom = minSize.cy;
 			rect.left = rect.right;
 			rect.right = rect.left + minSize.cx;
-			hR = m_minFont.DrawText(*this, pDevice, charBuf + majLen, minLen, rect, minColor);
+			hR = m_majFont.DrawText(*this, pDevice, charBuf + majLen, minLen, rect, minColor);
 			if(FAILED(hR)) return hR;
 		}
 	}
