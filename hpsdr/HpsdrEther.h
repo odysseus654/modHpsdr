@@ -104,7 +104,7 @@ private:
 	Thread<> m_recvThread, m_sendThread;
 	SOCKET   m_sock;
 	unsigned m_lastIQSeq, m_lastWideSeq, m_nextSendSeq;
-	bool     m_iqStarting, m_wideStarting;
+	bool     m_iqStarting;
 	volatile byte m_lastRunStatus;
 	Semaphore m_sendThreadLock;
 	unsigned m_recvSamples;		// private to thread_recv

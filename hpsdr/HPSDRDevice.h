@@ -315,10 +315,12 @@ protected:
 
 	enum
 	{
-		MIC_RATE = 48								// all mic input is fixed at 48k regardless of IQ rate
+		MIC_RATE = 48,								// all mic input is fixed at 48k regardless of IQ rate
+		MAX_RECEIVERS = 4
 	};
 
-	const static float SCALE_32;					// scale factor for converting 24-bit int from ADC to float
+	const static float INV_SCALE_32;				// scale factor for converting 24-bit int from ADC to float
+	const static float INV_SCALE_16;
 	const static float SCALE_16;
 
 	unsigned int m_recvSpeed;

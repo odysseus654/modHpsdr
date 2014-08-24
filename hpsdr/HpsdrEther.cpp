@@ -186,7 +186,7 @@ CHpsdrEthernet::CHpsdrEthernet(signals::IBlockDriver* driver, unsigned long ipad
 	:CHpsdrDevice(boardId), m_ipAddress(ipaddr), m_macAddress(mac), m_controllerVersion(ver),
 	 m_recvThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_recv)),
 	 m_sendThread(Thread<>::delegate_type(this, &CHpsdrEthernet::thread_send)),
-	 m_sock(INVALID_SOCKET), m_lastRunStatus(0), m_iqStarting(false), m_wideStarting(false),
+	 m_sock(INVALID_SOCKET), m_lastRunStatus(0), m_iqStarting(false),
 	 m_nextSendSeq(0), m_driver(driver)
 {
 }
@@ -306,8 +306,9 @@ void CHpsdrEthernet::Stop()
 void CHpsdrEthernet::thread_recv()
 {
 	ThreadBase::SetThreadName("Metis Receive Thread");
+	typedef StoreType<signals::etypVecSingle>::buffer_templ VectorType;
 	byte message[1032];
-	float wideBuff[4096];
+	VectorType* wideBuff = NULL;
 
 	fd_set fds;
 
@@ -333,26 +334,32 @@ void CHpsdrEthernet::thread_recv()
 				switch(message[3])
 				{
 				case 4: // endpoint 4: wideband data
-					if(!!(seq&7) && (m_wideStarting || m_lastWideSeq+1 != seq))
 					{
-						m_wideStarting = true;
-					}
-					else
-					{
-						m_wideStarting = false;
+						if(wideBuff && m_lastWideSeq+1 != seq)
+						{
+							wideBuff->Release();
+							wideBuff = NULL;
+						}
 						m_lastWideSeq = seq;
 						short frame = seq&7;
 						byte* wideSrc = message + 8;
-						float* wideDest = wideBuff + 512*frame;
-						for(int i=0; i < 512; i++)
+						if(wideBuff)
 						{
-							*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) / SCALE_16;
-							wideSrc += 2;
+							float* wideDest = wideBuff->data + 512*frame;
+							for(int i=0; i < 512; i++)
+							{
+								*wideDest++ = (short(wideSrc[0] << 8) | wideSrc[1]) * INV_SCALE_16;
+								wideSrc += 2;
+							}
 						}
-						if(frame == 7 && !m_wideRecv.Write(signals::etypVecSingle, &wideBuff, _countof(wideBuff), 0)
-							&& m_wideRecv.isConnected())
+						if(frame == 7)
 						{
-							attrs.wide_sync_fault->fire();
+							if(wideBuff && !m_wideRecv.WriteOne(signals::etypVecSingle, &wideBuff, 0)
+								&& m_wideRecv.isConnected())
+							{
+								attrs.wide_sync_fault->fire();
+							}
+							wideBuff = VectorType::retrieve(4096);
 						}
 					}
 					break;
@@ -383,6 +390,7 @@ void CHpsdrEthernet::thread_recv()
 			}
 		}
 	}
+	if(wideBuff) wideBuff->Release();
 }
 
 #pragma warning(pop)
@@ -413,7 +421,6 @@ void CHpsdrEthernet::Metis_start_stop(bool runIQ, bool runWide)
 	}
 	if(!(m_lastRunStatus&2) && runWide)
 	{
-		m_wideStarting = true;
 		m_lastWideSeq = 0;
 	}
 	m_nextSendSeq = 0;

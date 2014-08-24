@@ -21,7 +21,8 @@
 
 // ------------------------------------------------------------------ class CHpsdrDevice
 
-const float CHpsdrDevice::SCALE_32 = float(1U << 31);
+const float CHpsdrDevice::INV_SCALE_32 = 1 / float(1U << 31);
+const float CHpsdrDevice::INV_SCALE_16 = 1 / float(1U << 15);
 const float CHpsdrDevice::SCALE_16 = float(1U << 15);
 
 #pragma warning(push)
@@ -85,7 +86,11 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 	const bool hasReceivers = !m_receivers.empty();
 	const int sample_size = 6 * numReceiver + 2;
 
+	std::complex<float> recvBuff[MAX_RECEIVERS][504 / (6 + 2)];
+	float micBuff[504 / (6 + 2)];
+
 	unsigned numSamples = 0;
+	unsigned numMicSamples = 0;
 	while(remain >= sample_size)
 	{
 		// receive a sample for each of the currentl-active receivers
@@ -100,15 +105,9 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 
 			// a float contains 24 bits of precision,
 			// dividing by 2^32 ensures we don't mess with the mantissa during the conversion
-			if(hasReceivers)
-			{
-				std::complex<float> sample(iReal / SCALE_32, iImag / SCALE_32);
-				ASSERT(m_receivers[recv]->isConnected());
-				if(!m_receivers[recv]->Write(signals::etypComplex, &sample, 1, 0) && m_receivers[recv]->isConnected())
-				{
-					attrs.sync_fault->fire();
-				}
-			}
+			std::complex<float>& buff = recvBuff[recv][numSamples];
+			buff.real(iReal * INV_SCALE_32);
+			buff.imag(iImag * INV_SCALE_32);
 		}
 
 		// technique taken from KK: ensure that no matter what the sample rate is we still get the
@@ -120,15 +119,26 @@ unsigned CHpsdrDevice::receive_frame(byte* frame)
 
 			// force the 16bit number to be signed and convert to float
 			short MicAmpl = (short(frame[0]) << 8) | frame[1];
-			float sample = MicAmpl / SCALE_16;
-			if(!m_microphone.Write(signals::etypSingle, &sample, 1, 0) && m_microphone.isConnected())
-			{
-				attrs.sync_mic_fault->fire();
-			}
+			micBuff[numMicSamples++] = MicAmpl * INV_SCALE_16;
 		}
 		frame += 2;
 		remain -= 2;
 		numSamples++;
+	}
+	if(hasReceivers && numSamples)
+	{
+		for (unsigned recv = 0; recv < numReceiver; recv++)
+		{
+			ASSERT(m_receivers[recv]->isConnected());
+			if(!m_receivers[recv]->Write(signals::etypComplex, recvBuff[recv], numSamples, 0) && m_receivers[recv]->isConnected())
+			{
+				attrs.sync_fault->fire();
+			}
+		}
+	}
+	if(numMicSamples && !m_microphone.Write(signals::etypSingle, micBuff, numMicSamples, 0) && m_microphone.isConnected())
+	{
+		attrs.sync_mic_fault->fire();
 	}
 	return numSamples;
 }
@@ -281,13 +291,19 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 	if(no_streams)
 	{
 		memset(frame, 0, 504);
+		return;
 	}
-	else
+
+	std::complex<float> audSampleArr[63];
+	std::complex<float> iqSampleArr[63];
+	unsigned numAud = m_speaker.Read(signals::etypLRSingle, audSampleArr, _countof(audSampleArr), TRUE, 0);
+	unsigned numIQ = m_transmit.Read(signals::etypComplex, iqSampleArr, _countof(iqSampleArr), TRUE, 0);
+
+	for (unsigned idx = 0; idx < 63; idx++)        // fill out one 512-byte frame
 	{
-		for (int x = 8; x < 512; x += 8)        // fill out one 512-byte frame
+		if(idx < numAud)
 		{
-			std::complex<float> audSample;
-			m_speaker.Read(signals::etypLRSingle, &audSample, 1, TRUE, 0);
+			const std::complex<float>& audSample = audSampleArr[idx];
 
 			// send left & right data to the speakers on the receiver
 			int IntValue = int(SCALE_16 * audSample.real());
@@ -297,20 +313,32 @@ void CHpsdrDevice::send_frame(byte* frame, bool no_streams)
 			IntValue = int(SCALE_16 * audSample.imag());
 			*frame++ = (byte)(IntValue >> 8);    // right hi
 			*frame++ = (byte)(IntValue & 0xff);  // right lo
+		}
+		else
+		{
+			*((__int32*)frame) = 0;
+			frame += 4;
+		}
 
-			std::complex<float> iqSample;
-			m_transmit.Read(signals::etypComplex, &audSample, 1, TRUE, 0);
+		if(idx < numIQ)
+		{
+			const std::complex<float>& iqSample = iqSampleArr[idx];
 
 			// send I & Q data to the exciter
+			int IntValue = int(SCALE_16 * iqSample.imag());
+			*frame++ = (byte)(IntValue >> 8);    // right hi
+			*frame++ = (byte)(IntValue & 0xff);  // right lo
+
 			IntValue = int(SCALE_16 * iqSample.real());
 			*frame++ = (byte)(IntValue >> 8);    // right hi
 			*frame++ = (byte)(IntValue & 0xff);  // right lo
-
-			IntValue = int(SCALE_16 * iqSample.imag());
-			*frame++ = (byte)(IntValue >> 8);    // right hi
-			*frame++ = (byte)(IntValue & 0xff);  // right lo
-		} // end for
-	}
+		}
+		else
+		{
+			*((__int32*)frame) = 0;
+			frame += 4;
+		}
+	} // end for
 }
 
 // ------------------------------------------------------------------ class CHpsdrDevice::Receiver
