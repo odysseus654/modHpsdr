@@ -57,6 +57,7 @@ namespace cppProxy
         #region Proxy type conversion
         public interface ITypeMarshaller
         {
+            signals.EType type();
             int size(object val);
             object fromNative(IntPtr val);
             void toNative(object src, IntPtr dest);
@@ -67,6 +68,7 @@ namespace cppProxy
 
         private class Handle : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.WinHdl; }
             public int size(object val) { return IntPtr.Size; }
             public object fromNative(IntPtr val) { return Marshal.ReadIntPtr(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteIntPtr(dest, (IntPtr)src); }
@@ -95,6 +97,7 @@ namespace cppProxy
 
         private class Boolean : Byte
         {
+            public new signals.EType type() { return signals.EType.Boolean; }
             public new object fromNative(IntPtr val) { return Marshal.ReadByte(val) != 0; }
             public new void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, (byte)(Convert.ToBoolean(src) ? 1 : 0)); }
 
@@ -123,6 +126,7 @@ namespace cppProxy
 
         private class Byte : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Byte; }
             public int size(object val) { return sizeof(byte); }
             public object fromNative(IntPtr val) { return Marshal.ReadByte(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteByte(dest, Convert.ToByte(src)); }
@@ -151,6 +155,7 @@ namespace cppProxy
 
         private class Short : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Short; }
             public int size(object val) { return sizeof(short); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt16(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteInt16(dest, Convert.ToInt16(src)); }
@@ -179,6 +184,7 @@ namespace cppProxy
 
         private class Long : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Long; }
             public int size(object val) { return sizeof(int); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt32(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteInt32(dest, Convert.ToInt32(src)); }
@@ -207,6 +213,7 @@ namespace cppProxy
 
         private class Int64 : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Int64; }
             public int size(object val) { return sizeof(long); }
             public object fromNative(IntPtr val) { return Marshal.ReadInt64(val); }
             public void toNative(object src, IntPtr dest) { Marshal.WriteInt64(dest, Convert.ToInt64(src)); }
@@ -235,6 +242,7 @@ namespace cppProxy
 
         private class Single : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Single; }
             public int size(object val) { return sizeof(float); }
             public Array makePinnableArray(int cnt) { return new float[cnt]; }
 
@@ -273,6 +281,7 @@ namespace cppProxy
 
         private class Double : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.Double; }
             public int size(object val) { return sizeof(double); }
             public Array makePinnableArray(int cnt) { return new double[cnt]; }
 
@@ -311,8 +320,16 @@ namespace cppProxy
 
         private class Complex : ITypeMarshaller
         {
-            public int size(object val) { return 2*sizeof(float); }
+            private readonly signals.EType enumType;
+
+            public signals.EType type() { return enumType; }
+            public int size(object val) { return 2 * sizeof(float); }
             public Array makePinnableArray(int cnt) { return new float[cnt * 2]; }
+
+            public Complex(signals.EType type)
+            {
+                enumType = type;
+            }
 
             public object fromNative(IntPtr val)
             {
@@ -357,7 +374,8 @@ namespace cppProxy
 
         private class ComplexDouble : ITypeMarshaller
         {
-            public int size(object val) { return 2*sizeof(double); }
+            public signals.EType type() { return signals.EType.CmplDbl; }
+            public int size(object val) { return 2 * sizeof(double); }
             public Array makePinnableArray(int cnt) { return new double[cnt * 2]; }
 
             public object fromNative(IntPtr val)
@@ -403,6 +421,7 @@ namespace cppProxy
 
         private class String : ITypeMarshaller
         {
+            public signals.EType type() { return signals.EType.String; }
             public Array makePinnableArray(int cnt) { throw new NotSupportedException("String arrays are not supported."); }
             public Array toPinnableArray(Array src) { throw new NotSupportedException("String arrays are not supported."); }
             public Array fromPinnableArray(Array pin, int cnt) { throw new NotSupportedException("String arrays are not supported."); }
@@ -423,6 +442,151 @@ namespace cppProxy
             }
         };
 
+        private class Vector : ITypeMarshaller
+        {
+            private readonly ITypeMarshaller innerType;
+            private readonly signals.EType enumType;
+
+            [DllImport("kernel32.dll", EntryPoint = "RtlMoveMemory")]
+            private static extern void CopyMemory(IntPtr Destination, IntPtr Source, uint Length);
+
+            private class VectorProvider : Native.IVector
+            {
+                private readonly ITypeMarshaller innerType;
+                private CppNativeProxy.Callback callback;
+                public readonly uint size;
+                private Array pinArray;
+                private GCHandle pin;
+
+                public VectorProvider(ITypeMarshaller inner, Array data)
+                {
+                    innerType = inner;
+                    size = (uint)data.Length;
+                    pinArray = innerType.toPinnableArray(data);
+                    pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+                    callback = null;
+                }
+
+                ~VectorProvider()
+                {
+                    pin.Free();
+                }
+
+                public CppNativeProxy.Callback createCallin()
+                {
+                    if (callback == null) callback = CppNativeProxy.CreateCallin(this, typeof(Native.IVector));
+                    bool success = false;
+                    callback.DangerousAddRef(ref success);
+                    if (!success) throw new ApplicationException("AddRef failed");
+                    return callback;
+                }
+
+                public signals.EType Type() { return innerType.type(); }
+                public uint Size() { return size; }
+                public IntPtr Data() { return pin.AddrOfPinnedObject(); }
+
+                public uint AddRef()
+                {
+                    if (callback == null)
+                    {
+                        createCallin();
+                    }
+                    else
+                    {
+                        bool success = false;
+                        callback.DangerousAddRef(ref success);
+                        if (!success) throw new ApplicationException("AddRef failed");
+                    }
+                    return 1;
+                }
+
+                public uint Release()
+                {
+                    if (callback != null)
+                    {
+                        callback.DangerousRelease();
+                    }
+                    return 1;
+                }
+            }
+
+            public Vector(signals.EType type, ITypeMarshaller inner)
+            {
+                enumType = type;
+                innerType = inner;
+            }
+
+            public signals.EType type() { return enumType; }
+            public int size(object val) { return IntPtr.Size; }
+            public Array makePinnableArray(int cnt) { return new IntPtr[cnt]; }
+
+            protected Array nativeToArray(IntPtr iface)
+            {
+                Native.IVector native = (Native.IVector)CppNativeProxy.CreateCallout(iface, typeof(Native.IVector));
+                try
+                {
+                    signals.EType type = native.Type();
+                    ITypeMarshaller iType = (type == innerType.type()) ? innerType : getTypeInfo(type);
+                    int size = (int)native.Size();
+                    IntPtr data = native.Data();
+                    Array pinArray = iType.makePinnableArray(size);
+                    GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+                    try
+                    {
+                        CopyMemory(pin.AddrOfPinnedObject(), data, (uint)(iType.size(null) * size));
+                    }
+                    finally
+                    {
+                        pin.Free();
+                    }
+                    return iType.fromPinnableArray(pinArray, size);
+                }
+                finally
+                {
+                    native.Release();
+                }
+            }
+
+            public object fromNative(IntPtr val)
+            {
+                IntPtr objref = Marshal.ReadIntPtr(val);
+                return nativeToArray(objref);
+            }
+
+            public void toNative(object src, IntPtr dest)
+            {
+                VectorProvider vec = new VectorProvider(innerType, (Array)src);
+                CppNativeProxy.Callback callin = vec.createCallin();
+                Marshal.WriteIntPtr(dest, callin.DangerousGetHandle());
+            }
+
+            public Array toPinnableArray(Array src)
+            {
+                int len = src.Length;
+                IntPtr[] outBuff = new IntPtr[len];
+                for (int idx = 0; idx < len; idx++)
+                {
+                    Array inVal = (Array)src.GetValue(idx);
+                    VectorProvider vec = new VectorProvider(innerType, inVal);
+                    CppNativeProxy.Callback callin = vec.createCallin();
+                    outBuff[idx] = callin.DangerousGetHandle();
+                }
+                return outBuff;
+            }
+
+            public Array fromPinnableArray(Array pin, int cnt)
+            {
+                if (cnt == 0) return new Array[0];
+                IntPtr[] nativeBuff = (IntPtr[])pin;
+                Array[] outBuff = new Array[cnt];
+                for (int idx = 0; idx < cnt; idx ++)
+                {
+                    outBuff[idx] = nativeToArray(nativeBuff[idx]);
+                }
+                return outBuff;
+            }
+        };
+
         public static ITypeMarshaller getTypeInfo(signals.EType typ)
         {
             switch (typ)
@@ -432,34 +596,44 @@ namespace cppProxy
                 case signals.EType.WinHdl:
                     return new Handle();
                 case signals.EType.Boolean:
-                case signals.EType.VecBoolean:
                     return new Boolean();
+                case signals.EType.VecBoolean:
+                    return new Vector(typ, new Boolean());
                 case signals.EType.Byte:
-                case signals.EType.VecByte:
                     return new Byte();
+                case signals.EType.VecByte:
+                    return new Vector(typ, new Byte());
                 case signals.EType.Short:
-                case signals.EType.VecShort:
                     return new Short();
+                case signals.EType.VecShort:
+                    return new Vector(typ, new Short());
                 case signals.EType.Long:
-                case signals.EType.VecLong:
                     return new Long();
+                case signals.EType.VecLong:
+                    return new Vector(typ, new Long());
                 case signals.EType.Int64:
-                case signals.EType.VecInt64:
                     return new Int64();
+                case signals.EType.VecInt64:
+                    return new Vector(typ, new Int64());
                 case signals.EType.Single:
-                case signals.EType.VecSingle:
                     return new Single();
+                case signals.EType.VecSingle:
+                    return new Vector(typ, new Single());
                 case signals.EType.Double:
-                case signals.EType.VecDouble:
                     return new Double();
+                case signals.EType.VecDouble:
+                    return new Vector(typ, new Double());
                 case signals.EType.Complex:
-                case signals.EType.VecComplex:
                 case signals.EType.LRSingle:
+                    return new Complex(typ);
+                case signals.EType.VecComplex:
+                    return new Vector(typ, new Complex(signals.EType.Complex));
                 case signals.EType.VecLRSingle:
-                    return new Complex();
+                    return new Vector(typ, new Complex(signals.EType.LRSingle));
                 case signals.EType.CmplDbl:
-                case signals.EType.VecCmplDbl:
                     return new ComplexDouble();
+                case signals.EType.VecCmplDbl:
+                    return new Vector(typ, new ComplexDouble());
                 default:
                     return null;
             }
@@ -469,6 +643,7 @@ namespace cppProxy
 
     public static class Native
     {
+        #region Native interface declarations
         public interface IBlockDriver // holds a ref to IModule
         {
             IntPtr Name();
@@ -517,6 +692,15 @@ namespace cppProxy
             uint options(IntPtr values, IntPtr opts, uint availElem);
         };
 
+        public interface IVector // refcounted
+	    {
+		    [return: MarshalAs(UnmanagedType.I4)] signals.EType Type();
+		    uint Size();
+		    uint AddRef();
+		    uint Release();
+		    IntPtr Data();
+	    };
+
         public interface IInEndpoint // refcounted
         {
             uint AddRef();
@@ -528,7 +712,7 @@ namespace cppProxy
             [return: MarshalAs(UnmanagedType.Bool)] bool Connect(IntPtr recv);
             [return: MarshalAs(UnmanagedType.Bool)] bool isConnected();
             [return: MarshalAs(UnmanagedType.Bool)] bool Disconnect();
-        }
+        };
 
         public interface IOutEndpoint // reference to IModule
         {
@@ -545,6 +729,8 @@ namespace cppProxy
         public interface IEPSendTo // refcounted
         {
             uint Write([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numElem, uint msTimeout);
+            [return: MarshalAs(UnmanagedType.Bool)] bool WriteOne([MarshalAs(UnmanagedType.I4)] signals.EType type,
+                IntPtr buffer, uint msTimeout);
             uint AddRef(IntPtr iep);
             uint Release(IntPtr iep);
             IntPtr InputAttributes();
@@ -554,6 +740,8 @@ namespace cppProxy
         {
             uint Read([MarshalAs(UnmanagedType.I4)] signals.EType type, IntPtr buffer, uint numAvail,
                 [MarshalAs(UnmanagedType.Bool)]bool bReadAll, uint msTimeout);
+            [return: MarshalAs(UnmanagedType.Bool)] bool ReadOne([MarshalAs(UnmanagedType.I4)] signals.EType type,
+                IntPtr buffer, uint msTimeout);
             void onSinkConnected(IntPtr src);
             void onSinkDisconnected(IntPtr src);
             IntPtr OutputAttributes();
@@ -597,6 +785,7 @@ namespace cppProxy
 	    public interface IOutputFunction : IOutEndpoint, IEPSendTo // refcounted, reference to IModule
 	    {
 	    };
+        #endregion
     }
 
     class CppProxyModuleDriver : System.Runtime.ConstrainedExecution.CriticalFinalizerObject, signals.IModule
@@ -1691,6 +1880,28 @@ namespace cppProxy
                 pin.Free();
             }
         }
+
+        public bool WriteOne(signals.EType type, object val, int msTimeout)
+        {
+            if (val == null) throw new ArgumentNullException("val");
+            if (type != m_type || m_typeInfo == null)
+            {
+                m_type = type;
+                m_typeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+            }
+
+            Array pinArray = m_typeInfo.toPinnableArray(new object[] { val });
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            try
+            {
+                return m_native.WriteOne(type, pin.AddrOfPinnedObject(), (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+        }
     }
 
     class CppProxyEPRecvFrom : signals.IEPRecvFrom
@@ -1746,6 +1957,28 @@ namespace cppProxy
                 pin.Free();
             }
             values = m_typeInfo.fromPinnableArray(pinArray, (int)read);
+        }
+
+        public object ReadOne(signals.EType type, int msTimeout)
+        {
+            if (type != m_type || m_typeInfo == null)
+            {
+                m_type = type;
+                m_typeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+            }
+            Array pinArray = m_typeInfo.makePinnableArray(1);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            bool read;
+            try
+            {
+                read = m_native.ReadOne(type, pin.AddrOfPinnedObject(), (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+            return read ? m_typeInfo.fromPinnableArray(pinArray, 1).GetValue(0) : null;
         }
 
         public signals.IEPBuffer CreateBuffer()
@@ -1851,6 +2084,24 @@ namespace cppProxy
             values = m_typeInfo.fromPinnableArray(pinArray, (int)read);
         }
 
+        public object ReadOne(signals.EType type, int msTimeout)
+        {
+            if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+
+            Array pinArray = m_typeInfo.makePinnableArray(1);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            bool read;
+            try
+            {
+                read = m_native.ReadOne(m_type, pin.AddrOfPinnedObject(), (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+            return read ? m_typeInfo.fromPinnableArray(pinArray, 1).GetValue(0) : null;
+        }
+
         public int Write(signals.EType type, Array values, int msTimeout)
         {
             if (values == null) throw new ArgumentNullException("values");
@@ -1860,6 +2111,22 @@ namespace cppProxy
             try
             {
                 return (int)m_native.Write(type, pin.AddrOfPinnedObject(), (uint)values.Length, (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+        }
+
+        public bool WriteOne(signals.EType type, object val, int msTimeout)
+        {
+            if (val == null) throw new ArgumentNullException("val");
+            if (m_typeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+            Array pinArray = m_typeInfo.toPinnableArray(new object[] { val });
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            try
+            {
+                return m_native.WriteOne(type, pin.AddrOfPinnedObject(), (uint)msTimeout);
             }
             finally
             {
@@ -2092,6 +2359,29 @@ namespace cppProxy
             values = m_recvTypeInfo.fromPinnableArray(pinArray, (int)read);
         }
 
+        public object ReadOne(signals.EType type, int msTimeout)
+        {
+            if (type != m_recvType || m_recvTypeInfo == null)
+            {
+                m_recvType = type;
+                m_recvTypeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_recvTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+            }
+
+            Array pinArray = m_recvTypeInfo.makePinnableArray(1);
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            bool read;
+            try
+            {
+                read = m_nativeRecv.ReadOne(type, pin.AddrOfPinnedObject(), (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+            return read ? m_recvTypeInfo.fromPinnableArray(pinArray, 1).GetValue(0) : null;
+        }
+
         public signals.IEPBuffer CreateBuffer()
         {
             IntPtr pBuf = m_nativeRecv.CreateBuffer();
@@ -2169,6 +2459,27 @@ namespace cppProxy
             try
             {
                 return (int)m_nativeSend.Write(type, pin.AddrOfPinnedObject(), (uint)values.Length, (uint)msTimeout);
+            }
+            finally
+            {
+                pin.Free();
+            }
+        }
+
+        public bool WriteOne(signals.EType type, object val, int msTimeout)
+        {
+            if (val == null) throw new ArgumentNullException("val");
+            if (type != m_sendType || m_sendTypeInfo == null)
+            {
+                m_sendType = type;
+                m_sendTypeInfo = ProxyTypes.getTypeInfo(type);
+                if (m_sendTypeInfo == null) throw new NotSupportedException("Cannot retrieve value for this type.");
+            }
+            Array pinArray = m_sendTypeInfo.toPinnableArray(new object[] { val });
+            GCHandle pin = GCHandle.Alloc(pinArray, GCHandleType.Pinned);
+            try
+            {
+                return m_nativeSend.WriteOne(type, pin.AddrOfPinnedObject(), (uint)msTimeout);
             }
             finally
             {

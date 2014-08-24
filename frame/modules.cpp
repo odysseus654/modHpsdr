@@ -19,15 +19,15 @@
 #include "make_frame.h"
 #include "real_chop.h"
 
-FrameFunctionBase<signals::etypVecByte, DivideByN<unsigned char> > divideByN_byte;
-FrameFunctionBase<signals::etypVecShort, DivideByN<short> > divideByN_short;
-FrameFunctionBase<signals::etypVecLong, DivideByN<long> > divideByN_long;
-FrameFunctionBase<signals::etypVecInt64, DivideByN<__int64> > divideByN_int64;
-FrameFunctionBase<signals::etypVecSingle, DivideByN<float> > divideByN_float;
-FrameFunctionBase<signals::etypVecDouble, DivideByN<double> > divideByN_double;
-FrameFunctionBase<signals::etypVecComplex, DivideByN<std::complex<float>,float> > divideByN_cpx;
-FrameFunctionBase<signals::etypVecCmplDbl, DivideByN<std::complex<double>,double> > divideByN_cpxdbl;
-FrameFunctionBase<signals::etypVecLRSingle, DivideByN<std::complex<float>,float> > divideByN_lr;
+Function<signals::etypVecByte, signals::etypVecByte, DivideByN<signals::etypVecByte> > divideByN_byte;
+Function<signals::etypVecShort, signals::etypVecShort, DivideByN<signals::etypVecShort> > divideByN_short;
+Function<signals::etypVecLong, signals::etypVecLong, DivideByN<signals::etypVecLong> > divideByN_long;
+Function<signals::etypVecInt64, signals::etypVecInt64, DivideByN<signals::etypVecInt64> > divideByN_int64;
+Function<signals::etypVecSingle, signals::etypVecSingle, DivideByN<signals::etypVecSingle> > divideByN_float;
+Function<signals::etypVecDouble, signals::etypVecDouble, DivideByN<signals::etypVecDouble> > divideByN_double;
+Function<signals::etypVecComplex, signals::etypVecComplex, DivideByN<signals::etypVecComplex, float> > divideByN_cpx;
+Function<signals::etypVecCmplDbl, signals::etypVecCmplDbl, DivideByN<signals::etypVecCmplDbl, double> > divideByN_cpxdbl;
+Function<signals::etypVecLRSingle, signals::etypVecLRSingle, DivideByN<signals::etypVecLRSingle, float> > divideByN_lr;
 
 ChopRealFrame<signals::etypVecBoolean> chop_bool;
 ChopRealFrame<signals::etypVecByte> chop_byte;
@@ -51,29 +51,37 @@ CFrameBuilderDriver<signals::etypComplex> frame_cpx;
 CFrameBuilderDriver<signals::etypCmplDbl> frame_cpxdbl;
 CFrameBuilderDriver<signals::etypLRSingle> frame_lr;
 
-CFrameSummary<signals::etypBoolean, frame_max<unsigned char> > summ_max_bool;
-CFrameSummary<signals::etypByte, frame_max<unsigned char> > summ_max_byte;
-CFrameSummary<signals::etypShort, frame_max<short> > summ_max_short;
-CFrameSummary<signals::etypLong, frame_max<long> > summ_max_long;
-CFrameSummary<signals::etypInt64, frame_max<__int64> > summ_max_int64;
-CFrameSummary<signals::etypSingle, frame_max<float> > summ_max_float;
-CFrameSummary<signals::etypDouble, frame_max<double> > summ_max_double;
+Function<signals::etypVecBoolean, signals::etypBoolean, frame_max<signals::etypVecBoolean> > summ_max_bool;
+Function<signals::etypVecByte, signals::etypByte, frame_max<signals::etypVecByte> > summ_max_byte;
+Function<signals::etypVecShort, signals::etypShort, frame_max<signals::etypVecShort> > summ_max_short;
+Function<signals::etypVecLong, signals::etypLong, frame_max<signals::etypVecLong> > summ_max_long;
+Function<signals::etypVecInt64, signals::etypInt64, frame_max<signals::etypVecInt64> > summ_max_int64;
+Function<signals::etypVecSingle, signals::etypSingle, frame_max<signals::etypVecSingle> > summ_max_float;
+Function<signals::etypVecDouble, signals::etypDouble, frame_max<signals::etypVecDouble> > summ_max_double;
 
-CFrameSummary<signals::etypBoolean, frame_min<unsigned char> > summ_min_bool;
-CFrameSummary<signals::etypByte, frame_min<unsigned char> > summ_min_byte;
-CFrameSummary<signals::etypShort, frame_min<short> > summ_min_short;
-CFrameSummary<signals::etypLong, frame_min<long> > summ_min_long;
-CFrameSummary<signals::etypInt64, frame_min<__int64> > summ_min_int64;
-CFrameSummary<signals::etypSingle, frame_min<float> > summ_min_float;
-CFrameSummary<signals::etypDouble, frame_min<double> > summ_min_double;
+Function<signals::etypVecBoolean, signals::etypBoolean, frame_min<signals::etypVecBoolean> > summ_min_bool;
+Function<signals::etypVecByte, signals::etypByte, frame_min<signals::etypVecByte> > summ_min_byte;
+Function<signals::etypVecShort, signals::etypShort, frame_min<signals::etypVecShort> > summ_min_short;
+Function<signals::etypVecLong, signals::etypLong, frame_min<signals::etypVecLong> > summ_min_long;
+Function<signals::etypVecInt64, signals::etypInt64, frame_min<signals::etypVecInt64> > summ_min_int64;
+Function<signals::etypVecSingle, signals::etypSingle, frame_min<signals::etypVecSingle> > summ_min_float;
+Function<signals::etypVecDouble, signals::etypDouble, frame_min<signals::etypVecDouble> > summ_min_double;
 
-CFrameSummary<signals::etypSingle, frame_mean<unsigned char, short, float>, signals::etypVecBoolean > summ_mean_bool;
-CFrameSummary<signals::etypSingle, frame_mean<unsigned char, short, float>, signals::etypVecByte > summ_mean_byte;
-CFrameSummary<signals::etypSingle, frame_mean<short, long, float>, signals::etypVecShort> summ_mean_short;
-CFrameSummary<signals::etypDouble, frame_mean<long, __int64, double>, signals::etypVecLong> summ_mean_long;
-CFrameSummary<signals::etypDouble, frame_mean<__int64, double, double>, signals::etypVecInt64 > summ_mean_int64;
-CFrameSummary<signals::etypDouble, frame_mean<float, double, double>, signals::etypVecSingle > summ_mean_float;
-CFrameSummary<signals::etypDouble, frame_mean<double, double, double>, signals::etypVecDouble > summ_mean_double;
+Function<signals::etypVecBoolean, signals::etypSingle, frame_mean<signals::etypVecBoolean, short, float> > summ_mean_bool;
+Function<signals::etypVecByte, signals::etypSingle, frame_mean<signals::etypVecByte, short, float> > summ_mean_byte;
+Function<signals::etypVecShort, signals::etypSingle, frame_mean<signals::etypVecShort, long, float> > summ_mean_short;
+Function<signals::etypVecLong, signals::etypDouble, frame_mean<signals::etypVecLong, __int64, double> > summ_mean_long;
+Function<signals::etypVecInt64, signals::etypDouble, frame_mean<signals::etypVecInt64, double, double> > summ_mean_int64;
+Function<signals::etypVecSingle, signals::etypDouble, frame_mean<signals::etypVecSingle, double, double> > summ_mean_float;
+Function<signals::etypVecDouble, signals::etypDouble, frame_mean<signals::etypVecDouble, double, double> > summ_mean_double;
+
+Function<signals::etypVecBoolean, signals::etypBoolean, frame_median<signals::etypVecBoolean> > summ_median_bool;
+Function<signals::etypVecByte, signals::etypByte, frame_median<signals::etypVecByte> > summ_median_byte;
+Function<signals::etypVecShort, signals::etypShort, frame_median<signals::etypVecShort> > summ_median_short;
+Function<signals::etypVecLong, signals::etypLong, frame_median<signals::etypVecLong> > summ_median_long;
+Function<signals::etypVecInt64, signals::etypInt64, frame_median<signals::etypVecInt64> > summ_median_int64;
+Function<signals::etypVecSingle, signals::etypSingle, frame_median<signals::etypVecSingle> > summ_median_float;
+Function<signals::etypVecDouble, signals::etypDouble, frame_median<signals::etypVecDouble> > summ_median_double;
 
 signals::IBlockDriver* BLOCKS[] =
 {
@@ -99,7 +107,11 @@ signals::IFunctionSpec* FUNCTIONS[] =
 	&summ_min_bool, &summ_min_byte, &summ_min_short, &summ_min_long, &summ_min_int64, &summ_min_float, &summ_min_double,
 
 	// frame average
-	&summ_mean_bool, &summ_mean_byte, &summ_mean_short, &summ_mean_long, &summ_mean_int64, &summ_mean_float, &summ_mean_double
+	&summ_mean_bool, &summ_mean_byte, &summ_mean_short, &summ_mean_long, &summ_mean_int64, &summ_mean_float, &summ_mean_double,
+
+	// frame median
+	&summ_median_bool, &summ_median_byte, &summ_median_short, &summ_median_long,
+	&summ_median_int64, &summ_median_float, &summ_median_double,
 };
 
 extern "C" unsigned QueryDrivers(signals::IBlockDriver** drivers, unsigned availDrivers)

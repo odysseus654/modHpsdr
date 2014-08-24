@@ -44,6 +44,18 @@ unsigned CInEndpointBase::Read(signals::EType type, void* buffer, unsigned numAv
 	return m_connRecv->Read(type, buffer, numAvail, bFillAll, msTimeout);
 }
 
+BOOL CInEndpointBase::ReadOne(signals::EType type, void* buffer, unsigned msTimeout)
+{
+	ReadLocker lock(m_connRecvLock);
+	if(!m_connRecv)
+	{
+		if(!msTimeout) return FALSE;
+		if(!m_connRecvConnected.sleep(lock, msTimeout)) return FALSE;
+	}
+	ASSERT(m_connRecv);
+	return m_connRecv->ReadOne(type, buffer, msTimeout);
+}
+
 signals::IAttributes* CInEndpointBase::RemoteAttributes()
 {
 	ReadLocker lock(m_connRecvLock);
@@ -76,6 +88,18 @@ unsigned COutEndpointBase::Write(signals::EType type, void* buffer, unsigned num
 	}
 	ASSERT(m_connSend);
 	return m_connSend->Write(type, buffer, numElem, msTimeout);
+}
+
+BOOL COutEndpointBase::WriteOne(signals::EType type, void* buffer, unsigned msTimeout)
+{
+	ReadLocker lock(m_connSendLock);
+	if(!m_connSend)
+	{
+		if(!msTimeout) return 0;
+		if(!m_connSendConnected.sleep(lock, msTimeout)) return 0;
+	}
+	ASSERT(m_connSend);
+	return m_connSend->WriteOne(type, buffer, msTimeout);
 }
 
 signals::IAttributes* COutEndpointBase::RemoteAttributes()

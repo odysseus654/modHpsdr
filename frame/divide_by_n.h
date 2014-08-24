@@ -16,203 +16,40 @@
 #pragma once
 #include <funcbase.h>
 
-template<signals::EType ET, typename OPER>
-class FrameFunctionBase : public FunctionBase<ET,ET,FrameFunctionBase<ET,OPER> >
+template<signals::EType ET, typename denomType = unsigned>
+struct DivideByN : public std::unary_function<signals::IVector*,signals::IVector*>
 {
-private:
-	typedef FunctionBase<ET,ET,FrameFunctionBase<ET,OPER> > my_base;
-
-protected:
-	template<typename Derived>
-	class AttributeBase : public signals::IAttributeObserver
-	{
-	protected:
-		signals::IAttribute* m_lastWidthAttr;
-
-		inline AttributeBase():m_lastWidthAttr(NULL) {}
-
-		void establishAttributes()
-		{
-			signals::IAttributes* attrs = static_cast<Derived*>(this)->FromAttributes();
-			if(attrs)
-			{
-				signals::IAttribute* attr = attrs->GetByName("blockSize");
-				if(attr && (attr->Type() == signals::etypShort || attr->Type() == signals::etypLong))
-				{
-					m_lastWidthAttr = attr;
-					m_lastWidthAttr->Observe(this);
-					OnChanged(attr, attr->getValue());
-				}
-			}
-		}
-
-	public: // IAttributeObserver implementation
-		virtual void OnChanged(signals::IAttribute* attr, const void* value)
-		{
-			if(attr == m_lastWidthAttr)
-			{
-				long width;
-				if(attr->Type() == signals::etypShort)
-				{
-					width = *(short*)value;
-				} else {
-					width = *(long*)value;
-				}
-				static_cast<Derived*>(this)->m_oper.setWidth(width);
-			}
-		}
-
-		virtual void OnDetached(signals::IAttribute* attr)
-		{
-			if(attr == m_lastWidthAttr)
-			{
-				m_lastWidthAttr = NULL;
-			}
-			else ASSERT(FALSE);
-		}
-	};
-
-	class InputFunction : public my_base::InputFunction<OPER>, public AttributeBase<InputFunction>
-	{
-	private:
-		typedef typename my_base::InputFunction<OPER> inp_base;
-	protected:
-		OPER m_oper;
-
-		inline signals::IAttributes* FromAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
-
-	public:
-		inline InputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec)
-			:inp_base(parent, spec, m_oper) {}
-
-	public: // virtual overrides
-		virtual BOOL Connect(signals::IEPRecvFrom* recv)
-		{
-			if(recv != m_readFrom)
-			{
-				if(m_lastWidthAttr != NULL)
-				{
-					m_lastWidthAttr->Unobserve(this);
-					m_lastWidthAttr = NULL;
-				}
-				inp_base::Connect(recv);
-				if(m_readFrom && !m_lastWidthAttr) establishAttributes();
-			}
-			return TRUE;
-		}
-
-		virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout)
-		{
-			if(!m_readFrom) return 0;
-			if(!m_lastWidthAttr) establishAttributes();
-			return inp_base::Read(type, buffer, numAvail, bFillAll, msTimeout);
-		}
-
-		friend class AttributeBase<InputFunction>;
-	};
-
-	class OutputFunction : public my_base::OutputFunction<OPER>, public AttributeBase<OutputFunction>
-	{
-	private:
-		typedef typename my_base::OutputFunction<OPER> out_base;
-	protected:
-		OPER m_oper;
-
-		inline signals::IAttributes* FromAttributes() { return m_writeFrom ? m_writeFrom->Attributes() : NULL; }
-
-	public:
-		inline OutputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec)
-			:out_base(parent, spec, m_oper) {}
-
-	public: // virtual overrides
-		virtual unsigned AddRef(signals::IOutEndpoint* iep)
-		{
-			if(iep != m_writeFrom && m_lastWidthAttr != NULL)
-			{
-				m_lastWidthAttr->Unobserve(this);
-				m_lastWidthAttr = NULL;
-			}
-			unsigned ret = out_base::AddRef(iep);
-			if(m_writeFrom && !m_lastWidthAttr) establishAttributes();
-			return ret;
-		}
-
-		virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout)
-		{
-			if(!m_writeTo) return 0;
-			if(!m_lastWidthAttr) establishAttributes();
-			return out_base::Write(type, buffer, numElem, msTimeout);
-		}
-
-		virtual unsigned Release(signals::IOutEndpoint* iep)
-		{
-			if(m_lastWidthAttr != NULL)
-			{
-				m_lastWidthAttr->Unobserve(this);
-				m_lastWidthAttr = NULL;
-			}
-			return out_base::Release(iep);
-		}
-
-		friend class AttributeBase<OutputFunction>;
-	};
-
-	class Instance : public InstanceBase
-	{
-	public:
-		inline Instance(FrameFunctionBase* spec)
-			:InstanceBase(spec),m_input(this,spec),m_output(this,spec)
-		{}
-
-		virtual signals::IInputFunction* Input()		{ AddRef(); return &m_input; }
-		virtual signals::IOutputFunction* Output()		{ AddRef(); return &m_output; }
-
-	protected:
-		InputFunction m_input;
-		OutputFunction m_output;
-	};
-
-public:
-	inline FrameFunctionBase(const char* name, const char* descr)
-		:FunctionBase(name, descr)
-	{}
-
-	inline FrameFunctionBase()
-		:FunctionBase(OPER::NAME, OPER::DESCR)
-	{}
-
-	signals::IFunction* CreateImpl()
-	{
-		return new Instance(this);
-	}
-};
-
-template<typename in_type, typename width_type = long, typename out_type = in_type>
-struct DivideByN : public std::unary_function<in_type,out_type>
-{
-	typedef in_type argument_type;
-	typedef out_type result_type;
-	volatile long m_width;
+	typedef signals::IVector* argument_type;
+	typedef signals::IVector* result_type;
+	typedef typename StoreType<ET>::buffer_templ buffer_templ;
+	typedef typename StoreType<ET>::base_type base_type;
 	static const char* NAME;
 	static const char* DESCR;
 
-	inline DivideByN():m_width(0) {}
-
-	inline out_type operator()(const in_type& parm)
+	inline result_type operator()(argument_type parm)
 	{
-		return (out_type)(m_width == 0 ? parm : parm / (width_type)m_width);
-	}
-
-	void setWidth(long width)
-	{
-		InterlockedExchange(&m_width, width);
+		if(!parm || parm->Type() != StoreType<ET>::base_enum)
+		{
+			ASSERT(FALSE);
+			return parm;
+		}
+		unsigned width = parm->Size();
+		buffer_templ* out = buffer_templ::retrieve(width);
+		const base_type* inData = (base_type*)parm->Data();
+		base_type* outData = out->data;
+		for(unsigned idx = 0; idx < width; ++idx)
+		{
+			outData[idx] = inData[idx] / (denomType)width;
+		}
+		parm->Release();
+		return out;
 	}
 };
 
 // ------------------------------------------------------------------------------------------------
 
-template<typename in_type, typename width_type, typename out_type>
-const char * DivideByN<in_type,width_type,out_type>::NAME = "divide by N";
+template<signals::EType ET, typename denomType>
+const char * DivideByN<ET,denomType>::NAME = "divide by N";
 
-template<typename in_type, typename width_type, typename out_type>
-const char * DivideByN<in_type,width_type,out_type>::DESCR = "Adjust magnitudes after an FFT operation";
+template<signals::EType ET, typename denomType>
+const char * DivideByN<ET,denomType>::DESCR = "Adjust magnitudes after an FFT operation";

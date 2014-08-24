@@ -46,30 +46,16 @@ void CDirectxBase::thread_run()
 {
 	ThreadBase::SetThreadName("Waterfall Display Thread");
 
-	std::vector<double> buffer;
 	while(threadRunning())
 	{
-		{
-			Locker lock(m_refLock);
-			if(m_frameWidth > buffer.capacity()) buffer.resize(m_frameWidth);
-		}
-		if(!buffer.capacity()) buffer.resize(DEFAULT_CAPACITY);
-		unsigned recvCount = m_incoming.Read(signals::etypVecDouble, buffer.data(),
-			buffer.capacity(), FALSE, IN_BUFFER_TIMEOUT);
-		if(recvCount)
+		signals::IVector* buffer = NULL;
+		BOOL recvFrame = m_incoming.ReadOne(signals::etypVecDouble, &buffer, IN_BUFFER_TIMEOUT);
+		if(recvFrame)
 		{
 			Locker lock(m_refLock);
 			if(!threadRunning()) return;
-			unsigned bufSize = m_frameWidth;
-			if(!bufSize) bufSize = recvCount;
-
-			double* buffPtr = buffer.data();
-			while(recvCount)
-			{
-				onReceivedFrame(buffer.data(), bufSize);
-				buffPtr += bufSize;
-				recvCount -= min(recvCount, bufSize);
-			}
+			onReceivedFrame((double*)buffer->Data(), buffer->Size());
+			buffer->Release();
 		}
 	}
 }

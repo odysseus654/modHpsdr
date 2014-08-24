@@ -145,22 +145,31 @@ void CFFTransform::thread_run()
 			}
 		}
 		ASSERT(m_inBuffer && m_bufSize);
-		unsigned recvCount = m_incoming.Read(signals::etypVecCmplDbl, m_inBuffer, m_bufSize, TRUE, IN_BUFFER_TIMEOUT);
-		if(recvCount)
+		signals::IVector* inVector = NULL;
+		BOOL recvFrame = m_incoming.ReadOne(signals::etypVecCmplDbl, &inVector, IN_BUFFER_TIMEOUT);
+		if(recvFrame)
 		{
-			if(recvCount != m_bufSize)
+			if(inVector->Size() != m_bufSize)
 			{
 				ASSERT(FALSE); // huh? did the buffer size just change?
+				inVector->Release();
 				continue;
 			}
+			memcpy(m_inBuffer, inVector->Data(), m_bufSize * sizeof(TComplexDbl));
+			inVector->Release();
 
 			ASSERT(m_inBuffer && m_outBuffer && m_bufSize && m_currPlan);
 			::fftss_execute_dft(m_currPlan, (double*)m_inBuffer, (double*)m_outBuffer);
 
-			unsigned outSent = m_outgoing.Write(signals::etypVecCmplDbl, m_outBuffer, m_bufSize, INFINITE);
-			if(outSent != m_bufSize && m_outgoing.isConnected())
+			typedef StoreType<signals::etypVecCmplDbl>::buffer_templ VectorType;
+			VectorType* outVector = VectorType::retrieve(m_bufSize);
+			memcpy(outVector->data, m_outBuffer, m_bufSize * sizeof(TComplexDbl));
+
+			BOOL outFrame = m_outgoing.WriteOne(signals::etypVecCmplDbl, &outVector, INFINITE);
+			if(!outFrame)
 			{
-				m_outgoing.attrs.sync_fault->fire();
+				if(m_outgoing.isConnected()) m_outgoing.attrs.sync_fault->fire();
+				outVector->Release();
 			}
 		}
 	}

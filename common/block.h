@@ -91,6 +91,7 @@ namespace signals
 	__interface IEPSendTo
 	{
 		unsigned Write(EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
+		BOOL WriteOne(EType type, const void* buffer, unsigned msTimeout);
 		unsigned AddRef(IOutEndpoint* src);
 		unsigned Release(IOutEndpoint* src);
 		IAttributes* InputAttributes();
@@ -99,6 +100,7 @@ namespace signals
 	__interface IEPRecvFrom
 	{
 		unsigned Read(EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
+		BOOL ReadOne(EType type, void* buffer, unsigned msTimeout);
 		void onSinkConnected(IInEndpoint* src);
 		void onSinkDisconnected(IInEndpoint* src);
 		IAttributes* OutputAttributes();
@@ -110,6 +112,15 @@ namespace signals
 		EType Type();
 		unsigned Capacity();
 		unsigned Used();
+	};
+
+	__interface IVector
+	{
+		EType Type();
+		unsigned Size();
+		unsigned AddRef();
+		unsigned Release();
+		const void* Data();
 	};
 
 	__interface IInEndpoint

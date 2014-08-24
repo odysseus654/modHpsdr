@@ -112,6 +112,8 @@ private:
 	CSplitter& operator=(const CSplitter& other);
 
 protected:
+	enum { is_vector = StoreType<ET>::is_vector };
+
 	virtual signals::IEPBuffer* CreateBuffer()
 	{
 		signals::IEPBuffer* buffer = m_incoming.CreateBuffer();
@@ -195,12 +197,24 @@ void CSplitter<ET,DEFAULT_BUFSIZE>::thread_run()
 				COutgoing& here = m_outgoing[idx];
 				if(here.isConnected())
 				{
+					if(is_vector)
+					{
+						for(unsigned elm=0; elm < recvCount; elm++) (*(signals::IVector**)&buffer[elm])->AddRef();
+					}
 					unsigned outSent = here.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
 					if(outSent != recvCount)
 					{
 						here.attrs.sync_fault->fire();
+						if(is_vector)
+						{
+							for(unsigned elm=outSent; elm < recvCount; elm++) (*(signals::IVector**)&buffer[elm])->Release();
+						}
 					}
 				}
+			}
+			if(is_vector)
+			{
+				for(unsigned elm=0; elm < recvCount; elm++) (*(signals::IVector**)&buffer[elm])->Release();
 			}
 		}
 	}

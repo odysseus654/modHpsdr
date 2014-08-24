@@ -48,16 +48,16 @@ CIdentityDriver<signals::etypDouble> ident_double;
 CIdentityDriver<signals::etypComplex> ident_cpx;
 CIdentityDriver<signals::etypCmplDbl> ident_cpxdbl;
 CIdentityDriver<signals::etypLRSingle> ident_lr;
-CVecIdentityDriver<signals::etypVecBoolean> ident_vec_bool;
-CVecIdentityDriver<signals::etypVecByte> ident_vec_byte;
-CVecIdentityDriver<signals::etypVecShort> ident_vec_short;
-CVecIdentityDriver<signals::etypVecLong> ident_vec_long;
-CVecIdentityDriver<signals::etypVecInt64> ident_vec_int64;
-CVecIdentityDriver<signals::etypVecSingle> ident_vec_float;
-CVecIdentityDriver<signals::etypVecDouble> ident_vec_double;
-CVecIdentityDriver<signals::etypVecComplex> ident_vec_cpx;
-CVecIdentityDriver<signals::etypVecCmplDbl> ident_vec_cpxdbl;
-CVecIdentityDriver<signals::etypVecLRSingle> ident_vec_lr;
+CIdentityDriver<signals::etypVecBoolean> ident_vec_bool;
+CIdentityDriver<signals::etypVecByte> ident_vec_byte;
+CIdentityDriver<signals::etypVecShort> ident_vec_short;
+CIdentityDriver<signals::etypVecLong> ident_vec_long;
+CIdentityDriver<signals::etypVecInt64> ident_vec_int64;
+CIdentityDriver<signals::etypVecSingle> ident_vec_float;
+CIdentityDriver<signals::etypVecDouble> ident_vec_double;
+CIdentityDriver<signals::etypVecComplex> ident_vec_cpx;
+CIdentityDriver<signals::etypVecCmplDbl> ident_vec_cpxdbl;
+CIdentityDriver<signals::etypVecLRSingle> ident_vec_lr;
 
 signals::IBlockDriver* BLOCKS[] =
 {

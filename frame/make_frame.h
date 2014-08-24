@@ -205,8 +205,9 @@ void CFrameBuilder<IN_TYPE,OUT_TYPE>::thread_run()
 {
 	ThreadBase::SetThreadName("Frame Construction Thread");
 
+	typedef StoreType<OUT_TYPE>::buffer_templ VectorType;
 	typedef StoreType<IN_TYPE>::type store_type;
-	std::vector<store_type> buffer;
+	VectorType* buffer = NULL;
 	unsigned inOffset = 0;
 	while(threadRunning())
 	{
@@ -216,24 +217,68 @@ void CFrameBuilder<IN_TYPE,OUT_TYPE>::thread_run()
 			Sleep(IN_BUFFER_TIMEOUT);
 			continue;
 		}
-		if(buffer.size() < bufSize) buffer.resize(bufSize);
+		if(!buffer)
+		{
+			buffer = VectorType::retrieve(bufSize);
+		}
+		else if(buffer->size != bufSize)
+		{
+			VectorType* newBuff = VectorType::retrieve(bufSize);
+			if(inOffset >= bufSize)
+			{
+				unsigned outOffset = 0;
+				while(inOffset - outOffset >= bufSize)
+				{
+					if(StoreType<IN_TYPE>::is_blittable)
+					{
+						memcpy(newBuff->data, buffer->data + outOffset, bufSize * sizeof(store_type));
+					}
+					else for(unsigned idx=0; idx < bufSize; idx++)
+					{
+						newBuff->data[idx] = buffer->data[idx + outOffset];
+					}
+					BOOL outFrame = m_outgoing.WriteOne(OUT_TYPE, &newBuff, INFINITE);
+					if(!outFrame && m_outgoing.isConnected()) m_outgoing.attrs.sync_fault->fire();
+
+					newBuff = VectorType::retrieve(bufSize);
+					inOffset += bufSize;
+				}
+				if(StoreType<IN_TYPE>::is_blittable)
+				{
+					memcpy(newBuff->data, buffer->data + outOffset, (inOffset - outOffset) * sizeof(store_type));
+				}
+				else for(unsigned idx=outOffset; idx < inOffset; idx++)
+				{
+					newBuff->data[idx-outOffset] = buffer->data[idx];
+				}
+				inOffset -= outOffset;
+			}
+			else
+			{
+				if(StoreType<IN_TYPE>::is_blittable)
+				{
+					memcpy(newBuff->data, buffer->data, inOffset * sizeof(store_type));
+				}
+				else for(unsigned idx=0; idx < inOffset; idx++)
+				{
+					newBuff->data[idx] = buffer->data[idx];
+				}
+			}
+			buffer->Release();
+			buffer = newBuff;
+		}
 		if(inOffset < bufSize)
 		{
-			unsigned recvCount = m_incoming.Read(IN_TYPE, buffer.data() + inOffset, bufSize - inOffset, TRUE, IN_BUFFER_TIMEOUT);
+			unsigned recvCount = m_incoming.Read(IN_TYPE, buffer->data + inOffset, bufSize - inOffset, TRUE, IN_BUFFER_TIMEOUT);
 			inOffset += recvCount;
 		}
 		if(inOffset >= bufSize)
 		{
-			unsigned outSent = m_outgoing.Write(OUT_TYPE, buffer.data(), bufSize, INFINITE);
-			if(outSent != m_bufSize && m_outgoing.isConnected())
-			{
-				m_outgoing.attrs.sync_fault->fire();
-			}
-			if(inOffset > bufSize)
-			{
-				memmove(buffer.data(), buffer.data() + bufSize, inOffset * sizeof(store_type));
-			}
-			inOffset -= bufSize;
+			BOOL outFrame = m_outgoing.WriteOne(OUT_TYPE, &buffer, INFINITE);
+			if(!outFrame && m_outgoing.isConnected()) m_outgoing.attrs.sync_fault->fire();
+			buffer = VectorType::retrieve(bufSize);
+			inOffset = 0;
 		}
 	}
+	if(buffer) buffer->Release();
 }

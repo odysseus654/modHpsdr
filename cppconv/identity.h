@@ -118,6 +118,8 @@ private:
 	CIdentity& operator=(const CIdentity& other);
 
 protected:
+	enum { is_vector = StoreType<ET>::is_vector };
+
 	virtual signals::IEPBuffer* CreateBuffer()
 	{
 		signals::IEPBuffer* buffer = m_incoming.CreateBuffer();
@@ -130,63 +132,6 @@ protected:
 	}
 
 	virtual void thread_run();
-};
-
-template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class CVecIdentity : public CIdentity<ET, DEFAULT_BUFSIZE>, public signals::IAttributeObserver
-{
-public:
-	inline CVecIdentity(signals::IBlockDriver* driver):CIdentity(driver),m_lastWidthAttr(NULL),m_width(0) {}
-
-private:
-	CVecIdentity(const CVecIdentity& other);
-	CVecIdentity& operator=(const CVecIdentity& other);
-
-protected:
-	signals::IAttribute* m_lastWidthAttr;
-	volatile long m_width;
-
-	virtual void thread_run();
-
-	void establishAttributes()
-	{
-		signals::IAttributes* attrs = m_incoming.RemoteAttributes();
-		if(attrs)
-		{
-			signals::IAttribute* attr = attrs->GetByName("blockSize");
-			if(attr && (attr->Type() == signals::etypShort || attr->Type() == signals::etypLong))
-			{
-				m_lastWidthAttr = attr;
-				m_lastWidthAttr->Observe(this);
-				OnChanged(attr, attr->getValue());
-			}
-		}
-	}
-
-public: // IAttributeObserver implementation
-	virtual void OnChanged(signals::IAttribute* attr, const void* value)
-	{
-		if(attr == m_lastWidthAttr)
-		{
-			long width;
-			if(attr->Type() == signals::etypShort)
-			{
-				width = *(short*)value;
-			} else {
-				width = *(long*)value;
-			}
-			InterlockedExchange(&m_width, width);
-		}
-	}
-
-	virtual void OnDetached(signals::IAttribute* attr)
-	{
-		if(attr == m_lastWidthAttr)
-		{
-			m_lastWidthAttr = NULL;
-		}
-		else ASSERT(FALSE);
-	}
 };
 
 template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
@@ -215,19 +160,6 @@ protected:
 	static const unsigned char FINGERPRINT[];
 };
 
-template<signals::EType ET, int DEFAULT_BUFSIZE = 4096>
-class CVecIdentityDriver : public CIdentityDriver<ET,DEFAULT_BUFSIZE>
-{
-public:
-	inline CVecIdentityDriver() {}
-	virtual ~CVecIdentityDriver() {}
-	virtual signals::IBlock* Create();
-
-private:
-	CVecIdentityDriver(const CVecIdentityDriver& other);
-	CVecIdentityDriver operator=(const CVecIdentityDriver& other);
-};
-
 // ------------------------------------------------------------------------------------------------
 
 template<signals::EType ET, int DEFAULT_BUFSIZE>
@@ -251,14 +183,6 @@ signals::IBlock * CIdentityDriver<ET,DEFAULT_BUFSIZE>::Create()
 	return blk;
 }
 
-template<signals::EType ET, int DEFAULT_BUFSIZE>
-signals::IBlock * CVecIdentityDriver<ET,DEFAULT_BUFSIZE>::Create()
-{
-	signals::IBlock* blk = new CVecIdentity<ET,DEFAULT_BUFSIZE>(this);
-	blk->AddRef();
-	return blk;
-}
-
 // ------------------------------------------------------------------ class CIdentity
 
 template<signals::EType ET, int DEFAULT_BUFSIZE>
@@ -272,40 +196,23 @@ void CIdentity<ET,DEFAULT_BUFSIZE>::thread_run()
 	{
 		unsigned recvCount = m_incoming.Read(ET, buffer.data(), buffer.size(), FALSE, IN_BUFFER_TIMEOUT);
 		ASSERT(recvCount <= buffer.size());
-		if(recvCount && m_outgoing.isConnected())
+		if(recvCount)
 		{
-			unsigned outSent = m_outgoing.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
-			if(outSent != recvCount)
+			if(m_outgoing.isConnected())
 			{
-				m_outgoing.attrs.sync_fault->fire();
+				unsigned outSent = m_outgoing.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
+				if(outSent != recvCount)
+				{
+					m_outgoing.attrs.sync_fault->fire();
+					if(is_vector)
+					{
+						for(unsigned elm=outSent; elm < recvCount; elm++) (*(signals::IVector**)&buffer[elm])->Release();
+					}
+				}
 			}
-		}
-	}
-}
-
-template<signals::EType ET, int DEFAULT_BUFSIZE>
-void CVecIdentity<ET,DEFAULT_BUFSIZE>::thread_run()
-{
-	ThreadBase::SetThreadName("Identity Thread (vector variant)");
-
-	typedef StoreType<ET>::type store_type;
-	std::vector<store_type> buffer(DEFAULT_BUFSIZE);
-	while(threadRunning())
-	{
-		{
-			if(!m_lastWidthAttr) establishAttributes();
-			long width = m_width;
-			if((long)buffer.size() < width) buffer.resize(width);
-		}
-
-		unsigned recvCount = m_incoming.Read(ET, buffer.data(), buffer.size(), FALSE, IN_BUFFER_TIMEOUT);
-		ASSERT(recvCount <= buffer.size());
-		if(recvCount && m_outgoing.isConnected())
-		{
-			unsigned outSent = m_outgoing.Write(ET, buffer.data(), recvCount, OUT_BUFFER_TIMEOUT);
-			if(outSent != recvCount)
+			else if(is_vector)
 			{
-				m_outgoing.attrs.sync_fault->fire();
+				for(unsigned elm=0; elm < recvCount; elm++) (*(signals::IVector**)&buffer[elm])->Release();
 			}
 		}
 	}

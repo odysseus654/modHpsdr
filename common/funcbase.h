@@ -133,6 +133,17 @@ protected:
 			return numElem;
 		}
 
+		virtual BOOL ReadOne(signals::EType type, void* buffer, unsigned msTimeout)
+		{
+			ASSERT(type == OUTT);
+			if(!m_readFrom) return FALSE;
+
+			in_type localBuffer;
+			BOOL numElem = m_readFrom->ReadOne(INN, &localBuffer, msTimeout);
+			if(numElem) *(out_type*)buffer = m_oper(localBuffer);
+			return numElem;
+		}
+
 		virtual signals::IEPBuffer* CreateBuffer()
 		{
 			if(!m_readFrom) return NULL;
@@ -192,6 +203,14 @@ protected:
 			}
 			return m_writeTo->Write(OUTT, &m_buffer[0], numElem, msTimeout);
 		}
+
+		virtual BOOL WriteOne(signals::EType type, const void* buffer, unsigned msTimeout)
+		{
+			ASSERT(type == INN);
+			if(!m_writeTo) return FALSE;
+			out_type localBuffer = m_oper(*(in_type*)buffer);
+			return m_writeTo->WriteOne(OUTT, &localBuffer, msTimeout);
+		}
 	};
 
 	class InstanceBase : public CRefcountObject, public signals::IFunction
@@ -247,9 +266,62 @@ public:
 		:FunctionBase(name, descr), m_oper(oper)
 	{}
 
+	inline Function(const OPER& oper = OPER())
+		:FunctionBase(OPER::NAME, OPER::DESCR), m_oper(oper)
+	{}
+
 protected:
 	OPER m_oper;
 };
+
+template<signals::EType INN, signals::EType OUTT, typename OPER>
+struct VectorElementOperator : public std::unary_function<signals::IVector*,signals::IVector*>
+{
+	typedef signals::IVector* argument_type;
+	typedef signals::IVector* result_type;
+	typedef typename StoreType<OUTT>::buffer_templ out_buffer_templ;
+	typedef typename StoreType<INN>::base_type in_base_type;
+	typedef typename StoreType<OUTT>::base_type out_base_type;
+
+	inline VectorElementOperator(const OPER& oper = OPER()):m_oper(oper) {}
+	OPER m_oper;
+
+	inline result_type operator()(argument_type parm)
+	{
+		if(!parm || parm->Type() != StoreType<INN>::base_enum)
+		{
+			ASSERT(FALSE);
+			return parm;
+		}
+		unsigned width = parm->Size();
+		out_buffer_templ* out = out_buffer_templ::retrieve(width);
+		const in_base_type* inData = (in_base_type*)parm->Data();
+		out_base_type* outData = out->data;
+		for(unsigned idx = 0; idx < width; ++idx)
+		{
+			outData[idx] = m_oper(inData[idx]);
+		}
+		parm->Release();
+		return out;
+	}
+};
+
+template<signals::EType INN, signals::EType OUTT, typename OPER>
+class VectorElementFunction : public Function<INN,OUTT,VectorElementOperator<INN,OUTT,OPER> >
+{
+private:
+	typedef Function<INN,OUTT,VectorElementOperator<INN,OUTT,OPER> > base_type;
+public:
+	inline VectorElementFunction(const char* name, const char* descr, const OPER& oper = OPER())
+		:base_type(name, descr, VectorElementOperator<INN,OUTT,OPER>(oper))
+	{}
+
+	inline VectorElementFunction(const OPER& oper = OPER())
+		:base_type(OPER::NAME, OPER::DESCR, VectorElementOperator<INN,OUTT,OPER>(oper))
+	{}
+};
+
+// --------------------------------------------------------------------------------------
 
 template<signals::EType INN, signals::EType OUTT, typename Derived>
 const unsigned char FunctionBase<INN,OUTT,Derived>::FINGERPRINT[] = { (unsigned char)INN, (unsigned char)OUTT };

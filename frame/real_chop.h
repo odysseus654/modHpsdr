@@ -46,7 +46,7 @@ template<signals::EType ET>
 class ChopRealFrame : public signals::IFunctionSpec
 {
 protected:
-	typedef typename StoreType<ET>::type my_type;
+	static signals::IVector* chop_frame(signals::IVector* frame);
 
 protected:
 	template<typename Derived>
@@ -97,7 +97,7 @@ protected:
 	class InputFunction : public InputFunctionBase, public ChopAttributeBase<InputFunction>
 	{
 	protected:
-		typedef std::vector<my_type> TInBuffer;
+		typedef std::vector<signals::IVector*> TInBuffer;
 		TInBuffer m_buffer;
 
 		inline signals::IAttributes* RemoteAttributes() { return m_readFrom ? m_readFrom->OutputAttributes() : NULL; }
@@ -111,6 +111,7 @@ protected:
 
 	public: // IEPReceiver implementaton
 		virtual unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
+		virtual BOOL ReadOne(signals::EType type, void* buffer, unsigned msTimeout);
 
 		virtual signals::IEPBuffer* CreateBuffer()
 		{
@@ -127,6 +128,10 @@ protected:
 
 	class OutputFunction : public OutputFunctionBase, public ChopAttributeBase<OutputFunction>
 	{
+	protected:
+		typedef std::vector<signals::IVector*> TOutBuffer;
+		TOutBuffer m_buffer;
+
 	public:
 		inline OutputFunction(signals::IFunction* parent, signals::IFunctionSpec* spec)
 			:OutputFunctionBase(parent, spec) {}
@@ -147,13 +152,8 @@ protected:
 		}
 
 	public: // IEPSender implementaton
-		virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout)
-		{
-			ASSERT(type == ET);
-			if(!m_writeTo) return 0;
-			verifyProxy();
-			return m_writeTo->Write(ET, buffer, numElem / 2, msTimeout) * 2;
-		}
+		virtual unsigned Write(signals::EType type, const void* buffer, unsigned numElem, unsigned msTimeout);
+		virtual BOOL WriteOne(signals::EType type, const void* buffer, unsigned msTimeout);
 
 		friend class CCascadedAttributesBase<OutputFunction>;
 	};
@@ -340,19 +340,80 @@ unsigned ChopRealFrame<ET>::InputFunction::Read(signals::EType type, void* buffe
 	if(!m_readFrom) return 0;
 	verifyProxy();
 
-	if(m_buffer.size() < numAvail*2) m_buffer.resize(numAvail*2);
-	unsigned numElem = m_readFrom->Read(ET, &m_buffer[0], numAvail*2, bFillAll, msTimeout);
-	if(!numElem) return 0;
-	unsigned numCopy = numElem / 2;
-	if(StoreType<ET>::is_blittable)
+	if(m_buffer.size() < numAvail) m_buffer.resize(numAvail);
+	unsigned numElem = m_readFrom->Read(ET, &m_buffer[0], numAvail, bFillAll, msTimeout);
+	if(numElem)
 	{
-		memcpy(buffer, &m_buffer[0], numCopy * sizeof(my_type));
-	} else {
-		my_type* nativeBuff = (my_type*)buffer;
-		for(unsigned idx=0; idx < numCopy; idx++)
+		signals::IVector** nativeBuff = (signals::IVector**)buffer;
+		for(unsigned idx=0; idx < numElem; idx++)
 		{
-			nativeBuff[idx] = m_buffer[idx];
+			nativeBuff[idx] = chop_frame(m_buffer[idx]);
 		}
 	}
-	return numCopy;
+	return numElem;
+}
+
+template<signals::EType ET>
+BOOL ChopRealFrame<ET>::InputFunction::ReadOne(signals::EType type, void* buffer, unsigned msTimeout)
+{
+	ASSERT(type == ET);
+	if(!m_readFrom) return FALSE;
+	verifyProxy();
+
+	signals::IVector* localBuffer;
+	BOOL numElem = m_readFrom->ReadOne(ET, &localBuffer, msTimeout);
+	if(numElem) *(signals::IVector**)buffer = chop_frame(localBuffer);
+	return numElem;
+}
+
+template<signals::EType ET>
+unsigned ChopRealFrame<ET>::OutputFunction::Write(signals::EType type, const void* buffer,
+	unsigned numElem, unsigned msTimeout)
+{
+	ASSERT(type == ET);
+	if(!m_writeTo || !numElem) return 0;
+	verifyProxy();
+
+	if(m_buffer.size() < numElem) m_buffer.resize(numElem);
+	signals::IVector** nativeBuff = (signals::IVector**)buffer;
+	for(unsigned idx=0; idx < numElem; idx++)
+	{
+		m_buffer[idx] = chop_frame(nativeBuff[idx]);
+	}
+
+	return m_writeTo->Write(ET, &m_buffer[0], numElem, msTimeout);
+}
+
+template<signals::EType ET>
+BOOL ChopRealFrame<ET>::OutputFunction::WriteOne(signals::EType type, const void* buffer, unsigned msTimeout)
+{
+	ASSERT(type == ET);
+	if(!m_writeTo) return FALSE;
+	verifyProxy();
+
+	signals::IVector* localBuffer = chop_frame(*(signals::IVector**)buffer);
+	return m_writeTo->WriteOne(ET, &localBuffer, msTimeout);
+}
+
+template<signals::EType ET>
+signals::IVector* ChopRealFrame<ET>::chop_frame(signals::IVector* frame)
+{
+	typedef StoreType<ET> my_type;
+	typedef StoreType<(signals::EType)my_type::base_enum> base_type;
+
+	if(!frame) { ASSERT(FALSE); return NULL; }
+	ASSERT(frame->Type() == my_type::base_enum);
+	unsigned copySize = frame->Size() / 2;
+	my_type::buffer_templ* newBuff = my_type::buffer_templ::retrieve(copySize);
+	base_type::type* srcData = (base_type::type*)frame->Data();
+	if(base_type::is_blittable)
+	{
+		memcpy(newBuff->data, srcData, sizeof(base_type::type) * copySize);
+	}
+	else for(unsigned idx=0; idx < copySize; idx++)
+	{
+		newBuff->data[idx] = srcData[idx];
+	}
+	frame->Release();
+	return newBuff;
 }

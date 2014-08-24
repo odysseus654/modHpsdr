@@ -47,6 +47,7 @@ protected:
 public:
 	virtual ~CInEndpointBase() { Disconnect(); }
 	unsigned Read(signals::EType type, void* buffer, unsigned numAvail, BOOL bFillAll, unsigned msTimeout);
+	BOOL ReadOne(signals::EType type, void* buffer, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPRecvFrom* recv);
 	virtual BOOL isConnected() { return !!m_connRecv; }
@@ -77,6 +78,7 @@ protected:
 public:
 	virtual ~COutEndpointBase() { Disconnect(); }
 	unsigned Write(signals::EType type, void* buffer, unsigned numElem, unsigned msTimeout);
+	BOOL WriteOne(signals::EType type, void* buffer, unsigned msTimeout);
 
 	virtual BOOL Connect(signals::IEPSendTo* send);
 	virtual BOOL isConnected() { return !!m_connSend; }
@@ -339,6 +341,7 @@ private:
 };
 
 template<signals::EType ET> struct StoreType;
+template<signals::EType ET> class Vector;
 template<> struct StoreType<signals::etypEvent>
 {
 	typedef void type;
@@ -348,154 +351,227 @@ template<> struct StoreType<signals::etypBoolean>
 {
 	typedef unsigned char type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypWinHdl>
 {
 	typedef HANDLE type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypByte>
 {
 	typedef unsigned char type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypShort>
 {
 	typedef short type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypLong>
 {
 	typedef long type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypInt64>
 {
 	typedef __int64 type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypSingle>
 {
 	typedef float type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypDouble>
 {
 	typedef double type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	enum { is_blittable = 1, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypComplex>
 {
 	typedef std::complex<float> type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	enum { is_blittable = 0, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypCmplDbl>
 {
 	typedef std::complex<double> type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	enum { is_blittable = 0, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypString>
 {
 	typedef std::string type;
-	enum { is_blittable = 0 };
+	enum { is_blittable = 0, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypLRSingle>
 {
 	typedef std::complex<float> type;
 	typedef Buffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	enum { is_blittable = 0, is_vector = 0 };
 };
 
 template<> struct StoreType<signals::etypVecBoolean>
 {
-	typedef unsigned char type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef unsigned char base_type;
+	typedef Vector<signals::etypBoolean> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypBoolean };
 };
 
 template<> struct StoreType<signals::etypVecByte>
 {
-	typedef unsigned char type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef unsigned char base_type;
+	typedef Vector<signals::etypByte> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypByte };
 };
 
 template<> struct StoreType<signals::etypVecShort>
 {
-	typedef short type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef short base_type;
+	typedef Vector<signals::etypShort> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypShort };
 };
 
 template<> struct StoreType<signals::etypVecLong>
 {
-	typedef long type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef long base_type;
+	typedef Vector<signals::etypLong> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypLong };
 };
 
 template<> struct StoreType<signals::etypVecInt64>
 {
-	typedef __int64 type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef __int64 base_type;
+	typedef Vector<signals::etypInt64> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypInt64 };
 };
 	
 template<> struct StoreType<signals::etypVecSingle>
 {
-	typedef float type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef float base_type;
+	typedef Vector<signals::etypSingle> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypSingle };
 };
 
 template<> struct StoreType<signals::etypVecDouble>
 {
-	typedef double type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 1 };
+	typedef signals::IVector* type;
+	typedef double base_type;
+	typedef Vector<signals::etypDouble> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypDouble };
 };
 
 template<> struct StoreType<signals::etypVecComplex>
 {
-	typedef std::complex<float> type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	typedef signals::IVector* type;
+	typedef std::complex<float> base_type;
+	typedef Vector<signals::etypComplex> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypComplex };
 };
 
 template<> struct StoreType<signals::etypVecCmplDbl>
 {
-	typedef std::complex<double> type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	typedef signals::IVector* type;
+	typedef std::complex<double> base_type;
+	typedef Vector<signals::etypCmplDbl> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypCmplDbl };
 };
 
 template<> struct StoreType<signals::etypVecLRSingle>
 {
-	typedef std::complex<float> type;
-	typedef VectorBuffer<type> buffer_type;
-	enum { is_blittable = 0 };
+	typedef signals::IVector* type;
+	typedef std::complex<float> base_type;
+	typedef Vector<signals::etypLRSingle> buffer_templ;
+	typedef Buffer<type> buffer_type;
+	enum { is_vector = 1, base_enum = signals::etypLRSingle };
 };
+
+template<signals::EType ET>
+class VectorPool
+{
+protected:
+	typedef Vector<ET> vector_type;
+	typedef std::list<vector_type*> pool_type;
+	pool_type m_pool;
+	Lock m_poolLock;
+	LONG m_liveCount;
+	enum { MAX_POOL_SIZE = 15 };
+public:
+	inline VectorPool():m_liveCount(0){}
+	vector_type* retrieve(unsigned size);
+	void release(vector_type* vec);
+};
+
+#pragma warning(push)
+#pragma warning(disable: 4200)
+
+template<signals::EType ET>
+class Vector : public signals::IVector
+{
+public:
+	typedef typename StoreType<ET>::type EntryType;
+
+	virtual signals::EType Type()	{ ASSERT(m_refCount > 0); return ET; }
+	virtual unsigned Size()			{ ASSERT(m_refCount > 0); return size; }
+	virtual unsigned AddRef()		{ return _InterlockedIncrement(&m_refCount); }
+	virtual unsigned Release();
+	virtual const void* Data()		{ ASSERT(m_refCount > 0); return data; }
+
+protected:
+	inline Vector(unsigned s):size(s),m_refCount(0){}
+	static VectorPool<ET> gl_pool;
+private:
+	Vector(const Vector&);
+	Vector& operator=(const Vector&);
+	~Vector() {}
+
+	volatile long m_refCount;
+
+public:
+	static Vector* retrieve(unsigned size) { return gl_pool.retrieve(size); }
+	static Vector* construct(unsigned size);
+	void destruct();
+
+	const unsigned size;
+	EntryType data[0];
+};
+#pragma warning(pop)
+
+template<signals::EType ET> VectorPool<ET> Vector<ET>::gl_pool;
 
 #pragma warning(push)
 #pragma warning(disable: 4355)
@@ -805,11 +881,17 @@ public: // IEPSendTo
 				unsigned numWritten = buffer.push_back_vector(&pBuf[idx], numElem-idx, msTimeout);
 				idx += numWritten;
 				if(!numWritten) break;
-				ASSERT(!buffer_type::is_vector || numWritten == numElem);
+				ASSERT(!StoreType<ET>::is_vector || numWritten == numElem);
 			}
 			return idx;
 		}
 		else return 0; // implicit translation not yet supported
+	}
+
+	virtual BOOL WriteOne(signals::EType type, const void* pBuffer, unsigned msTimeout)
+	{
+		if(type != ET) return FALSE; // implicit translation not yet supported
+		return buffer.push_back(*(store_type*)pBuffer, msTimeout);
 	}
 
 	virtual void onSinkConnected(signals::IInEndpoint* src)
@@ -847,11 +929,17 @@ public: // IEPRecvFrom
 			{
 				unsigned numRead = buffer.pop_front_vector(&pBuf[idx], numAvail-idx, msTimeout);
 				idx += numRead;
-				if(buffer_type::is_vector || !numRead || !bFillAll) break;
+				if(StoreType<ET>::is_vector || !numRead || !bFillAll) break;
 			}
 			return idx;
 		}
 		else return 0; // implicit translation not yet supported
+	}
+
+	virtual BOOL ReadOne(signals::EType type, void* pBuffer, unsigned msTimeout)
+	{
+		if(type != ET) return FALSE; // implicit translation not yet supported
+		return buffer.pop_front(*(store_type*)pBuffer, msTimeout);
 	}
 
 	virtual signals::IEPBuffer* CreateBuffer()
@@ -914,6 +1002,67 @@ unsigned CRefcountObject::Release()
 {
 	unsigned newref = _InterlockedDecrement(&m_refCount);
 	if(!newref) delete this;
+	return newref;
+}
+
+template<signals::EType ET>
+typename VectorPool<ET>::vector_type* VectorPool<ET>::retrieve(unsigned size)
+{
+	{
+		Locker lock(m_poolLock);
+		pool_type::iterator trans = m_pool.end();
+		while(trans != m_pool.begin())
+		{
+			vector_type* result = *--trans;
+			if(result->size == size)
+			{
+				m_pool.erase(trans);
+				result->AddRef();
+				return result;
+			}
+		}
+	}
+
+	vector_type* result = vector_type::construct(size);
+	VERIFY(++m_liveCount < 100);
+	result->AddRef();
+	return result;
+}
+
+template<signals::EType ET>
+void VectorPool<ET>::release(vector_type* vec)
+{
+	Locker lock(m_poolLock);
+	m_pool.push_back(vec);
+	while(m_pool.size() > MAX_POOL_SIZE)
+	{
+		vector_type* first = m_pool.front();
+		m_pool.pop_front();
+		first->destruct();
+		m_liveCount--;
+	}
+}
+
+template<signals::EType ET>
+Vector<ET>* Vector<ET>::construct(unsigned size)
+{
+	Vector* result = (Vector*)malloc(sizeof(Vector) + size * sizeof(EntryType));
+	new(result) Vector(size);
+	return result;
+}
+
+template<signals::EType ET>
+void Vector<ET>::destruct()
+{
+	this->~Vector();
+	free(this);
+}
+
+template<signals::EType ET>
+unsigned Vector<ET>::Release()
+{
+	unsigned newref = _InterlockedDecrement(&m_refCount);
+	if(!newref) gl_pool.release(this);
 	return newref;
 }
 

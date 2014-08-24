@@ -59,61 +59,176 @@ protected:
 		std::cout << m_prefix.c_str() << "/" << m_name.c_str() << ": " << valueToString(type, value).c_str() << std::endl;
 	}
 
-	static std::string valueToString(signals::EType type, const void* value)
+	static std::string valueToString(signals::EType type, const void* value, bool bRelease = true)
 	{
 		char buffer[200];
 		if(type == signals::etypEvent) return "(fired)";
 		if(!value) return "(null)";
 		switch(type)
 		{
+		case signals::etypVecBoolean:
+		case signals::etypVecByte:
+		case signals::etypVecShort:
+		case signals::etypVecLong:
+		case signals::etypVecInt64:
+		case signals::etypVecSingle:
+		case signals::etypVecDouble:
+		case signals::etypVecComplex:
+		case signals::etypVecCmplDbl:
+		case signals::etypVecLRSingle:
+			{
+				signals::IVector* vec = (signals::IVector*)value;
+				unsigned size = vec->Size();
+				const void* dat = vec->Data();
+				std::string accum;
+				unsigned idx;
+				switch(type)
+				{
+				case signals::etypVecBoolean:
+					accum = "(boolean)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						accum = ((const unsigned char*)dat)[idx] ? "true" : "false";
+					}
+					accum += ']';
+					break;
+				case signals::etypVecByte:
+					accum = "(byte)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%d", (int)((unsigned char*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecShort:
+					accum = "(short)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%d", (int)((short*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecLong:
+					accum = "(long)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%d", (int)((long*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecInt64:
+					accum = "(int64)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%I64d", ((__int64*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecSingle:
+					accum = "(single)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%f", (double)((float*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecDouble:
+					accum = "(double)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						sprintf_s(buffer, _countof(buffer), "%f", ((double*)dat)[idx]);
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecComplex:
+					accum = "(complex-single)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						const std::complex<float>& pComplex = ((std::complex<float>*)value)[idx];
+						sprintf_s(buffer, _countof(buffer), "<real: %f, imag: %f>", (double)pComplex.real(), (double)pComplex.imag());
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecCmplDbl:
+					accum = "(complex-double)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						const std::complex<double>& pComplex = ((std::complex<double>*)value)[idx];
+						sprintf_s(buffer, _countof(buffer), "<real: %f, imag: %f>", pComplex.real(), pComplex.imag());
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				case signals::etypVecLRSingle:
+					accum = "(left/right)[";
+					for(idx=0; idx < size; idx++)
+					{
+						if(idx) accum += ", ";
+						const std::complex<float>& pComplex = ((std::complex<float>*)value)[idx];
+						sprintf_s(buffer, _countof(buffer), "<real: %f, imag: %f>", (double)pComplex.real(), (double)pComplex.imag());
+						accum += buffer;
+					}
+					accum += ']';
+					break;
+				}
+				if(bRelease) vec->Release();
+				break;
+			}
+
 		case signals::etypWinHdl:
 			sprintf_s(buffer, _countof(buffer), "(HWND)%08X", (int)*(HANDLE*)value);
 			break;
 		case signals::etypBoolean:
-		case signals::etypVecBoolean:
 			return *(unsigned char*)value ? "(boolean)true" : "(boolean)false";
 		case signals::etypByte:
-		case signals::etypVecByte:
 			sprintf_s(buffer, _countof(buffer), "(byte)%d", (int)*(unsigned char*)value);
 			break;
 		case signals::etypShort:
-		case signals::etypVecShort:
 			sprintf_s(buffer, _countof(buffer), "(short)%d", (int)*(short*)value);
 			break;
 		case signals::etypLong:
-		case signals::etypVecLong:
 			sprintf_s(buffer, _countof(buffer), "(long)%d", (int)*(long*)value);
 			break;
 		case signals::etypInt64:
-		case signals::etypVecInt64:
 			sprintf_s(buffer, _countof(buffer), "(int64)%I64d", *(__int64*)value);
 			break;
 		case signals::etypSingle:
-		case signals::etypVecSingle:
 			sprintf_s(buffer, _countof(buffer), "(single)%f", (double)*(float*)value);
 			break;
 		case signals::etypDouble:
-		case signals::etypVecDouble:
 			sprintf_s(buffer, _countof(buffer), "(double)%f", *(double*)value);
 			break;
 		case signals::etypString:
 			return std::string("(string)") + (char*)value;
 		case signals::etypComplex:
-		case signals::etypVecComplex:
 			{
 				std::complex<float>* pComplex = (std::complex<float>*)value;
-				sprintf_s(buffer, _countof(buffer), "(complex) <real: %f, imag: %f>", (double)pComplex->real(), (double)pComplex->imag());
+				sprintf_s(buffer, _countof(buffer), "(complex-single) <real: %f, imag: %f>", (double)pComplex->real(), (double)pComplex->imag());
 				break;
 			}
 		case signals::etypCmplDbl:
-		case signals::etypVecCmplDbl:
 			{
 				std::complex<double>* pComplex = (std::complex<double>*)value;
-				sprintf_s(buffer, _countof(buffer), "(complex) <real: %f, imag: %f>", pComplex->real(), pComplex->imag());
+				sprintf_s(buffer, _countof(buffer), "(complex-double) <real: %f, imag: %f>", pComplex->real(), pComplex->imag());
 				break;
 			}
 		case signals::etypLRSingle:
-		case signals::etypVecLRSingle:
 			{
 				std::complex<float>* pComplex = (std::complex<float>*)value;
 				sprintf_s(buffer, _countof(buffer), "(left/right) <left: %f, right: %f>", (double)pComplex->real(), (double)pComplex->imag());
